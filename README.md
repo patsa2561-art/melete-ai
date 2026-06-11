@@ -19,9 +19,20 @@ Melete answers both. It is **not** a wet-lab automation product and it does **no
 
 Self-driving labs and Bayesian optimisation already exist — so "automated lab" is **not** novel, and we don't claim it. Melete's defensible composition is:
 
-1. **Pluggable oracle — everything is `f(x)`.** The brain doesn't care whether the oracle is a simulation, a lab robot over HTTP, a factory process, a hyperparameter trainer, or an **LLM grading a qualitative result**. `f(x) = score(run(x))` turns *anything scorable* into an optimisable experiment. The market is far larger than chemistry.
-2. **Cryptographic discovery trace.** Every hypothesis → observation → update is **Ed25519-signed and hash-chained**. Anyone can verify **offline**, with the public key alone, that the discovery path is authentic, unaltered, and in order. In a field with a replication crisis (p-hacking, data ghosting), *provable* provenance-of-discovery is worth a great deal — for patents, audits, journals, acquisitions. **No optimiser or lab ships this.**
-3. **Deterministic + reproducible.** Same seed + same oracle ⇒ identical run ⇒ the signed trace actually means something.
+1. **The SUPER NOVA engine — a context-adaptive ensemble.** No single optimiser wins on every landscape (the No-Free-Lunch theorem). So Melete runs a **portfolio** of strategy arms (Bayesian kernel-UCB, CMA-ES evolution, a wave-interference field, random) and a **bandit** spends each expensive experiment on whichever arm is delivering the most improvement *on this problem right now*. The result: **one engine that adapts to the problem instead of being re-tuned per problem** — and on rugged landscapes the ensemble **beats every single algorithm** (measured below).
+2. **Pluggable oracle — everything is `f(x)`.** The brain doesn't care whether the oracle is a simulation, a lab robot over HTTP, a factory process, a hyperparameter trainer, an LLM grading a qualitative result, or a **shell command** (a CI run, a training script). `f(x) = score(run(x))` turns *anything scorable* into an optimisable experiment. The market is far larger than chemistry.
+3. **Cryptographic discovery trace.** Every hypothesis → observation → update (and *which arm proposed it*) is **Ed25519-signed and hash-chained**. Anyone can verify **offline**, with the public key alone, that the discovery path is authentic, unaltered, and in order. In a field with a replication crisis (p-hacking, data ghosting), *provable* provenance-of-discovery is worth a great deal — for patents, audits, journals, acquisitions. **No optimiser or lab ships this.**
+4. **Deterministic + reproducible.** Same seed + same oracle ⇒ identical run (and identical arm allocation) ⇒ the signed trace actually means something.
+
+### Measured robustness (`melete bench --robust`) — mean best reached, higher = better
+
+| landscape | **PORTFOLIO** | kernel-ucb | cmaes | resonance | random |
+|---|---|---|---|---|---|
+| smooth-2D | 0.988 | 0.999 | 1.000 | 0.091 | 0.867 |
+| **rugged-2D** | **−1.705** 🏆 | −6.814 | −3.362 | −24.419 | −4.518 |
+| high-5D | 0.992 | 0.985 | 1.000 | 0.006 | 0.568 |
+
+The portfolio is **never the worst**, tracks the best arm on every landscape **with no per-problem tuning**, and on the **rugged** surface (many local optima) the ensemble **beats every individual algorithm**. That robustness — not any one "magic" algorithm — is the production guarantee.
 
 ---
 

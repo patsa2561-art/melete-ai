@@ -1,13 +1,25 @@
 {
   "name": "melete-ai",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Melete — the Self-Driving Discovery Brain. A closed-loop active-experiment engine with a pluggable oracle and a signed, offline-verifiable discovery trace. Mneme remembers; Melete discovers.",
   "type": "module",
-  "bin": { "melete": "bin/melete.mjs" },
+  "bin": {
+    "melete": "bin/melete.mjs"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "files": ["dist", "bin", "README.md", "LICENSE"],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run",
@@ -15,9 +27,23 @@
     "bench": "node bin/melete.mjs bench",
     "prepublishOnly": "npm run build && npm run test"
   },
-  "keywords": ["self-driving-lab", "discovery", "active-learning", "experiment-design", "optimization", "provenance", "signed", "reproducible", "resonance", "ai-agent", "oracle"],
+  "keywords": [
+    "self-driving-lab",
+    "discovery",
+    "active-learning",
+    "experiment-design",
+    "optimization",
+    "provenance",
+    "signed",
+    "reproducible",
+    "resonance",
+    "ai-agent",
+    "oracle"
+  ],
   "license": "MIT",
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0",

@@ -48,6 +48,24 @@ export function scoredOracle<A>(run: (e: Experiment) => A | Promise<A>, score: (
   return async (e) => { const artifact = await run(e); const v = Number(await score(artifact, e)); if (!Number.isFinite(v)) throw new Error("score() returned a non-numeric value"); return v; };
 }
 
+/**
+ * CLI oracle — runs a shell command for each experiment and parses a number from its stdout. This is the
+ * real-world adapter for CI / training / process tuning: optimise compiler flags by running the build +
+ * parsing the benchmark, tune hyperparameters by running the trainer + parsing the metric, tune a process
+ * script by running it + parsing the yield. `cmd(e)` builds the command for experiment e; `parse(stdout)`
+ * extracts the metric (defaults to the last number printed). Provided as a factory so the heavy node:
+ * child_process import is lazy (keeps the core dependency-free + browser-safe).
+ */
+export function cliOracle(cmd: (e: Experiment) => string, parse?: (stdout: string) => number, opts?: { cwd?: string; timeoutMs?: number }): Oracle {
+  return async (e) => {
+    const { execSync } = await import("node:child_process");
+    const stdout = String(execSync(cmd(e), { encoding: "utf8", cwd: opts?.cwd, timeout: opts?.timeoutMs ?? 600_000, stdio: ["ignore", "pipe", "ignore"] }));
+    const v = parse ? parse(stdout) : Number((stdout.match(/-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?/g) ?? []).at(-1));
+    if (!Number.isFinite(v)) throw new Error("cliOracle: could not parse a number from stdout");
+    return v;
+  };
+}
+
 /** Multi-objective → one number: a weighted sum of several oracles (e.g. maximise yield − cost − toxicity). */
 export function compositeOracle(parts: ReadonlyArray<{ oracle: Oracle; weight: number }>): Oracle {
   return async (e) => { let s = 0; for (const p of parts ?? []) s += (Number(p.weight) || 0) * Number(await p.oracle(e)); return s; };

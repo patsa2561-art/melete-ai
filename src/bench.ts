@@ -43,6 +43,45 @@ export async function benchmark(opts?: { budget?: number; target?: number; seeds
   return { brain, random, grid, target, budget };
 }
 
+/** A rugged Rastrigin-style surface (many local optima; global max 0 at (6.3,3.7)) — where single
+ * greedy optimisers get trapped and the portfolio's diversity pays off. */
+export function rugged(e: Experiment): number {
+  const x = (Number(e?.["x"]) || 0) - 6.3, y = (Number(e?.["y"]) || 0) - 3.7;
+  return -(20 + (x * x - 10 * Math.cos(2 * Math.PI * x)) + (y * y - 10 * Math.cos(2 * Math.PI * y)));
+}
+
+import { portfolioDiscover } from "./portfolio.js";
+import { armKernelUCB, armCMAES, armResonance, armRandom } from "./arms.js";
+export interface RobustnessRow { landscape: string; portfolio: number; kernelUcb: number; cmaes: number; resonance: number; random: number; portfolioIsBest: boolean; portfolioIsWorst: boolean }
+/** Measure the portfolio vs each single arm across diverse landscapes (mean best over `seeds`). The
+ * production thesis, falsifiable: the portfolio is never the worst and tracks the best arm per landscape —
+ * and on the rugged surface the ensemble beats every single algorithm. */
+export async function robustnessBench(seeds = 6): Promise<RobustnessRow[]> {
+  const sp2: Space = { dims: [{ name: "x", type: "real", min: 0, max: 10 }, { name: "y", type: "real", min: 0, max: 10 }] };
+  const sp5: Space = { dims: Array.from({ length: 5 }, (_, i) => ({ name: "x" + i, type: "real" as const, min: 0, max: 1 })) };
+  const f5 = (e: Experiment) => { let s = 0; for (let i = 0; i < 5; i++) { const d = (Number(e?.["x" + i]) || 0) - 0.6; s += d * d; } return Math.exp(-s / 0.1); };
+  const cases = [
+    { landscape: "smooth-2D", space: sp2, oracle: (e: Experiment) => multimodal(e), budget: 80 },
+    { landscape: "rugged-2D", space: sp2, oracle: (e: Experiment) => rugged(e), budget: 150 },
+    { landscape: "high-5D", space: sp5, oracle: f5, budget: 200 },
+  ];
+  const mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
+  const rows: RobustnessRow[] = [];
+  for (const c of cases) {
+    const P: number[] = [], K: number[] = [], C: number[] = [], R: number[] = [], Z: number[] = [];
+    for (let s = 1; s <= seeds; s++) {
+      P.push((await portfolioDiscover({ space: c.space, oracle: c.oracle, budget: c.budget, seed: s, goal: "maximize" })).best.value);
+      K.push((await portfolioDiscover({ space: c.space, oracle: c.oracle, budget: c.budget, seed: s, goal: "maximize", arms: [armKernelUCB()] })).best.value);
+      C.push((await portfolioDiscover({ space: c.space, oracle: c.oracle, budget: c.budget, seed: s, goal: "maximize", arms: [armCMAES()] })).best.value);
+      R.push((await portfolioDiscover({ space: c.space, oracle: c.oracle, budget: c.budget, seed: s, goal: "maximize", arms: [armResonance()] })).best.value);
+      Z.push((await portfolioDiscover({ space: c.space, oracle: c.oracle, budget: c.budget, seed: s, goal: "maximize", arms: [armRandom()] })).best.value);
+    }
+    const p = mean(P), vals = [mean(K), mean(C), mean(R), mean(Z)];
+    rows.push({ landscape: c.landscape, portfolio: p, kernelUcb: vals[0], cmaes: vals[1], resonance: vals[2], random: vals[3], portfolioIsBest: p >= Math.max(...vals) - 1e-9, portfolioIsWorst: p <= Math.min(...vals) + 1e-9 });
+  }
+  return rows;
+}
+
 // ── gauntlet ──────────────────────────────────────────────────────────────────
 export async function benchGauntlet(): Promise<{ score: 0 | 100; checks: Array<{ name: string; pass: boolean; detail: string }> }> {
   const r = await benchmark({ budget: 150, target: 0.99, seeds: 30 });

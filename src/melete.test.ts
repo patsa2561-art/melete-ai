@@ -5,8 +5,10 @@ import {
   simOracle, meteredOracle, scoredOracle, compositeOracle,
   discover, engineGauntlet,
   resonanceDiscover, resonanceGauntlet, resonanceVsBayes,
+  armsGauntlet, defaultArms,
+  portfolioDiscover, portfolioGauntlet,
   Tracer, verifyTrace,
-  multimodal, benchSpace, benchmark, benchGauntlet,
+  multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
 } from "./index.js";
 
@@ -17,10 +19,39 @@ describe("gauntlets (every module = 100)", () => {
   it("engine", async () => expect((await engineGauntlet()).score).toBe(100));
   it("resonance", async () => expect((await resonanceGauntlet()).score).toBe(100));
   it("bench", async () => expect((await benchGauntlet()).score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 6 modules", async () => {
+  it("arms", () => expect(armsGauntlet().score).toBe(100));
+  it("portfolio", async () => expect((await portfolioGauntlet()).score).toBe(100));
+  it("aggregate meleteGauntlet = 100 over all 9 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["bench", "engine", "oracle", "resonance", "space", "trace"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "cortex", "engine", "oracle", "portfolio", "resonance", "space", "trace"]);
+  });
+});
+
+describe("portfolio (SUPER NOVA — context-adaptive ensemble)", () => {
+  it("converges on a smooth surface", async () => {
+    const r = await portfolioDiscover({ space: benchSpace, oracle: (e) => multimodal(e), budget: 80, seed: 7, goal: "maximize", target: 0.99 });
+    expect(r.best.value).toBeGreaterThanOrEqual(0.99);
+  });
+  it("default portfolio holds 4 arms and allocates across them", async () => {
+    expect(defaultArms().map((a) => a.name).sort()).toEqual(["cmaes", "kernel-ucb", "random", "resonance"]);
+    const r = await portfolioDiscover({ space: benchSpace, oracle: (e) => multimodal(e), budget: 40, seed: 1, goal: "maximize" });
+    expect(r.armStats.reduce((s, a) => s + a.pulls, 0)).toBeGreaterThan(0);
+  });
+  it("is deterministic (same seed → same result + same allocation)", async () => {
+    const a = await portfolioDiscover({ space: benchSpace, oracle: (e) => multimodal(e), budget: 50, seed: 4, goal: "maximize" });
+    const b = await portfolioDiscover({ space: benchSpace, oracle: (e) => multimodal(e), budget: 50, seed: 4, goal: "maximize" });
+    expect(JSON.stringify(a.best)).toBe(JSON.stringify(b.best));
+    expect(JSON.stringify(a.armStats)).toBe(JSON.stringify(b.armStats));
+  });
+  it("ROBUSTNESS: on the rugged landscape the ensemble beats every single arm (No-Free-Lunch payoff)", async () => {
+    const rows = await robustnessBench(3);
+    const r = rows.find((x) => x.landscape === "rugged-2D")!;
+    expect(r.portfolio).toBeGreaterThan(r.kernelUcb);
+    expect(r.portfolio).toBeGreaterThan(r.cmaes);
+    expect(r.portfolio).toBeGreaterThan(r.random);
+    // and it is never the worst on any landscape
+    expect(rows.every((x) => !x.portfolioIsWorst)).toBe(true);
   });
 });
 

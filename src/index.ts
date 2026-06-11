@@ -11,30 +11,34 @@ export * from "./space.js";
 export * from "./oracle.js";
 export * from "./engine.js";
 export * from "./resonance.js";
+export * from "./arms.js";
+export * from "./portfolio.js";
+export * from "./cortex.js";
 export * from "./trace.js";
 export * from "./bench.js";
 
 import { type DiscoverOpts, type DiscoveryResult, type Step, discover } from "./engine.js";
 import { resonanceDiscover, type ResonanceOpts } from "./resonance.js";
+import { portfolioDiscover, type PortfolioOpts } from "./portfolio.js";
 import { Tracer, type SignedTrace } from "./trace.js";
 
-export type EngineName = "resonance" | "bayes";
+export type EngineName = "portfolio" | "resonance" | "bayes";
 export interface SignedDiscovery { result: DiscoveryResult; trace: SignedTrace; engine: EngineName }
 
 /**
  * Run a discovery AND emit a signed, offline-verifiable trace of how it was made. Every proposed
  * experiment (hypothesis + rationale) and its observation is recorded into a tamper-evident chain.
  */
-export async function discoverSigned(opts: (DiscoverOpts | ResonanceOpts) & { engine?: EngineName; tracer?: Tracer }): Promise<SignedDiscovery> {
-  const engine: EngineName = opts.engine ?? "bayes";   // bayes is the proven core; resonance is experimental (see resonance.ts)
+export async function discoverSigned(opts: (DiscoverOpts | ResonanceOpts | PortfolioOpts) & { engine?: EngineName; tracer?: Tracer }): Promise<SignedDiscovery> {
+  const engine: EngineName = opts.engine ?? "portfolio";   // portfolio is the production default; bayes = proven single core; resonance = experimental
   const tracer = opts.tracer ?? new Tracer();
   tracer.record("result", { phase: "config", engine, goal: opts.goal ?? "maximize", budget: opts.budget, seed: opts.seed ?? 1, dims: opts.space?.dims?.map((d) => d.name) });
   const onStep = async (s: Step) => {
     tracer.record("hypothesis", { n: s.n, experiment: s.experiment, rationale: s.rationale, acquisition: s.acquisition });
     tracer.record("observation", { n: s.n, experiment: s.experiment, value: s.value });
   };
-  const result = engine === "resonance"
-    ? await resonanceDiscover({ ...(opts as ResonanceOpts), onStep })
+  const result = engine === "portfolio" ? await portfolioDiscover({ ...(opts as PortfolioOpts), onStep })
+    : engine === "resonance" ? await resonanceDiscover({ ...(opts as ResonanceOpts), onStep })
     : await discover({ ...(opts as DiscoverOpts), onStep });
   tracer.record("result", { phase: "final", best: result.best, evaluations: result.evaluations, converged: result.converged });
   return { result, trace: tracer.export(), engine };
@@ -45,8 +49,11 @@ import { spaceGauntlet } from "./space.js";
 import { oracleGauntlet } from "./oracle.js";
 import { engineGauntlet } from "./engine.js";
 import { resonanceGauntlet } from "./resonance.js";
+import { armsGauntlet } from "./arms.js";
+import { portfolioGauntlet } from "./portfolio.js";
 import { traceGauntlet } from "./trace.js";
 import { benchGauntlet } from "./bench.js";
+import { cortexGauntlet } from "./cortex.js";
 
 export interface MeleteGauntlet { score: 0 | 100; modules: Array<{ name: string; score: number; checks: Array<{ name: string; pass: boolean }> }> }
 export async function meleteGauntlet(): Promise<MeleteGauntlet> {
@@ -55,6 +62,9 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "oracle", g: oracleGauntlet() },
     { name: "engine", g: await engineGauntlet() },
     { name: "resonance", g: await resonanceGauntlet() },
+    { name: "arms", g: armsGauntlet() },
+    { name: "portfolio", g: await portfolioGauntlet() },
+    { name: "cortex", g: cortexGauntlet() },
     { name: "trace", g: traceGauntlet() },
     { name: "bench", g: await benchGauntlet() },
   ];
