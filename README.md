@@ -36,12 +36,19 @@ The portfolio is **never the worst**, tracks the best arm on every landscape **w
 
 ---
 
+## Live demo
+
+**https://melete.161.35.122.73.nip.io** — discovery-as-a-service. Paste a space + objective, watch the
+brain discover the optimum and hand back a signed, verifiable trace. `POST /discover`, `POST /verify`.
+
 ## Install
 
 ```bash
 npm install melete-ai          # library
 # or use the CLI directly:
 npx melete-ai bench
+# run the web service yourself:
+npx melete-server              # http://127.0.0.1:8790
 ```
 
 ## CLI
