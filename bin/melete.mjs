@@ -76,6 +76,25 @@ async function main() {
     process.exit(0);
   }
 
+  if (cmd === "tune") {
+    // melete tune --cmd "node train.js --lr {lr} --depth {depth}" --space '[...]' [--budget N] [--goal min]
+    const space = flag("space") ? JSON.parse(flag("space")) : null;
+    const cmdTpl = flag("cmd");
+    if (!space || !Array.isArray(space) && !space.dims || typeof cmdTpl !== "string") { out('usage: melete tune --cmd "your-prog --a {a} --b {b}" --space \'[{"name":"a","type":"real","min":0,"max":1}]\' [--budget N] [--goal minimize]\n  {dim} placeholders are filled with each proposed value; the LAST number your command prints is the score. No dataset needed.'); process.exit(2); }
+    const dims = Array.isArray(space) ? space : space.dims;
+    const { execSync } = await import("node:child_process");
+    const oracle = (e) => { const c = cmdTpl.replace(/\{(\w+)\}/g, (_, k) => String(e[k])); const sresult = String(execSync(c, { encoding: "utf8", timeout: 600000, stdio: ["ignore", "pipe", "ignore"] })); const v = Number((sresult.match(/-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?/g) ?? []).at(-1)); if (!Number.isFinite(v)) throw new Error("command printed no number"); return v; };
+    const budget = +(flag("budget", 30)), goal = flag("goal", "maximize");
+    out(`\n🔧 Tuning via your command (${goal}, budget ${budget}) — running it ${budget}× to find the best params…`);
+    const sig = await M.discoverSigned({ space: { dims }, oracle, budget, seed: (+flag("seed", 1)) || 1, goal, engine: "portfolio" });
+    out(`   best params: ${JSON.stringify(sig.result.best.experiment)}`);
+    out(`   best score:  ${sig.result.best.value}`);
+    out(`   ran your command ${sig.result.evaluations}× · arms: ${(sig.result.armStats || []).filter(a => a.pulls).map(a => a.name + "×" + a.pulls).join(" ")}`);
+    const file = flag("out", "melete-trace.json"); writeFileSync(file, JSON.stringify(sig.trace, null, 2));
+    out(`   📜 signed trace → ${file}  ·  verify: melete verify ${file}`);
+    process.exit(0);
+  }
+
   if (cmd === "verify") {
     const path = argv[1]; if (!path) { out("usage: melete verify <trace.json>"); process.exit(2); }
     const trace = JSON.parse(readFileSync(path, "utf8"));
@@ -88,7 +107,8 @@ async function main() {
   }
 
   out("melete — the Self-Driving Discovery Brain\n");
-  out("  melete bench                 prove the brain beats random/grid");
+  out("  melete tune --cmd \"prog --a {a}\" --space '[...]'   tune ANY command/script (no dataset needed)");
+  out("  melete bench [--robust]      prove the brain beats random/grid");
   out("  melete gauntlet              run all correctness gauntlets");
   out("  melete discover --demo       run a discovery + write a signed trace");
   out("  melete verify <trace.json>   re-verify a discovery trace offline");

@@ -107,9 +107,20 @@ isolated machine — yet its discovery trace is verifiable by anyone with the pu
 work where the process must stay inside the air gap but the result must still be <b>provable</b>.</p></section>
 
 <section id="try"><h2>Try it live</h2>
-<p class="muted" style="margin:0 0 6px"><b>SPACE</b> = the dials you can turn (each with a min–max range). <b>OBJECTIVE</b> = the score to maximise —
-the result of one experiment. Pick an example, then press Discover. <span class="muted">(In real use the objective
-is YOUR expensive process; here it's a formula so you can try it in the browser.)</span></p>
+<div class="card" style="margin-bottom:14px;border-color:#34294f">
+<h3 style="margin:0 0 6px">You don't need a dataset 🔓</h3>
+<p style="margin:0;color:#bfbfcc">Melete is <b>not</b> a model you train on data. You only provide two things:
+<b>① SPACE</b> = the dials you can turn (+ their ranges), and <b>② a way to score one try</b> — your real
+process (brew the coffee → taste it; train the model → read accuracy; set the price → read revenue). Melete
+proposes dial settings, you (or your script) return the score, it learns — generating its own data one
+experiment at a time.</p>
+<pre style="margin:12px 0 0">— real use: point it at YOUR process, no formula —
+melete tune --cmd "python train.py --lr {lr} --depth {depth}" \\
+            --space '[{"name":"lr","type":"real","min":0,"max":0.1},{"name":"depth","type":"int","min":1,"max":12}]'</pre>
+<p class="muted" style="margin:8px 0 0">The browser demo below uses a math <b>formula</b> as a stand-in for that process, just so you can try it
+here. (It does not predict the future / fortunes — it optimises things you can actually measure + repeat.)</p>
+</div>
+<p class="muted" style="margin:0 0 6px">Pick an example, then press Discover.</p>
 <div class="card">
 <label>EXAMPLE</label>
 <select id="preset" onchange="loadPreset()">
@@ -215,6 +226,7 @@ export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string
     { name: "LANDING-RENDERS", pass: html.startsWith("<!doctype html>") && html.includes("Melete") && html.length > 3000, detail: "launch-quality landing page renders with hero + sections" },
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
     { name: "WHO-ITS-FOR", pass: html.includes("Who it's for") && html.includes("PHARMA") && html.includes("AI / ML TEAMS"), detail: "states the audiences + what each gets" },
+    { name: "NO-DATASET", pass: html.includes("You don't need a dataset") && html.includes("melete tune"), detail: "demo explains no dataset is needed + shows the real `melete tune` usage" },
     { name: "AIR-GAPPED", pass: html.toLowerCase().includes("air-gapped") && html.includes("Zero runtime dependencies"), detail: "states the air-gapped / on-prem positioning" },
     { name: "PITCH-DECK", pass: pitch.startsWith("<!doctype html>") && pitch.includes("The ask") && pitch.includes("The moat") && html.includes('href="/pitch"'), detail: "HTML pitch deck renders (problem→product→moat→proof→ask) and is linked from the landing page" },
     { name: "VERSION+CATALOG", pass: html.includes("9.9.9") && ENDPOINTS.length === 4 && ENDPOINTS.some((e) => e.path === "/pitch"), detail: "version injected; endpoint catalogue incl /pitch + /discover + /verify" },
