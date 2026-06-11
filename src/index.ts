@@ -16,6 +16,7 @@ export * from "./portfolio.js";
 export * from "./cortex.js";
 export * from "./trace.js";
 export * from "./bench.js";
+export * from "./server.js";
 
 import { type DiscoverOpts, type DiscoveryResult, type Step, discover } from "./engine.js";
 import { resonanceDiscover, type ResonanceOpts } from "./resonance.js";
@@ -54,6 +55,7 @@ import { portfolioGauntlet } from "./portfolio.js";
 import { traceGauntlet } from "./trace.js";
 import { benchGauntlet } from "./bench.js";
 import { cortexGauntlet } from "./cortex.js";
+import { serverGauntlet } from "./server.js";
 
 export interface MeleteGauntlet { score: 0 | 100; modules: Array<{ name: string; score: number; checks: Array<{ name: string; pass: boolean }> }> }
 export async function meleteGauntlet(): Promise<MeleteGauntlet> {
@@ -67,6 +69,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "cortex", g: cortexGauntlet() },
     { name: "trace", g: traceGauntlet() },
     { name: "bench", g: await benchGauntlet() },
+    { name: "server", g: serverGauntlet() },
   ];
   const modules = mods.map((m) => ({ name: m.name, score: m.g.score, checks: m.g.checks }));
   return { score: modules.every((m) => m.score === 100) ? 100 : 0, modules };

@@ -21,10 +21,10 @@ describe("gauntlets (every module = 100)", () => {
   it("bench", async () => expect((await benchGauntlet()).score).toBe(100));
   it("arms", () => expect(armsGauntlet().score).toBe(100));
   it("portfolio", async () => expect((await portfolioGauntlet()).score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 9 modules", async () => {
+  it("aggregate meleteGauntlet = 100 over all 10 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "cortex", "engine", "oracle", "portfolio", "resonance", "space", "trace"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "cortex", "engine", "oracle", "portfolio", "resonance", "server", "space", "trace"]);
   });
 });
 
@@ -33,8 +33,8 @@ describe("portfolio (SUPER NOVA — context-adaptive ensemble)", () => {
     const r = await portfolioDiscover({ space: benchSpace, oracle: (e) => multimodal(e), budget: 80, seed: 7, goal: "maximize", target: 0.99 });
     expect(r.best.value).toBeGreaterThanOrEqual(0.99);
   });
-  it("default portfolio holds 4 arms and allocates across them", async () => {
-    expect(defaultArms().map((a) => a.name).sort()).toEqual(["cmaes", "kernel-ucb", "random", "resonance"]);
+  it("default portfolio holds the curated arms (incl a real GP) and allocates across them", async () => {
+    expect(defaultArms().map((a) => a.name).sort()).toEqual(["anneal", "cmaes", "gp", "kernel-ucb", "random", "trust-region"]);
     const r = await portfolioDiscover({ space: benchSpace, oracle: (e) => multimodal(e), budget: 40, seed: 1, goal: "maximize" });
     expect(r.armStats.reduce((s, a) => s + a.pulls, 0)).toBeGreaterThan(0);
   });

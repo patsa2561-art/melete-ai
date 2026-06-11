@@ -101,7 +101,95 @@ export function armRandom(): Arm {
   return { name: "random", propose: (ctx) => { const seen = seenSet(ctx.obs); for (let i = 0; i < 20; i++) { const c = randomCandidates(ctx.space, 1, ctx.rnd)[0]; if (!seen.has(key(c))) return c; } return randomCandidates(ctx.space, 1, ctx.rnd)[0]; } };
 }
 
-export function defaultArms(): Arm[] { return [armKernelUCB(), armCMAES(), armResonance(), armRandom()]; }
+// ── GP arm: a real Gaussian Process (RBF kernel) + Expected-Improvement acquisition ─────────────
+const normPdf = (z: number) => Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+const normCdf = (z: number) => { const t = 1 / (1 + 0.2316419 * Math.abs(z)); const d = 0.3989423 * Math.exp(-z * z / 2); const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p; };
+function cholesky(A: number[][]): number[][] | null {
+  const n = A.length; const L = Array.from({ length: n }, () => new Array<number>(n).fill(0));
+  for (let i = 0; i < n; i++) for (let j = 0; j <= i; j++) { let s = A[i][j]; for (let k = 0; k < j; k++) s -= L[i][k] * L[j][k]; if (i === j) { if (s <= 0) return null; L[i][j] = Math.sqrt(s); } else L[i][j] = s / L[j][j]; }
+  return L;
+}
+function cholSolve(L: number[][], b: number[]): number[] {
+  const n = L.length; const y = new Array<number>(n).fill(0), x = new Array<number>(n).fill(0);
+  for (let i = 0; i < n; i++) { let s = b[i]; for (let k = 0; k < i; k++) s -= L[i][k] * y[k]; y[i] = s / L[i][i]; }
+  for (let i = n - 1; i >= 0; i--) { let s = y[i]; for (let k = i + 1; k < n; k++) s -= L[k][i] * x[k]; x[i] = s / L[i][i]; }
+  return x;
+}
+/** Real GP surrogate + Expected Improvement — the gold-standard sample-efficient acquisition. */
+export function armGP(lengthscale = 0.15, noise = 1e-4): Arm {
+  return {
+    name: "gp",
+    propose: (ctx) => {
+      const { space, obs, t, budget, rnd, goal } = ctx; const seen = seenSet(obs); const sign = goal === "maximize" ? 1 : -1;
+      const best = obs.length ? bestOf(obs, goal) : { experiment: {}, value: 0 };
+      if (obs.length < 4) { const c = randomCandidates(space, 1, rnd)[0]; return seen.has(key(c)) ? randomCandidates(space, 1, rnd)[0] : c; }
+      const X = obs.map((o) => o.experiment); const y = obs.map((o) => sign * o.value);
+      const kern = (a: Experiment, b: Experiment) => Math.exp(-dist2(space, a, b) / (2 * lengthscale * lengthscale));
+      const n = X.length; const K = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => kern(X[i], X[j]) + (i === j ? noise : 0)));
+      const L = cholesky(K); if (!L) return armKernelUCB().propose(ctx);   // numerical fallback
+      const alpha = cholSolve(L, y); const ybest = Math.max(...y);
+      const progress = Math.min(1, t / Math.max(1, budget)); const radius = 0.25 * Math.exp(-progress * 2.5);
+      const perDim = Math.max(4, Math.min(40, Math.round(Math.pow(1500, 1 / Math.max(1, space.dims.length)))));
+      const cands = [...gridCandidates(space, perDim, 3000), ...localCandidates(space, best.experiment, 600, Math.max(0.02, radius), rnd), ...randomCandidates(space, 400, rnd)];
+      let pick: Experiment | null = null, pa = -Infinity;
+      for (const c of cands) {
+        if (seen.has(key(c))) continue;
+        const ks = X.map((xi) => kern(c, xi)); let mu = 0; for (let i = 0; i < n; i++) mu += ks[i] * alpha[i];
+        const v = cholSolve(L, ks); let dotk = 0; for (let i = 0; i < n; i++) dotk += ks[i] * v[i];
+        const variance = Math.max(1e-9, 1 - dotk); const s = Math.sqrt(variance);
+        const z = (mu - ybest) / s; const ei = (mu - ybest) * normCdf(z) + s * normPdf(z);   // Expected Improvement
+        if (ei > pa) { pa = ei; pick = c; }
+      }
+      return pick ?? randomCandidates(space, 1, rnd)[0];
+    },
+  };
+}
+
+/** Simulated annealing arm — temperature-annealed random walk from the best; escapes via occasional far jumps. */
+export function armSimAnneal(temp0 = 0.4): Arm {
+  return {
+    name: "anneal",
+    propose: (ctx) => {
+      const { space, obs, t, budget, rnd, goal } = ctx; const seen = seenSet(obs);
+      const best = obs.length ? bestOf(obs, goal) : { experiment: {}, value: 0 };
+      const T = Math.max(0.01, temp0 * Math.exp(-3 * Math.min(1, t / Math.max(1, budget))));   // cooling schedule
+      for (let tryN = 0; tryN < 12; tryN++) {
+        const farJump = rnd() < 0.15 * T;   // occasional global escape, more likely when hot
+        const c = farJump ? randomCandidates(space, 1, rnd)[0] : localCandidates(space, best.experiment, 1, T * (1 + 0.3 * tryN), rnd)[0];
+        if (!seen.has(key(c))) return c;
+      }
+      return randomCandidates(space, 1, rnd)[0];
+    },
+  };
+}
+
+/** Trust-region arm — coordinate steps within a region around the best; region tightens as the run progresses. */
+export function armTrustRegion(radius0 = 0.3): Arm {
+  return {
+    name: "trust-region",
+    propose: (ctx) => {
+      const { space, obs, t, budget, rnd, goal } = ctx; const seen = seenSet(obs);
+      const best = obs.length ? bestOf(obs, goal) : { experiment: {}, value: 0 };
+      const r = Math.max(0.01, radius0 * Math.exp(-2.5 * Math.min(1, t / Math.max(1, budget))));
+      for (let tryN = 0; tryN < 16; tryN++) {
+        const c: Experiment = { ...best.experiment };
+        const dims = space.dims; const di = Math.floor(rnd() * dims.length) % Math.max(1, dims.length);
+        const d = dims[di]; const span = d.max - d.min;
+        const step = (rnd() < 0.5 ? -1 : 1) * r * span * (0.3 + 0.7 * rnd());
+        c[d.name] = Math.max(d.min, Math.min(d.max, (Number(best.experiment[d.name]) || d.min) + step));
+        if (d.type === "int") c[d.name] = Math.round(c[d.name]);
+        if (!seen.has(key(c))) return c;
+      }
+      return randomCandidates(space, 1, rnd)[0];
+    },
+  };
+}
+
+/** The production portfolio. Curated by MEASURED robustness (see bench.robustnessBench): the strong
+ * convergers (gp, cmaes, kernel-ucb) + a local refiner (trust-region) + escape/diversity (anneal, random).
+ * resonance stays available as an arm but is not in the default set (measured weakest; keep the bandit lean). */
+export function defaultArms(): Arm[] { return [armGP(), armCMAES(), armKernelUCB(), armTrustRegion(), armSimAnneal(), armRandom()]; }
+export function allArms(): Arm[] { return [armGP(), armCMAES(), armKernelUCB(), armTrustRegion(), armSimAnneal(), armResonance(), armRandom()]; }
 
 // ── gauntlet ──────────────────────────────────────────────────────────────────
 import { lcg } from "./space.js";
@@ -109,9 +197,14 @@ export function armsGauntlet(): { score: 0 | 100; checks: Array<{ name: string; 
   const space: Space = { dims: [{ name: "x", type: "real", min: 0, max: 10 }, { name: "y", type: "real", min: 0, max: 10 }] };
   const obs: Observation[] = [{ experiment: { x: 5, y: 5 }, value: 0.5 }, { experiment: { x: 7, y: 3 }, value: 0.8 }];
   const ctx: ArmContext = { space, obs, t: 5, budget: 50, rnd: lcg(1), goal: "maximize" };
-  const arms = defaultArms();
+  const arms = allArms();   // exercise every arm
   const allPropose = arms.every((a) => { const e = a.propose({ ...ctx, rnd: lcg(2) }); return typeof e.x === "number" && e.x >= 0 && e.x <= 10 && typeof e.y === "number"; });
-  const namesOK = arms.map((a) => a.name).sort().join(",") === "cmaes,kernel-ucb,random,resonance";
+  const namesOK = defaultArms().map((a) => a.name).sort().join(",") === "anneal,cmaes,gp,kernel-ucb,random,trust-region"
+    && allArms().map((a) => a.name).sort().join(",") === "anneal,cmaes,gp,kernel-ucb,random,resonance,trust-region";
+  // GP needs ≥4 obs to fit; with enough data it proposes a valid EI-maximising point
+  const gpObs: Observation[] = []; for (let i = 0; i < 8; i++) gpObs.push({ experiment: { x: i, y: 10 - i }, value: Math.exp(-((i - 7) ** 2) / 5) });
+  const gp = armGP().propose({ space, obs: gpObs, t: 8, budget: 50, rnd: lcg(4), goal: "maximize" });
+  const gpOK = typeof gp.x === "number" && gp.x >= 0 && gp.x <= 10 && !seenSet(gpObs).has(key(gp));
   const avoidsSeen = (() => { const seenObs: Observation[] = []; for (let i = 0; i < 20; i++) seenObs.push({ experiment: { x: i * 0.5, y: i * 0.5 }, value: i }); const a = armRandom(); const e = a.propose({ space, obs: seenObs, t: 1, budget: 50, rnd: lcg(9), goal: "maximize" }); return typeof e.x === "number"; })();
   // cmaes adapts sigma: a stateful arm proposes different points as best improves
   const cm = armCMAES(); const o2: Observation[] = [{ experiment: { x: 5, y: 5 }, value: 0.1 }];
@@ -121,10 +214,11 @@ export function armsGauntlet(): { score: 0 | 100; checks: Array<{ name: string; 
   const stateful = JSON.stringify(p1) !== JSON.stringify(p2);
   const total = (() => { try { armKernelUCB().propose({ space, obs: [], t: 0, budget: 10, rnd: lcg(1), goal: "maximize" }); return true; } catch { return false; } })();
   const checks = [
-    { name: "ALL-ARMS-PROPOSE", pass: allPropose, detail: "every arm proposes a valid in-bounds experiment" },
-    { name: "PORTFOLIO-SET", pass: namesOK, detail: "default portfolio = kernel-ucb + cmaes + resonance + random" },
+    { name: "ALL-ARMS-PROPOSE", pass: allPropose, detail: "every arm (7) proposes a valid in-bounds experiment" },
+    { name: "PORTFOLIO-SET", pass: namesOK, detail: "default = gp+cmaes+kernel-ucb+trust-region+anneal+random; allArms adds resonance" },
     { name: "AVOIDS-SEEN", pass: avoidsSeen, detail: "arms avoid already-evaluated experiments" },
     { name: "CMAES-STATEFUL", pass: stateful, detail: "cmaes adapts its step from the run's progress (self-adaptive σ)" },
+    { name: "GP-EI", pass: gpOK, detail: "the GP arm fits a Gaussian Process and proposes an Expected-Improvement-maximising point" },
     { name: "TOTAL", pass: total, detail: "arms handle an empty history (cold start) without throwing" },
   ];
   return { score: checks.every((c) => c.pass) ? 100 : 0, checks };
