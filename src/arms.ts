@@ -185,11 +185,36 @@ export function armTrustRegion(radius0 = 0.3): Arm {
   };
 }
 
+/** Differential Evolution arm — DE/rand/1: combine three past experiments (a + F·(b−c)) + crossover with
+ * the best. A population-based global optimiser that is strong on rugged/multimodal surfaces. */
+export function armDiffEvolution(F = 0.7, CR = 0.9): Arm {
+  return {
+    name: "diff-evo",
+    propose: (ctx) => {
+      const { space, obs, rnd, goal } = ctx; const seen = seenSet(obs);
+      if (obs.length < 4) { const c = randomCandidates(space, 1, rnd)[0]; return seen.has(key(c)) ? randomCandidates(space, 1, rnd)[0] : c; }
+      const best = bestOf(obs, goal);
+      for (let tryN = 0; tryN < 14; tryN++) {
+        const pick = () => obs[Math.floor(rnd() * obs.length) % obs.length].experiment;
+        const a = pick(), b = pick(), c = pick(); const trial: Experiment = {};
+        for (const d of space.dims) {
+          const base = (rnd() < CR) ? (Number(a[d.name]) || d.min) + F * ((Number(b[d.name]) || 0) - (Number(c[d.name]) || 0)) : (Number(best.experiment[d.name]) || d.min);
+          let v = Math.max(d.min, Math.min(d.max, base)); if (d.type === "int") v = Math.round(v); trial[d.name] = v;
+        }
+        if (!seen.has(key(trial))) return trial;
+      }
+      return randomCandidates(space, 1, rnd)[0];
+    },
+  };
+}
+
 /** The production portfolio. Curated by MEASURED robustness (see bench.robustnessBench): the strong
  * convergers (gp, cmaes, kernel-ucb) + a local refiner (trust-region) + escape/diversity (anneal, random).
  * resonance stays available as an arm but is not in the default set (measured weakest; keep the bandit lean). */
 export function defaultArms(): Arm[] { return [armGP(), armCMAES(), armKernelUCB(), armTrustRegion(), armSimAnneal(), armRandom()]; }
-export function allArms(): Arm[] { return [armGP(), armCMAES(), armKernelUCB(), armTrustRegion(), armSimAnneal(), armResonance(), armRandom()]; }
+// allArms = every available arm. resonance + diff-evo are AVAILABLE for custom portfolios but MEASURED not
+// to improve the default set (honest curation by evidence — adding them only costs bandit overhead here).
+export function allArms(): Arm[] { return [armGP(), armCMAES(), armKernelUCB(), armTrustRegion(), armSimAnneal(), armDiffEvolution(), armResonance(), armRandom()]; }
 
 // ── gauntlet ──────────────────────────────────────────────────────────────────
 import { lcg } from "./space.js";
@@ -200,7 +225,7 @@ export function armsGauntlet(): { score: 0 | 100; checks: Array<{ name: string; 
   const arms = allArms();   // exercise every arm
   const allPropose = arms.every((a) => { const e = a.propose({ ...ctx, rnd: lcg(2) }); return typeof e.x === "number" && e.x >= 0 && e.x <= 10 && typeof e.y === "number"; });
   const namesOK = defaultArms().map((a) => a.name).sort().join(",") === "anneal,cmaes,gp,kernel-ucb,random,trust-region"
-    && allArms().map((a) => a.name).sort().join(",") === "anneal,cmaes,gp,kernel-ucb,random,resonance,trust-region";
+    && allArms().map((a) => a.name).sort().join(",") === "anneal,cmaes,diff-evo,gp,kernel-ucb,random,resonance,trust-region";
   // GP needs ≥4 obs to fit; with enough data it proposes a valid EI-maximising point
   const gpObs: Observation[] = []; for (let i = 0; i < 8; i++) gpObs.push({ experiment: { x: i, y: 10 - i }, value: Math.exp(-((i - 7) ** 2) / 5) });
   const gp = armGP().propose({ space, obs: gpObs, t: 8, budget: 50, rnd: lcg(4), goal: "maximize" });

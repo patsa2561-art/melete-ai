@@ -49,7 +49,14 @@ few trials as possible, and emits a <b>signed, offline-verifiable trace</b> of e
 <span class="pill">everything is f(x)</span>
 <span class="pill">cryptographic provenance</span>
 <span class="pill">no install · HTTP / agent-native</span>
+<span class="pill">🔒 air-gapped / on-prem ready</span>
 </div></div>
+
+<div class="card"><b>🔒 Air-gapped by design</b> — your data never has to leave.
+Melete has <b>zero runtime dependencies</b> and signs every discovery with <b>local</b> cryptography, so the
+whole brain runs fully offline on an isolated machine — yet the trace it produces is still verifiable by
+anyone, anywhere, with the public key alone. Built for pharma / defence / semiconductor discovery where the
+process must stay inside the air gap but the result must still be <b>provable</b>.</div>
 
 <div class="card"><b>Endpoints</b> <span class="muted">— POST JSON, get a result</span>
 <table><tr><th>METHOD</th><th>PATH</th><th>WHAT</th></tr>
@@ -58,17 +65,26 @@ few trials as possible, and emits a <b>signed, offline-verifiable trace</b> of e
 <tr><td>POST</td><td><code>/verify</code></td><td>{trace} → re-verify the discovery provenance offline</td></tr>
 </table></div>
 
-<div class="card"><b>Try it live</b>
-<p class="muted">Give a search space + an objective (a JS expression in your dimensions — the "experiment").
-The brain discovers the optimum in a small budget and hands back a signed trace you can re-verify.</p>
-<label>SPACE (dimensions)</label>
+<div class="card"><b>Try it live</b> <span class="muted">— new here? pick an example, then press Discover.</span>
+<p class="muted" style="margin:8px 0 4px"><b>SPACE</b> = the dials you can turn (each with a min–max range). <b>OBJECTIVE</b> = the score you want to
+make as high as possible — the result of one "experiment". Melete tries dial settings and learns which give
+the highest score, in as few tries as the BUDGET allows. <span class="muted">(In real use the OBJECTIVE is
+YOUR expensive process — a training run, a lab assay, a price test. Here it's a formula so you can try it in
+the browser.)</span></p>
+<label>EXAMPLE</label>
+<select id="preset" onchange="loadPreset()">
+  <option value="peak">📈 Find a hidden peak (2 dials)</option>
+  <option value="coffee">☕ Best espresso recipe (temp · grind · dose → taste score)</option>
+  <option value="price">💸 Best price point (price → revenue)</option>
+</select>
+<label>SPACE — the dials <span class="muted">(name · type · min · max)</span></label>
 <input id="space" value='[{"name":"x","type":"real","min":0,"max":10},{"name":"y","type":"real","min":0,"max":10}]'>
-<label>OBJECTIVE — maximise this f(x,y)</label>
+<label>OBJECTIVE — the score to maximise <span class="muted">(a formula in the dial names)</span></label>
 <input id="obj" value="Math.exp(-((x-7.2)**2+(y-3.4)**2)/3)">
-<label>BUDGET (experiments)</label>
+<label>BUDGET — how many experiments Melete may run</label>
 <input id="budget" value="40">
 <button onclick="run()">Discover →</button>
-<div class="out" id="out">result will appear here…</div>
+<div class="out" id="out">pick an example above, then press Discover — the best dial settings + a signed trace appear here.</div>
 </div>
 
 <div class="card"><b>How it's actually used</b> <span class="muted">— it's a service whose users are agents / pipelines</span>
@@ -85,6 +101,12 @@ robustness + verifiable provenance, measured + reproducible. Browser demo evalua
 sandboxed VM with a timeout.</p>
 
 <script>
+var PRESETS={
+  peak:{space:'[{"name":"x","type":"real","min":0,"max":10},{"name":"y","type":"real","min":0,"max":10}]',obj:'Math.exp(-((x-7.2)**2+(y-3.4)**2)/3)',budget:40},
+  coffee:{space:'[{"name":"temp","type":"real","min":85,"max":96},{"name":"grind","type":"real","min":1,"max":10},{"name":"dose","type":"real","min":14,"max":22}]',obj:'10 - (temp-92)**2*0.08 - (grind-5.5)**2*0.15 - (dose-18)**2*0.1',budget:50},
+  price:{space:'[{"name":"price","type":"real","min":1,"max":100}]',obj:'price * (100 - price)',budget:30},
+};
+function loadPreset(){var p=PRESETS[document.getElementById('preset').value];document.getElementById('space').value=p.space;document.getElementById('obj').value=p.obj;document.getElementById('budget').value=p.budget;document.getElementById('out').textContent='example loaded — press Discover →';}
 async function run(){
   const out=document.getElementById('out'); out.textContent='discovering…';
   try{
@@ -109,7 +131,8 @@ export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string
   const html = landingPage("9.9.9");
   const checks = [
     { name: "LANDING-RENDERS", pass: html.startsWith("<!doctype html>") && html.includes("Melete") && html.length > 1500, detail: "landing page renders with the brand + a live demo form" },
-    { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes("/discover"), detail: "demo posts space + objective to /discover" },
+    { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts space + objective to /discover" },
+    { name: "AIR-GAPPED", pass: html.toLowerCase().includes("air-gapped") && html.includes("zero runtime dependencies"), detail: "states the air-gapped / on-prem positioning (data never leaves)" },
     { name: "VERSION-EMBEDDED", pass: html.includes("9.9.9"), detail: "version is injected into the page" },
     { name: "ENDPOINT-CATALOG", pass: ENDPOINTS.length === 3 && ENDPOINTS.some((e) => e.path === "/discover") && ENDPOINTS.some((e) => e.path === "/verify"), detail: "endpoint catalogue lists /health, /discover, /verify" },
     { name: "HONEST-COPY", pass: html.toLowerCase().includes("honest") && html.includes("no single"), detail: "page states the honest framing (robustness, not a magic algorithm)" },
