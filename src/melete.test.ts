@@ -34,7 +34,7 @@ describe("portfolio (SUPER NOVA — context-adaptive ensemble)", () => {
     expect(r.best.value).toBeGreaterThanOrEqual(0.99);
   });
   it("default portfolio holds the curated arms (incl a real GP) and allocates across them", async () => {
-    expect(defaultArms().map((a) => a.name).sort()).toEqual(["anneal", "cmaes", "gp", "kernel-ucb", "random", "trust-region"]);
+    expect(defaultArms().map((a) => a.name).sort()).toEqual(["anneal", "basin-hop", "cmaes", "gp", "kernel-ucb", "maximin", "random", "trust-region"]);
     const r = await portfolioDiscover({ space: benchSpace, oracle: (e) => multimodal(e), budget: 40, seed: 1, goal: "maximize" });
     expect(r.armStats.reduce((s, a) => s + a.pulls, 0)).toBeGreaterThan(0);
   });

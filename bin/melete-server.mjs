@@ -33,6 +33,7 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url, "http://x"); const path = url.pathname;
     if (req.method === "OPTIONS") return json(res, 204, {});
     if (req.method === "GET" && path === "/") { const html = M.landingPage(VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
+    if (req.method === "GET" && path === "/pitch") { const html = M.pitchDeck(VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
     if (req.method === "GET" && path === "/health") return json(res, 200, { ok: true, version: VERSION, service: "melete" });
 
     if (req.method === "POST" && path === "/discover") {
