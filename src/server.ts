@@ -148,6 +148,20 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 @keyframes pop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
 @media(max-width:640px){.panel,.panel:nth-child(even){flex-direction:column;text-align:center}.panel-text p{font-size:17.5px}.prop.cup .score{position:static;display:inline-block;margin-top:6px}}
 @media(prefers-reduced-motion:reduce){.panel{transition:none;opacity:1;transform:none}}
+/*premium-layer*/
+html{scroll-behavior:smooth}
+.btn{transition:transform .15s ease,box-shadow .15s ease,filter .15s ease}
+.btn:hover{transform:translateY(-1px)}
+.btn.primary:hover{box-shadow:0 14px 32px -8px rgba(93,83,232,.7);filter:brightness(1.04)}
+.btn.ghost:hover{border-color:var(--ind);color:var(--ind)}
+.btn:active{transform:translateY(0)}
+.card{transition:box-shadow .2s ease,transform .2s ease}
+input{transition:border-color .15s ease,box-shadow .15s ease}
+input:focus,textarea:focus{outline:none;border-color:var(--ind)!important;box-shadow:0 0 0 3px rgba(91,83,232,.16)}
+b,strong,.result,input[type=number]{font-variant-numeric:tabular-nums}
+::selection{background:rgba(91,83,232,.18)}
+h1.brand{letter-spacing:-2.5px;font-feature-settings:"ss01","cv01"}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.card{transition:none}}
 `;
 
 /** Meli — Melete's original mascot: an antenna-topped discovery sprite (the glowing orb = "the next
