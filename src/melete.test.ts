@@ -12,7 +12,7 @@ import {
   Tracer, verifyTrace,
   multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
-  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization,
+  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool,
 } from "./index.js";
 
 describe("gauntlets (every module = 100)", () => {
@@ -29,10 +29,11 @@ describe("gauntlets (every module = 100)", () => {
   it("reliability (≥99% of optimum on every landscape, every seed)", async () => expect((await reliabilityGauntlet()).score).toBe(100));
   it("certify (optimality certificate)", async () => expect((await certifyGauntlet()).score).toBe(100));
   it("poopt (proof of optimization)", () => expect(pooptGauntlet().score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 16 modules", async () => {
+  it("federated (multi-lab signed pool)", () => expect(federatedGauntlet().score).toBe(100));
+  it("aggregate meleteGauntlet = 100 over all 17 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "certify", "cortex", "engine", "frontier", "interactive", "oracle", "poopt", "portfolio", "reliability", "replicate", "resonance", "server", "space", "trace"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "certify", "cortex", "engine", "federated", "frontier", "interactive", "oracle", "poopt", "portfolio", "reliability", "replicate", "resonance", "server", "space", "trace"]);
   });
 });
 
