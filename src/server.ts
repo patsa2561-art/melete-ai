@@ -177,6 +177,20 @@ b,strong,.result,input[type=number]{font-variant-numeric:tabular-nums}
 ::selection{background:rgba(91,83,232,.18)}
 h1.brand{letter-spacing:-2.5px;font-feature-settings:"ss01","cv01"}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.card{transition:none}}
+/* — elegant futuristic layer (white, luxe) — */
+body{background:#fff;background-image:radial-gradient(circle at 1px 1px,rgba(109,92,240,.045) 1px,transparent 0);background-size:26px 26px;background-attachment:fixed}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 50% at 85% -5%,rgba(20,184,166,.07),transparent 60%),radial-gradient(55% 45% at 8% 8%,rgba(109,92,240,.06),transparent 55%)}
+.card{border-radius:22px;border:1px solid #eef0f7;box-shadow:0 1px 2px rgba(20,20,50,.04),0 22px 50px -34px rgba(60,50,140,.30);transition:transform .5s cubic-bezier(.22,1,.36,1),box-shadow .5s cubic-bezier(.22,1,.36,1)}
+.card:hover{box-shadow:0 1px 2px rgba(20,20,50,.05),0 30px 64px -32px rgba(60,50,140,.40)}
+.btn{transition:transform .4s cubic-bezier(.22,1,.36,1),box-shadow .4s cubic-bezier(.22,1,.36,1),filter .25s}
+.btn.primary{box-shadow:0 10px 26px -12px rgba(99,76,240,.6)}
+.btn.primary:hover{transform:translateY(-1px);box-shadow:0 16px 34px -12px rgba(99,76,240,.7)}
+.pill{backdrop-filter:saturate(1.2);box-shadow:0 1px 2px rgba(20,20,40,.05),0 8px 18px -14px rgba(60,50,140,.5)}
+h2{letter-spacing:-.6px}
+section h2{position:relative}
+.wrap section h2::after{content:"";display:block;width:46px;height:3px;margin-top:9px;border-radius:9px;background:linear-gradient(90deg,#6d5cf0,#14b8a6)}
+body{font-variant-numeric:tabular-nums}
+.eyebrow{background:linear-gradient(96deg,#6d5cf0,#0ea5b7);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;letter-spacing:.6px}
 `;
 
 /** Meli — Melete's original mascot: an antenna-topped discovery sprite (the glowing orb = "the next

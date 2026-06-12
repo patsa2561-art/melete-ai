@@ -151,6 +151,18 @@ const server = createServer(async (req, res) => {
       catch (e) { return json(res, 400, { error: "inverse failed: " + e.message.slice(0, 120) }); }
     }
 
+    // SAFE OPTIMIZATION — best setting within constraints + safety margins, and a safe next proposal
+    if (req.method === "POST" && path === "/safe") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const space = { dims: Array.isArray(body.space) ? body.space : body.space?.dims };
+      if (!space.dims?.length) return json(res, 400, { error: "space must be a non-empty array of {name,type,min,max}" });
+      const cons = Array.isArray(body.constraints) ? body.constraints.filter((c) => c && c.name) : [];
+      const obs = Array.isArray(body.observations) ? body.observations.filter((o) => o && o.experiment && Number.isFinite(+o.value)).map((o) => ({ experiment: o.experiment, value: +o.value, metrics: (o.metrics && typeof o.metrics === "object") ? o.metrics : undefined })) : [];
+      const goal = body.goal === "minimize" ? "minimize" : "maximize";
+      try { const report = M.bestFeasible(obs, goal, cons); const nextSafe = M.proposeNextSafe(space, obs, goal, cons, (body.seed | 0) || 1); return json(res, 200, { ...report, nextSafe }); }
+      catch (e) { return json(res, 400, { error: "safe failed: " + e.message.slice(0, 120) }); }
+    }
+
     // WHAT-IF TWIN — "what score would I get at THIS setting?" (predict without running it)
     if (req.method === "POST" && path === "/predict") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
