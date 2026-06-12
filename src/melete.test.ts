@@ -12,7 +12,7 @@ import {
   Tracer, verifyTrace,
   multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
-  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions, territoryGauntlet, assessTerritory, coverageScore, costAwareGauntlet, proposeNextCostAware, costAwareDiscover,
+  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions, territoryGauntlet, assessTerritory, coverageScore, costAwareGauntlet, proposeNextCostAware, costAwareDiscover, confidenceGauntlet, stopConfidence,
 } from "./index.js";
 
 describe("gauntlets (every module = 100)", () => {
@@ -36,10 +36,11 @@ describe("gauntlets (every module = 100)", () => {
   it("interaction (variable coupling map)", () => expect(interactionGauntlet().score).toBe(100));
   it("territory (leap detector)", () => expect(territoryGauntlet().score).toBe(100));
   it("costaware (optimize per cost)", () => expect(costAwareGauntlet().score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 23 modules", async () => {
+  it("confidence (calibrated probabilistic stop)", () => expect(confidenceGauntlet().score).toBe(100));
+  it("aggregate meleteGauntlet = 100 over all 24 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "certify", "cortex", "costaware", "engine", "federated", "frontier", "interaction", "interactive", "multiobjective", "noise", "oracle", "poopt", "portfolio", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "territory", "trace"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "certify", "confidence", "cortex", "costaware", "engine", "federated", "frontier", "interaction", "interactive", "multiobjective", "noise", "oracle", "poopt", "portfolio", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "territory", "trace"]);
   });
 });
 

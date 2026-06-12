@@ -121,7 +121,8 @@ const server = createServer(async (req, res) => {
         const cost = (typeof body.costPerExperiment === "number" && body.costPerExperiment > 0) ? body.costPerExperiment : null;
         const advice = M.stoppingAdvice(obs, goal, cost);
         const territory = M.assessTerritory(next, obs, space);
-        return json(res, 200, { next, t: obs.length, best, goal, advice, territory });
+        const confidence = M.stopConfidence(obs, goal);
+        return json(res, 200, { next, t: obs.length, best, goal, advice, territory, confidence });
       } catch (e) { return json(res, 400, { error: "propose failed: " + e.message.slice(0, 120) }); }
     }
 
