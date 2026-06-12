@@ -107,7 +107,9 @@ const server = createServer(async (req, res) => {
       let coverage = null; try { coverage = M.coverageScore(frontierObs, space); } catch { coverage = null; }
       // DRIFT — is the improvement caused by your variables, or confounded with a time-trend (a hidden factor)?
       let drift = null; try { drift = M.analyzeDrift(frontierObs, space, goal); } catch { drift = null; }
-      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      // EFFICIENCY η = ∛(G·R·T) — one honest number: real gain × robust optimum × trustworthy (not confounded).
+      let efficiency = null; try { efficiency = M.discoveryEfficiency(frontierObs, space, goal); } catch { efficiency = null; }
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, efficiency, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {
