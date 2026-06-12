@@ -73,6 +73,16 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 .kv{font-size:14px;color:#33344e}.kv b{color:var(--ink)}
 .bar{height:9px;border-radius:6px;background:var(--grad);margin:2px 0 9px}
 .result{margin-top:14px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:16px;font-size:14.5px;color:#2a2b42;min-height:24px}
+.scenario{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:13px 16px;margin:12px 0}
+.srow{display:flex;gap:12px;padding:5px 0;font-size:14.5px;color:#33344e;line-height:1.4}
+.srow b{min-width:94px;white-space:nowrap}
+.adv{margin-top:6px}
+.adv summary{cursor:pointer;color:var(--ind);font-size:13px;font-weight:700;padding:6px 0;list-style:none}
+.adv summary::-webkit-details-marker{display:none}
+.adv summary::before{content:"⚙ ";opacity:.7}
+.story{background:linear-gradient(180deg,#f7f8ff,#fff);border:1px solid var(--line);border-radius:16px;padding:22px 24px}
+.story p{margin:0 0 12px}.story p:last-child{margin:0}
+.chat{font-size:14.5px;color:#33344e;margin:3px 0;padding-left:14px;border-left:2px solid #ddd9fb}
 `;
 
 export function landingPage(version = "0.4.0"): string {
@@ -98,11 +108,16 @@ export function landingPage(version = "0.4.0"): string {
 
 <div class="wrap">
 
-<section><h2>The 60-second version</h2>
-<p class="lead">Running an experiment is the expensive part — a lab assay, a training run, a process batch, a pricing test.
-Melete is the brain that decides <b>which experiment to run next</b> so you reach the best result in the <b>fewest
-trials</b>, and hands you a <b>signed proof</b> of the whole discovery path. You bring the dials and a way to score
-one try; it brings the strategy.</p></section>
+<section><h2>What it does — one example</h2>
+<div class="story">
+<p style="font-size:19px;font-weight:600;color:#1a1b30;margin-bottom:14px">You run a coffee shop and want the <b>best espresso</b>. You can change three things — water temperature, grind, and how many grams of coffee. There are thousands of combinations, and testing one means <b>brewing a cup and tasting it</b>. You can't try them all.</p>
+<p style="color:#33344e;margin-bottom:6px">Melete works like a brilliant assistant who suggests the next cup to brew:</p>
+<div class="chat">☕ Melete: “Try <b>92°, grind 6, 18g</b>.” &nbsp;→ you brew it, taste it: <b>7/10</b>.</div>
+<div class="chat">☕ Melete: “Now try <b>93°, grind 5, 19g</b>.” &nbsp;→ you taste: <b>8.5/10</b>.</div>
+<div class="chat" style="opacity:.6">… a few more …</div>
+<div class="chat">🎯 After ~<b>20 cups</b>, it found your best recipe — instead of randomly trying 200.</div>
+<p style="color:#33344e;margin-top:14px">Swap “coffee” for a <b>training run</b>, a <b>chemical reaction</b>, or a <b>price</b> — it's the same: Melete finds the best settings in the <b>fewest expensive tries</b>, and signs a <b>proof</b> of how it got there. <span class="muted">You bring the thing you can adjust and a way to score one try; it brings the strategy.</span></p>
+</div></section>
 
 <section><h2>How it works — 3 steps</h2>
 <div class="steps">
@@ -120,30 +135,27 @@ one try; it brings the strategy.</p></section>
 </div>
 <p class="muted" style="margin-top:16px">Every case: <b>fewer expensive experiments</b> to the best answer + a <b>cryptographic proof</b> of how it was found.</p></section>
 
-<section id="try"><h2>See it discover — live</h2>
-<p class="lead" style="font-size:18px;margin:0 0 4px"><b>You don't need a dataset.</b> Give the dials + a way to score one try; watch Melete map the landscape and home in.</p>
-<p class="muted" style="margin:0 0 16px">The demo uses a formula as a stand-in for your real process so you can try it in the browser. It optimises things you can measure &amp; repeat — it does not tell fortunes.</p>
+<section id="try"><h2>See it discover — just watch</h2>
+<p class="lead" style="font-size:18px;margin:0 0 4px">Melete tunes <b>knobs</b>. You don't write code or upload data here — <b>pick a scenario and press Watch.</b></p>
+<p class="muted" style="margin:0 0 16px">In this browser demo the "score" is faked by a formula so it runs instantly. For your real work the score comes from your real process — see <a href="#use">how to use it for your work</a> below.</p>
 <div class="card">
-<div class="grid" style="gap:0 18px">
-<div>
-<label>Example</label>
+<label>Scenario</label>
 <select id="preset" onchange="loadPreset()">
-  <option value="peak">📈 Find a hidden peak (2 dials)</option>
-  <option value="coffee">☕ Best espresso recipe (temp · grind · dose)</option>
-  <option value="price">💸 Best price point (price → revenue)</option>
+  <option value="peak">📈 Find a hidden peak — the simplest demo (2 knobs)</option>
+  <option value="coffee">☕ Best espresso recipe — temperature · grind · dose</option>
+  <option value="price">💸 Best price point — which price earns the most</option>
 </select>
-<label>Space — the dials</label>
+<div id="scenario" class="scenario"></div>
+<details class="adv"><summary>Advanced — the exact dials &amp; the demo's simulated score (you don't need to touch this)</summary>
+<label>Space — the dials (name · type · min · max)</label>
 <input id="space" value='[{"name":"x","type":"real","min":0,"max":10},{"name":"y","type":"real","min":0,"max":10}]'>
-</div>
-<div>
-<label>Objective — the score to maximise</label>
+<label>Objective — the simulated score (a formula, only for this browser demo)</label>
 <input id="obj" value="Math.exp(-((x-7.2)**2+(y-3.4)**2)/3)">
 <label>Budget — experiments allowed</label>
 <input id="budget" value="40">
-</div>
-</div>
-<button class="btn primary" style="margin-top:16px;width:100%" onclick="run()">Discover →</button>
-<div class="result" id="out">Pick an example, then press Discover — the best settings, a map of how it searched, and a signed trace appear here.</div>
+</details>
+<button class="btn primary" style="margin-top:16px;width:100%" onclick="run()">▶ Watch Melete discover</button>
+<div class="result" id="out">Pick a scenario, then press Watch — the best settings, a movie of how it searched, and a signed proof appear here.</div>
 
 <div id="map">
 <div class="mapgrid">
@@ -177,14 +189,24 @@ one try; it brings the strategy.</p></section>
 <tr><td>high-dimensional</td><td class="win">0.996</td><td>0.987</td><td>0.555</td></tr></table>
 <p class="muted" style="margin-top:10px">≈ 26 experiments vs ~95 for random to reach 99% of a hidden optimum (3.7×). Reproduce with <code>melete bench --robust</code>.</p></section>
 
-<section><h2>Use it from anything</h2>
-<p style="margin:0 0 10px;color:#33344e">Point it at <b>your real process</b> — a training script, a build benchmark, a simulator — no formula, no dataset:</p>
+<section id="use"><h2>Use it for your work — answer 3 questions</h2>
+<p class="lead" style="margin:0 0 18px">No dataset, no formula. Just answer these about <b>your</b> process:</p>
+<div class="steps">
+  <div class="step"><span class="n">1</span><h3>What can you adjust?</h3><p>List the knobs + their real limits (your machine's range). <span class="muted">→ that's the SPACE.</span></p></div>
+  <div class="step"><span class="n">2</span><h3>After one try, what number tells you how good it was?</h3><p>You <b>measure</b> it — taste a score, read accuracy, read revenue. You don't calculate it. <span class="muted">→ that's the SCORE.</span></p></div>
+  <div class="step"><span class="n">3</span><h3>How many tries can you afford?</h3><p>Brews, training runs, assays you'll pay for. <span class="muted">→ that's the BUDGET.</span></p></div>
+</div>
+<div class="grid" style="margin-top:18px">
+  <div class="card"><div class="who">☕ A coffee shop</div><p><b>Knobs:</b> temp 85–96° · grind 1–10 · dose 14–22g<br><b>Score:</b> a barista tastes each shot, 0–10<br><b>Budget:</b> 30 shots → Melete finds the recipe in ~20.</p></div>
+  <div class="card"><div class="who">🤖 An ML team</div><p><b>Knobs:</b> learning-rate 0–0.1 · depth 1–12<br><b>Score:</b> the training script prints accuracy<br><b>Budget:</b> 40 runs → fewer GPU-hours to the best model.</p></div>
+</div>
+<p class="lead" style="margin:24px 0 12px;font-size:18px">Then run it one of two ways:</p>
+<p style="margin:0 0 6px;color:#33344e"><b>A) Connect your process</b> — Melete runs it for you and reads the number (this is the real product, like installing a tool):</p>
 <pre>melete tune --cmd "python train.py --lr {lr} --depth {depth}" \\
             --space '[{"name":"lr","type":"real","min":0,"max":0.1},{"name":"depth","type":"int","min":1,"max":12}]'</pre>
-<p style="margin:14px 0 8px;color:#33344e">…or call it over HTTP — a service whose users are agents &amp; pipelines:</p>
-<pre>curl -s https://melete.mneme-ai.space/discover -H 'content-type: application/json' -d '{
-  "space":[{"name":"lr","type":"real","min":0,"max":0.1}], "objective":"...", "budget":40 }'</pre>
-<p class="muted" style="margin-top:12px">🔒 <b>Air-gapped by design:</b> zero runtime dependencies + local signing ⇒ runs fully offline on an isolated machine, yet the result stays verifiable by anyone with the public key. Built for regulated work where data can't leave.</p></section>
+<p style="margin:16px 0 6px;color:#33344e"><b>B) From an agent or pipeline</b> — call the HTTP API or the library; your code returns the score each step:</p>
+<pre>POST https://melete.mneme-ai.space/discover   ·   npm i melete-ai   ·   discoverSigned({ space, oracle })</pre>
+<p class="muted" style="margin-top:14px"><b>This website = a sandbox to try it.</b> Real work = connect your real process (A or B). 🔒 Air-gapped: zero dependencies + local signing ⇒ runs fully offline, result still verifiable.</p></section>
 
 </div>
 <footer>
@@ -194,11 +216,16 @@ Honest: the engine is a context-adaptive ensemble — its guarantee is robustnes
 
 <script>
 var PRESETS={
-  peak:{space:'[{"name":"x","type":"real","min":0,"max":10},{"name":"y","type":"real","min":0,"max":10}]',obj:'Math.exp(-((x-7.2)**2+(y-3.4)**2)/3)',budget:40},
-  coffee:{space:'[{"name":"temp","type":"real","min":85,"max":96},{"name":"grind","type":"real","min":1,"max":10},{"name":"dose","type":"real","min":14,"max":22}]',obj:'10 - (temp-92)**2*0.08 - (grind-5.5)**2*0.15 - (dose-18)**2*0.1',budget:50},
-  price:{space:'[{"name":"price","type":"real","min":1,"max":100}]',obj:'price * (100 - price)',budget:30},
+  peak:{space:'[{"name":"x","type":"real","min":0,"max":10},{"name":"y","type":"real","min":0,"max":10}]',obj:'Math.exp(-((x-7.2)**2+(y-3.4)**2)/3)',budget:40,
+    s:['🎛️ Knobs','two dials, x &amp; y, each 0–10'],t:['🧪 Score','a hidden peak the demo simulates — highest at one secret spot'],b:['🎯 Budget','40 tries — watch it find the secret high point']},
+  coffee:{space:'[{"name":"temp","type":"real","min":85,"max":96},{"name":"grind","type":"real","min":1,"max":10},{"name":"dose","type":"real","min":14,"max":22}]',obj:'10 - (temp-92)**2*0.08 - (grind-5.5)**2*0.15 - (dose-18)**2*0.1',budget:50,
+    s:['🎛️ Knobs','temperature 85–96° · grind 1–10 · dose 14–22g'],t:['🧪 Score','a simulated taste rating (in real life: a barista tastes it — you don\\'t calculate anything)'],b:['🎯 Budget','50 brews — Melete finds the best recipe without being told it']},
+  price:{space:'[{"name":"price","type":"real","min":1,"max":100}]',obj:'price * (100 - price)',budget:30,
+    s:['🎛️ Knobs','one dial: price, $1–100'],t:['🧪 Score','revenue (price × how many people still buy at that price)'],b:['🎯 Budget','30 tries — find the price that earns the most']},
 };
-function loadPreset(){var p=PRESETS[document.getElementById('preset').value];document.getElementById('space').value=p.space;document.getElementById('obj').value=p.obj;document.getElementById('budget').value=p.budget;document.getElementById('out').textContent='example loaded — press Discover →';document.getElementById('map').className='';}
+function loadPreset(){var p=PRESETS[document.getElementById('preset').value];document.getElementById('space').value=p.space;document.getElementById('obj').value=p.obj;document.getElementById('budget').value=p.budget;
+  document.getElementById('scenario').innerHTML=[p.s,p.t,p.b].map(function(r){return '<div class="srow"><b>'+r[0]+'</b><span>'+r[1]+'</span></div>'}).join('');
+  document.getElementById('out').textContent='Ready — press ▶ Watch Melete discover.';var m=document.getElementById('map');if(m)m.className='';}
 var ARMCOL={gp:'#6d5cf0',cmaes:'#0ea5b7',"kernel-ucb":'#f97316',"trust-region":'#a855f7',anneal:'#ef4444',maximin:'#22c55e',"basin-hop":'#eab308',random:'#94a3b8',seed:'#cbd5e1'};
 function heat(t){t=Math.max(0,Math.min(1,t));var a=[40,32,84],b=[14,120,170],c=[16,185,160],d=[250,232,80];var seg=t<.33?[a,b,t/.33]:t<.66?[b,c,(t-.33)/.33]:[c,d,(t-.66)/.34];return 'rgb('+seg[0].map(function(v,i){return Math.round(v+(seg[1][i]-v)*seg[2])}).join(',')+')';}
 var MAP={};
@@ -254,6 +281,7 @@ async function run(){
     renderMap(j);
   }catch(e){out.textContent='⚠ '+e.message;}
 }
+loadPreset();
 </script>
 </body></html>`;
 }
@@ -309,7 +337,7 @@ export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
     { name: "DISCOVERY-MAP", pass: html.includes("Discovery map") && html.includes('id="surf"') && html.includes("renderMap") && html.includes("heat("), detail: "renders an interactive discovery map (learned surface heatmap + experiment path + convergence + strategy)" },
     { name: "WHO-ITS-FOR+STEPS", pass: html.includes("Who it's for") && html.includes("Pharma") && html.includes("AI / ML teams") && html.includes("How it works") && html.includes("Score one try"), detail: "audiences + the 3-step explainer (journalist-style, 1-minute readable)" },
-    { name: "NO-DATASET", pass: html.includes("You don't need a dataset") && html.includes("melete tune"), detail: "explains no dataset is needed + shows the real `melete tune` usage" },
+    { name: "NO-DATASET", pass: html.includes("No dataset") && html.includes("melete tune"), detail: "explains no dataset is needed + shows the real `melete tune` usage" },
     { name: "AIR-GAPPED", pass: html.toLowerCase().includes("air-gapped") && html.includes("runs fully offline"), detail: "states the air-gapped / on-prem positioning" },
     { name: "PITCH-DECK", pass: pitch.startsWith("<!doctype html>") && pitch.includes("The ask") && pitch.includes("The moat") && html.includes('href="/pitch"'), detail: "HTML pitch deck renders (problem→product→moat→proof→ask) and is linked from the landing page" },
     { name: "VERSION+CATALOG", pass: html.includes("9.9.9") && ENDPOINTS.length === 4 && ENDPOINTS.some((e) => e.path === "/pitch"), detail: "version injected; endpoint catalogue incl /pitch + /discover + /verify" },
