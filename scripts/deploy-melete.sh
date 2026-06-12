@@ -43,7 +43,7 @@ User=root
 [Install]
 WantedBy=multi-user.target
 UNIT
-systemctl daemon-reload && systemctl enable --now mneme-melete && sleep 2 && curl -s --max-time 8 http://127.0.0.1:$PORT/health"
+systemctl daemon-reload && systemctl enable mneme-melete && systemctl restart mneme-melete && sleep 2 && curl -s --max-time 8 http://127.0.0.1:$PORT/health"
 
 echo ""
 echo "▸ caddy site (additive) for $HOSTNAME …"

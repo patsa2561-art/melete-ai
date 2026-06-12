@@ -105,7 +105,9 @@ const server = createServer(async (req, res) => {
       // INTERACTIONS — which variables are coupled (cannot be tuned independently).
       let interactions = null; try { interactions = M.analyzeInteractions(frontierObs, space, goal); } catch { interactions = null; }
       let coverage = null; try { coverage = M.coverageScore(frontierObs, space); } catch { coverage = null; }
-      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      // DRIFT — is the improvement caused by your variables, or confounded with a time-trend (a hidden factor)?
+      let drift = null; try { drift = M.analyzeDrift(frontierObs, space, goal); } catch { drift = null; }
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {
