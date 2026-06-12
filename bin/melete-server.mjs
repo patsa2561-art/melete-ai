@@ -76,7 +76,15 @@ const server = createServer(async (req, res) => {
       const frontier = M.stoppingAdvice(frontierObs, goal, cost);
       // OPTIMALITY CERTIFICATE: a provable "within X% of the best possible" under a data-estimated Lipschitz bound.
       const certificate = M.certifyOptimality(frontierObs, space, goal);
-      return json(res, 200, { best, evaluations: sig.result.evaluations + extraEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      const totalEvals = sig.result.evaluations + extraEvals;
+      // BASELINE — a raw score means nothing without a reference. Compare Melete's best against (a) where you
+      // started and (b) a plain random search on the SAME budget, so the number becomes "X% better than random".
+      const startVal = frontierObs.length ? frontierObs[0].value : best.value;
+      const rng = M.lcg(987654321);
+      let randomBest = goal === "minimize" ? Infinity : -Infinity;
+      for (let i = 0; i < totalEvals; i++) { const e = {}; for (const dd of space.dims) { const lo2 = dd.min ?? 0, hi2 = dd.max ?? 1; let v = lo2 + (hi2 - lo2) * rng(); if (dd.type === "int") v = Math.round(v); e[dd.name] = v; } const val = oracle(e); if (Number.isFinite(val) && (goal === "minimize" ? val < randomBest : val > randomBest)) randomBest = val; }
+      const baseline = { start: startVal, random: Number.isFinite(randomBest) ? randomBest : null, best: best.value, evaluations: totalEvals };
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {
