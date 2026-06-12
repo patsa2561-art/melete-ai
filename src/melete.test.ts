@@ -39,7 +39,7 @@ describe("gauntlets (every module = 100)", () => {
   it("aggregate meleteGauntlet = 100 over all 23 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "certify", "costaware", "cortex", "engine", "federated", "frontier", "interaction", "interactive", "multiobjective", "noise", "oracle", "poopt", "portfolio", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "territory", "trace"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "certify", "cortex", "costaware", "engine", "federated", "frontier", "interaction", "interactive", "multiobjective", "noise", "oracle", "poopt", "portfolio", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "territory", "trace"]);
   });
 });
 
