@@ -27,6 +27,7 @@ export * from "./multiobjective.js";
 export * from "./sensitivity.js";
 export * from "./noise.js";
 export * from "./interaction.js";
+export * from "./territory.js";
 export * from "./server.js";
 
 import { type DiscoverOpts, type DiscoveryResult, type Step, discover } from "./engine.js";
@@ -77,6 +78,7 @@ import { multiObjectiveGauntlet } from "./multiobjective.js";
 import { sensitivityGauntlet } from "./sensitivity.js";
 import { noiseGauntlet } from "./noise.js";
 import { interactionGauntlet } from "./interaction.js";
+import { territoryGauntlet } from "./territory.js";
 import { serverGauntlet } from "./server.js";
 
 export interface MeleteGauntlet { score: 0 | 100; modules: Array<{ name: string; score: number; checks: Array<{ name: string; pass: boolean }> }> }
@@ -100,6 +102,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "sensitivity", g: sensitivityGauntlet() },
     { name: "noise", g: noiseGauntlet() },
     { name: "interaction", g: interactionGauntlet() },
+    { name: "territory", g: territoryGauntlet() },
     { name: "trace", g: traceGauntlet() },
     { name: "bench", g: await benchGauntlet() },
     { name: "server", g: serverGauntlet() },

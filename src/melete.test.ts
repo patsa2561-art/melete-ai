@@ -12,7 +12,7 @@ import {
   Tracer, verifyTrace,
   multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
-  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions,
+  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions, territoryGauntlet, assessTerritory, coverageScore,
 } from "./index.js";
 
 describe("gauntlets (every module = 100)", () => {
@@ -34,10 +34,11 @@ describe("gauntlets (every module = 100)", () => {
   it("sensitivity (process tolerance)", () => expect(sensitivityGauntlet().score).toBe(100));
   it("noise (replication advisor)", () => expect(noiseGauntlet().score).toBe(100));
   it("interaction (variable coupling map)", () => expect(interactionGauntlet().score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 21 modules", async () => {
+  it("territory (leap detector)", () => expect(territoryGauntlet().score).toBe(100));
+  it("aggregate meleteGauntlet = 100 over all 22 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "certify", "cortex", "engine", "federated", "frontier", "interaction", "interactive", "multiobjective", "noise", "oracle", "poopt", "portfolio", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "trace"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "certify", "cortex", "engine", "federated", "frontier", "interaction", "interactive", "multiobjective", "noise", "oracle", "poopt", "portfolio", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "territory", "trace"]);
   });
 });
 

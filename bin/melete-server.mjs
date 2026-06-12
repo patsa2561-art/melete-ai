@@ -104,7 +104,8 @@ const server = createServer(async (req, res) => {
       let noise = null; try { noise = M.analyzeNoise(frontierObs, space, goal); } catch { noise = null; }
       // INTERACTIONS — which variables are coupled (cannot be tuned independently).
       let interactions = null; try { interactions = M.analyzeInteractions(frontierObs, space, goal); } catch { interactions = null; }
-      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      let coverage = null; try { coverage = M.coverageScore(frontierObs, space); } catch { coverage = null; }
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {
@@ -119,7 +120,8 @@ const server = createServer(async (req, res) => {
         const best = obs.length ? obs.reduce((a, b) => (goal === "minimize" ? (b.value < a.value ? b : a) : (b.value > a.value ? b : a))) : null;
         const cost = (typeof body.costPerExperiment === "number" && body.costPerExperiment > 0) ? body.costPerExperiment : null;
         const advice = M.stoppingAdvice(obs, goal, cost);
-        return json(res, 200, { next, t: obs.length, best, goal, advice });
+        const territory = M.assessTerritory(next, obs, space);
+        return json(res, 200, { next, t: obs.length, best, goal, advice, territory });
       } catch (e) { return json(res, 400, { error: "propose failed: " + e.message.slice(0, 120) }); }
     }
 
