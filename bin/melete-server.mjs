@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import * as M from "../dist/index.js";
+import { createHash } from "node:crypto";
 
 const VERSION = (() => { try { return JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8")).version; } catch { return "0.2.0"; } })();
 const PORT = +(process.env.PORT || 8790); const HOST = process.env.HOST || "127.0.0.1";
@@ -84,7 +85,19 @@ const server = createServer(async (req, res) => {
       let randomBest = goal === "minimize" ? Infinity : -Infinity;
       for (let i = 0; i < totalEvals; i++) { const e = {}; for (const dd of space.dims) { const lo2 = dd.min ?? 0, hi2 = dd.max ?? 1; let v = lo2 + (hi2 - lo2) * rng(); if (dd.type === "int") v = Math.round(v); e[dd.name] = v; } const val = oracle(e); if (Number.isFinite(val) && (goal === "minimize" ? val < randomBest : val > randomBest)) randomBest = val; }
       const baseline = { start: startVal, random: Number.isFinite(randomBest) ? randomBest : null, best: best.value, evaluations: totalEvals };
-      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      // PROOF OF OPTIMIZATION — a portable, offline-verifiable certificate fusing efficiency + optimality + provenance.
+      let poopt = null;
+      try {
+        const traceHash = createHash("sha256").update(JSON.stringify(sig.trace)).digest("hex");
+        poopt = M.issueProofOfOptimization({
+          subject: typeof body.subject === "string" ? body.subject.slice(0, 80) : "optimization",
+          goal, dims: space.dims.length, experimentsUsed: totalEvals, bestValue: best.value,
+          certifiedWithinPct: certificate ? certificate.withinPct : null, traceHash, issuedAtMs: Date.now(),
+          energyPerExperimentKwh: typeof body.energyPerExperimentKwh === "number" ? body.energyPerExperimentKwh : null,
+          carbonKgPerKwh: typeof body.carbonKgPerKwh === "number" ? body.carbonKgPerKwh : null,
+        });
+      } catch { poopt = null; }
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {

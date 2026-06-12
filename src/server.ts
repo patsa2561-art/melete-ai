@@ -351,6 +351,7 @@ export function landingPage(version = "0.4.0"): string {
 <div class="savings" id="baseline" style="display:none;margin-top:12px"></div>
 <div class="savings" id="frontier" style="display:none;margin-top:12px"></div>
 <div class="savings" id="cert" style="display:none;margin-top:12px"></div>
+<div class="savings" id="poopt" style="display:none;margin-top:12px"></div>
 
 <div id="map">
 <div class="mapgrid">
@@ -629,6 +630,7 @@ function renderMap(j){
   renderBaseline();
   renderFrontier();
   renderCert();
+  renderPoopt();
   stopPlay();setTimeout(togglePlay,250);   // auto-play the discovery
 }
 function renderSavings(){
@@ -679,6 +681,17 @@ function renderCert(){
     +'<div style="font-size:16px;color:#1a1b30">'+(th?'พิสูจน์ได้ว่ามีค่าที่ดีกว่านี้ได้ไม่เกิน ':'the true optimum is provably at most ')+'<b style="color:#7c3aed">'+gtxt+'%</b> '+(th?'เหนือผลของคุณ':'above your result')+'</div>'
     +'<div class="muted" style="font-size:11.5px;margin-top:8px">'+(th?'ภายใต้ขอบเขต Lipschitz ที่ประมาณจากข้อมูลของคุณ — กล่องดำอาจซ่อนยอดแหลมระหว่างจุดที่วัด จึงเป็นการรับรองแบบมีเงื่อนไข ตรวจซ้ำได้':'Under a Lipschitz bound estimated from your data — a black box can hide a sharper spike between samples, so it is a conditional, reproducible certificate.')+'</div>';
 }
+function renderPoopt(){
+  var j=window.LASTJ;if(!j||!j.poopt){return;}var el=document.getElementById('poopt');if(!el)return;
+  var p=j.poopt;var th=(LANG==='th');
+  var co2=(p.co2SavedKg!=null)?('<div style="margin-top:4px;color:#475;font-size:13px">'+(th?'ลด CO₂ โดยประมาณ ':'≈ CO₂ saved ')+'<b>'+(+p.co2SavedKg).toLocaleString()+' kg</b> '+(th?'(จากค่าที่คุณใส่)':'(from your factors)')+'</div>'):'';
+  el.style.display='block';
+  el.innerHTML='<div style="font-size:13px;font-weight:800;color:#0e7490;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">💠 '+(th?'ใบรับรองการ optimize (Proof of Optimization)':'Proof of Optimization')+'</div>'
+    +'<div style="font-size:16px;color:#1a1b30"><b style="color:#0e7490">'+(+p.experimentsSaved).toLocaleString()+'</b> '+(th?'การทดลองน้อยกว่าการไล่ทั้งหมด':'fewer experiments than brute force')+' ('+(+p.efficiencyPct).toFixed(1)+'%)</div>'+co2
+    +'<div style="margin-top:8px;font-size:12px;color:#0e9f6e">🔒 '+(th?'เซ็น Ed25519 · ตรวจสอบ offline ได้โดยไม่ต้องเชื่อเรา':'signed Ed25519 · verifiable offline, no trust in us required')+'</div>'
+    +'<button class="btn ghost" style="margin-top:10px;font-size:13px;padding:8px 14px" onclick="dlPoopt()">⬇ '+(th?'ดาวน์โหลดใบรับรอง':'Download certificate')+'</button>';
+}
+function dlPoopt(){var j=window.LASTJ;if(!j||!j.poopt)return;try{var blob=new Blob([JSON.stringify(j.poopt,null,2)],{type:"application/json"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="proof-of-optimization.json";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}catch(e){}}
 function renderBaseline(){
   var j=window.LASTJ;if(!j||!j.baseline)return;var el=document.getElementById('baseline');if(!el)return;
   var b=j.baseline;var th=(LANG==='th');var min=(j.goal==='minimize');
