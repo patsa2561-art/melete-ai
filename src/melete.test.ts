@@ -12,7 +12,7 @@ import {
   Tracer, verifyTrace,
   multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
-  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity,
+  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise,
 } from "./index.js";
 
 describe("gauntlets (every module = 100)", () => {
@@ -32,10 +32,11 @@ describe("gauntlets (every module = 100)", () => {
   it("federated (multi-lab signed pool)", () => expect(federatedGauntlet().score).toBe(100));
   it("multiobjective (Pareto front)", () => expect(multiObjectiveGauntlet().score).toBe(100));
   it("sensitivity (process tolerance)", () => expect(sensitivityGauntlet().score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 19 modules", async () => {
+  it("noise (replication advisor)", () => expect(noiseGauntlet().score).toBe(100));
+  it("aggregate meleteGauntlet = 100 over all 20 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "certify", "cortex", "engine", "federated", "frontier", "interactive", "multiobjective", "oracle", "poopt", "portfolio", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "trace"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "certify", "cortex", "engine", "federated", "frontier", "interactive", "multiobjective", "noise", "oracle", "poopt", "portfolio", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "trace"]);
   });
 });
 

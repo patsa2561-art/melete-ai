@@ -100,7 +100,9 @@ const server = createServer(async (req, res) => {
       } catch { poopt = null; }
       // SENSITIVITY — per-variable process tolerance + robustness of the optimum (Taguchi-style).
       let sensitivity = null; try { sensitivity = M.analyzeSensitivity(frontierObs, space, goal); } catch { sensitivity = null; }
-      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      // NOISE — measurement-reliability / replication advisor.
+      let noise = null; try { noise = M.analyzeNoise(frontierObs, space, goal); } catch { noise = null; }
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {
