@@ -30,6 +30,36 @@ import { analyzeSloppiness } from "./sloppiness.js";
 import { analyzeSurprise } from "./surprise.js";
 
 export type PrimeKind = "safety" | "feasibility" | "breakthrough" | "trust" | "refine" | "ship" | "more-data" | "unknown";
+
+/**
+ * The Melete Φ formula — Process Intelligence. A single, principled score for how good a discovery run is,
+ * across every axis at once. Defined as:
+ *
+ *     Φ  =  100 · ∛(O · R · T) · ½(1 + C) · U · S · F
+ *
+ *   O optimized, R robust, T trustworthy   — the CORE qualities, combined as a GEOMETRIC mean: conjunctive,
+ *                                            so any one collapsing toward 0 collapses Φ (you can't fake it).
+ *   C confident   — modulates by how sure we can stop (½(1+C) keeps a thin-data run from scoring full marks).
+ *   U understood, S safe, F feasible        — multiplicative gates ∈ (0,1] that can only PENALISE a known
+ *                                            deficiency (an optimum on a cliff, a target out of reach).
+ *
+ * Provable properties (the gauntlet checks all four, so the headline number is sound, not a hunch):
+ *   • BOUNDED   Φ ∈ [0, 100]              (every factor ∈ [0,1])
+ *   • IDENTITY  all factors = 1  ⇒  Φ = 100
+ *   • CONJUNCTIVE  any core factor = 0  ⇒  Φ = 0
+ *   • MONOTONE  ∂Φ/∂(any factor) ≥ 0     (more of any good thing never lowers the score)
+ *
+ * Complexity of the whole PRIME pass: O(n²·D + n·D² + D³) for n measurements over D variables — the n²·D from
+ * the near-neighbour scans (cliffs/surprise/efficiency), n·D² from the quadratic curvature fits, D³ from the
+ * sloppiness eigen-decomposition. Linear in the number of lenses; well under a second for realistic runs.
+ */
+export interface PiqFactors { optimized: number; robust: number; trustworthy: number; confident: number; understood: number; safe: number; feasible: number }
+export function processIntelligence(f: PiqFactors): number {
+  const c = (x: number) => (Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : 0);
+  const core = Math.cbrt(c(f.optimized) * c(f.robust) * c(f.trustworthy));     // conjunctive
+  const mod = ((c(f.confident) + 1) / 2) * c(f.understood) * c(f.safe) * c(f.feasible);   // ∈ (0,1]
+  return Math.round(100 * core * mod);
+}
 export interface PrimeInsight { kind: PrimeKind; severity: number; headline: string }
 export interface PrimeVerdict {
   processIQ: number;          // 0–100: how well-understood, optimized, safe, robust, trustworthy
@@ -77,8 +107,7 @@ export function meletePrime(obs: ReadonlyArray<Observation>, space: Space, goal:
   const understood = slop && Number.isFinite(slop.effectiveDims) ? 1 : 0.75;
   const safety = (cliffs && cliffs.optimumOnCliff) ? 0.5 : 1;            // an optimum on a cliff is a poorly-understood process
   const feasible = (achiev && achiev.verdict === "unreachable") ? 0.7 : 1;
-  const core = Math.cbrt(Math.max(0.001, eta) * Math.max(0.001, rob) * Math.max(0.001, tru));   // conjunctive
-  const processIQ = Math.round(100 * core * ((cf + 1) / 2) * understood * safety * feasible);
+  const processIQ = processIntelligence({ optimized: eta, robust: rob, trustworthy: tru, confident: cf, understood, safe: safety, feasible });
   const grade: PrimeVerdict["grade"] = processIQ >= 80 ? "world-class" : processIQ >= 60 ? "strong" : processIQ >= 40 ? "developing" : "fragile";
 
   const recipe = presc?.recipe ?? [];
@@ -122,6 +151,17 @@ export function primeGauntlet(): { score: 0 | 100; checks: Array<{ name: string;
   const bounded = [vShip, vSafe, vLev].every((v) => v.processIQ >= 0 && v.processIQ <= 100);
   const piqRanks = vShip.processIQ > vSafe.processIQ;                   // a clean run scores higher than one whose optimum is on a cliff
   const briefingPlain = vShip.briefing.indexOf("Process intelligence") >= 0 && vShip.briefing.length > 40;
+  // ── Φ formula property proofs (the brain's number must be mathematically sound) ──
+  const piqIdentity = processIntelligence({ optimized: 1, robust: 1, trustworthy: 1, confident: 1, understood: 1, safe: 1, feasible: 1 }) === 100;
+  const piqConjunctive = processIntelligence({ optimized: 0, robust: 1, trustworthy: 1, confident: 1, understood: 1, safe: 1, feasible: 1 }) === 0
+    && processIntelligence({ optimized: 1, robust: 1, trustworthy: 0, confident: 1, understood: 1, safe: 1, feasible: 1 }) === 0;
+  const base = { optimized: 0.6, robust: 0.5, trustworthy: 0.7, confident: 0.5, understood: 1, safe: 1, feasible: 1 };
+  let mono = true; for (const k of ["optimized", "robust", "trustworthy", "confident", "understood", "safe", "feasible"] as const) {
+    const loF = processIntelligence({ ...base, [k]: 0.2 }); const hiF = processIntelligence({ ...base, [k]: 0.95 });
+    if (hiF < loF) mono = false;                                       // raising any good factor never lowers Φ
+  }
+  const rng = lcg(42); let piqBounded = true; for (let i = 0; i < 500; i++) { const v = processIntelligence({ optimized: rng(), robust: rng(), trustworthy: rng(), confident: rng(), understood: rng(), safe: rng(), feasible: rng() }); if (v < 0 || v > 100 || !Number.isInteger(v)) piqBounded = false; }
+
   const det = JSON.stringify(meletePrime(ship, space, "maximize")) === JSON.stringify(meletePrime(ship, space, "maximize"));
   const abstains = meletePrime(ship.slice(0, 3), space, "maximize").grade === "unknown";
   const total = (() => { try { meletePrime([], space); meletePrime(null as never, space); meletePrime(ship, { dims: [] }); return true; } catch { return false; } })();
@@ -132,6 +172,10 @@ export function primeGauntlet(): { score: 0 | 100; checks: Array<{ name: string;
     { name: "CLEAN-RUN→SHIP", pass: shipOk, detail: `converged robust run → decisive "${vShip.decisive.kind}" (PIQ ${vShip.processIQ})` },
     { name: "PIQ-BOUNDED", pass: bounded, detail: "process intelligence always 0–100" },
     { name: "PIQ-RANKS-QUALITY", pass: piqRanks, detail: `clean PIQ ${vShip.processIQ} > cliff PIQ ${vSafe.processIQ}` },
+    { name: "Φ-IDENTITY", pass: piqIdentity, detail: "all factors 1 ⇒ Φ = 100 (provable)" },
+    { name: "Φ-CONJUNCTIVE", pass: piqConjunctive, detail: "any core factor 0 ⇒ Φ = 0 (a weak link can't hide)" },
+    { name: "Φ-MONOTONE", pass: mono, detail: "raising any good factor never lowers Φ (∂Φ/∂factor ≥ 0)" },
+    { name: "Φ-BOUNDED-INTEGER", pass: piqBounded, detail: "500 random inputs → Φ always an integer in [0,100]" },
     { name: "PLAIN-BRIEFING", pass: briefingPlain, detail: "a readable 3-sentence brief, not jargon" },
     { name: "DETERMINISTIC", pass: det, detail: "same run → same verdict" },
     { name: "ABSTAINS-WHEN-THIN", pass: abstains, detail: "too little data → unknown" },
