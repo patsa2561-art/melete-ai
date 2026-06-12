@@ -115,9 +115,11 @@ const server = createServer(async (req, res) => {
       let lineage = null; try { lineage = M.buildLineage(frontierObs, space, goal); } catch { lineage = null; }
       // SLOPPINESS — how many combinations of variables actually matter (effective dimensionality)
       let sloppiness = null; try { sloppiness = M.analyzeSloppiness(frontierObs, space, goal); } catch { sloppiness = null; }
+      // CLIFFS — tipping points where a small change collapses the result
+      let cliffs = null; try { cliffs = M.analyzeCliffs(frontierObs, space, goal); } catch { cliffs = null; }
       // expose the space + a capped sample of observations so the browser can run the WHAT-IF twin (/predict)
       const obsOut = (frontierObs || []).slice(0, 200).map((o) => ({ experiment: o.experiment, value: o.value }));
-      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, space: space.dims, observations: obsOut, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, efficiency, prescription, lineage, sloppiness, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, space: space.dims, observations: obsOut, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, efficiency, prescription, lineage, sloppiness, cliffs, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {
