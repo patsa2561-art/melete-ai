@@ -95,6 +95,27 @@ async function main() {
     process.exit(0);
   }
 
+  if (cmd === "replicate") {
+    // melete replicate --trace t.json (--cmd "prog --a {a}" | --objective "<js>") [--samples N] [--tol 1e-3]
+    const tf = argv[1] && !argv[1].startsWith("--") ? argv[1] : flag("trace");
+    if (!tf) { out('usage: melete replicate <trace.json> --cmd "your-prog --a {a}"   (or --objective "<js>")\n  re-runs the discovery\'s best + a sample of its path to certify it REPLICATES — cheap cross-agent trust.'); process.exit(2); }
+    const trace = JSON.parse(readFileSync(tf, "utf8"));
+    const claim = M.extractClaim(trace);
+    let oracle;
+    if (flag("cmd")) { const { execSync } = await import("node:child_process"); const tpl = flag("cmd"); oracle = (e) => { const c = tpl.replace(/\{(\w+)\}/g, (_, k) => String(e[k])); const s = String(execSync(c, { encoding: "utf8", timeout: 600000, stdio: ["ignore", "pipe", "ignore"] })); return Number((s.match(/-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?/g) ?? []).at(-1)); }; }
+    else if (flag("objective") && flag("objective") !== true) { const obj = flag("objective"); const ctx = createContext({ Math }); oracle = (e) => { for (const k of Object.keys(e)) ctx[k] = e[k]; return Number(runInContext(obj, ctx, { timeout: 200 })); }; }
+    else { out("provide how to re-score: --cmd \"<command with {dims}>\" or --objective \"<js expression>\""); process.exit(2); }
+    out(`\n🔁 Replicating a published discovery (re-running its best + sampled points)…`);
+    const report = await M.replicate({ claim, oracle, samples: +(flag("samples", 3)), tolerance: +(flag("tol", 1e-3)) });
+    out(`   ${report.replicates ? "✅ REPLICATES" : "❌ DOES NOT REPLICATE"}`);
+    out(`   best: claimed ${report.best.claimed} · re-scored ${report.best.measured} · ${report.best.match ? "match" : "MISMATCH"}`);
+    for (const s of report.samples) out(`   · ${JSON.stringify(s.experiment)} claimed ${s.claimed} re-scored ${s.measured} ${s.match ? "✓" : "✗"}`);
+    out(`   ${report.reEvaluations} re-evaluations verified a ${claim.path.length}-experiment discovery (cross-agent trust, ${(claim.path.length / Math.max(1, report.reEvaluations)).toFixed(0)}× cheaper than re-running it).`);
+    const cert = M.certifyReplication(report); const cf = flag("out", "replication-cert.json"); writeFileSync(cf, JSON.stringify(cert, null, 2));
+    out(`   📜 signed replication certificate → ${cf}  ·  verify: melete verify ${cf}`);
+    process.exit(report.replicates ? 0 : 2);
+  }
+
   if (cmd === "verify") {
     const path = argv[1]; if (!path) { out("usage: melete verify <trace.json>"); process.exit(2); }
     const trace = JSON.parse(readFileSync(path, "utf8"));

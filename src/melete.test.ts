@@ -7,6 +7,7 @@ import {
   resonanceDiscover, resonanceGauntlet, resonanceVsBayes,
   armsGauntlet, defaultArms,
   portfolioDiscover, portfolioGauntlet,
+  replicate, replicateGauntlet, certifyReplication, extractClaim,
   Tracer, verifyTrace,
   multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
@@ -21,10 +22,11 @@ describe("gauntlets (every module = 100)", () => {
   it("bench", async () => expect((await benchGauntlet()).score).toBe(100));
   it("arms", () => expect(armsGauntlet().score).toBe(100));
   it("portfolio", async () => expect((await portfolioGauntlet()).score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 10 modules", async () => {
+  it("replicate", async () => expect((await replicateGauntlet()).score).toBe(100));
+  it("aggregate meleteGauntlet = 100 over all 11 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "cortex", "engine", "oracle", "portfolio", "resonance", "server", "space", "trace"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "cortex", "engine", "oracle", "portfolio", "replicate", "resonance", "server", "space", "trace"]);
   });
 });
 
@@ -142,6 +144,31 @@ describe("discovery trace (the moat) — signed + offline-verifiable", () => {
     const trace = t.export(); trace.publicKeyPem = new Tracer().publicKeyPem;
     expect(verifyTrace(trace).ok).toBe(false);
   });
+});
+
+describe("replication attestation (cross-agent trust)", () => {
+  const f = (e: { x: number }) => Math.exp(-((e.x - 7) ** 2) / 2);
+  it("an honest discovery replicates; a fabricated one does not", async () => {
+    const claim = { best: { experiment: { x: 7 }, value: f({ x: 7 }) }, path: [{ experiment: { x: 5 }, value: f({ x: 5 }) }, { experiment: { x: 7 }, value: f({ x: 7 }) }] };
+    expect((await replicate({ claim, oracle: f as never, samples: 1 })).replicates).toBe(true);
+    const lie = { ...claim, best: { experiment: { x: 7 }, value: 9.9 } };
+    expect((await replicate({ claim: lie, oracle: f as never, samples: 1 })).replicates).toBe(false);
+  });
+  it("re-running just the best (1 experiment) certifies a whole discovery", async () => {
+    const claim = { best: { experiment: { x: 7 }, value: f({ x: 7 }) }, path: Array.from({ length: 40 }, (_, i) => ({ experiment: { x: i / 4 }, value: f({ x: i / 4 }) })) };
+    const r = await replicate({ claim, oracle: f as never, samples: 0 });
+    expect(r.replicates).toBe(true); expect(r.reEvaluations).toBe(1);
+  });
+  it("the replication certificate is signed + offline-verifiable", async () => {
+    const claim = { best: { experiment: { x: 7 }, value: f({ x: 7 }) }, path: [] };
+    const cert = certifyReplication(await replicate({ claim, oracle: f as never, samples: 0 }));
+    expect(verifyTrace(cert).ok).toBe(true);
+  });
+  it("extracts the claim from a signed discovery trace", () => {
+    const t = new Tracer(); t.record("observation", { experiment: { x: 7 }, value: 1 }); t.record("result", { phase: "final", best: { experiment: { x: 7 }, value: 1 } });
+    expect(extractClaim(t.export()).best.value).toBe(1);
+  });
+  it("gauntlet is 100", async () => expect((await replicateGauntlet()).score).toBe(100));
 });
 
 describe("discoverSigned (end-to-end)", () => {

@@ -4,3 +4,5 @@ dist/
 melete-trace.json
 *.log
 .DS_Store
+replication-cert.json
+melete-trace.json

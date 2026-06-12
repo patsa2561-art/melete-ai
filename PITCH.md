@@ -41,6 +41,7 @@ Bayesian optimisation is commoditised; a *single* algorithm is not a moat. The d
 | layer | why hard to copy |
 |---|---|
 | **Verifiable provenance-of-discovery** | no lab or optimiser ships a signed, offline-verifiable discovery trail — and it is exactly what patents, audits, and the replication crisis demand |
+| **Replication attestation** | provenance proves the *path*; replication proves the *science*. Any agent re-runs just the **best point (1 experiment)** to certify another agent's whole 40-experiment discovery — cheap, portable cross-agent trust + a signed replication certificate. The replication-crisis killer; no optimiser ships it |
 | **Universal `f(x)` + air-gap** | one engine across every costly-experiment domain, on-prem, data-never-leaves |
 | **Robust ensemble** | adapts to the problem; measured to beat every single algorithm on rugged landscapes |
 | **Accumulating signed discovery corpus** | every customer's traces compound into a proprietary prior (cortex bridge) — switching cost grows over time |
