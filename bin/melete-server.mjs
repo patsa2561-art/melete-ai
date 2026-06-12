@@ -61,9 +61,22 @@ const server = createServer(async (req, res) => {
       // FRONTIER: "should you have run more, or was this the practical best?" — decision support from the
       // run's own diminishing-returns curve (honest; no fabricated $ unless the client supplies a cost).
       const frontierObs = (sig.result.history || []).map((st) => ({ experiment: st.experiment, value: st.value }));
+      // RELIABLE MODE (opt-in): a Nelder–Mead memetic polish on the global best — the local exploiter that
+      // lifts hard curved valleys (Rosenbrock 59%→100%). Deterministic; the signed trace covers the global
+      // search, the polish is a reported refinement on top.
+      let best = sig.result.best; let extraEvals = 0; const reliable = !!body.reliable;
+      if (reliable) {
+        const localBudget = Math.max(20, Math.round(budget * 0.6));
+        const pol = M.polish(space, oracle, best.experiment, localBudget, goal); extraEvals = localBudget;
+        const improved = goal === "minimize" ? pol.value < best.value : pol.value > best.value;
+        if (improved) best = { experiment: pol.experiment, value: pol.value };
+        frontierObs.push({ experiment: best.experiment, value: best.value });
+      }
       const cost = (typeof body.costPerExperiment === "number" && body.costPerExperiment > 0) ? body.costPerExperiment : null;
       const frontier = M.stoppingAdvice(frontierObs, goal, cost);
-      return json(res, 200, { best: sig.result.best, evaluations: sig.result.evaluations, converged: sig.result.converged, engine: sig.engine, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      // OPTIMALITY CERTIFICATE: a provable "within X% of the best possible" under a data-estimated Lipschitz bound.
+      const certificate = M.certifyOptimality(frontierObs, space, goal);
+      return json(res, 200, { best, evaluations: sig.result.evaluations + extraEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {

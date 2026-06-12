@@ -12,7 +12,7 @@ import {
   Tracer, verifyTrace,
   multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
-  frontierGauntlet, stoppingAdvice, reliabilityGauntlet,
+  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality,
 } from "./index.js";
 
 describe("gauntlets (every module = 100)", () => {
@@ -27,10 +27,11 @@ describe("gauntlets (every module = 100)", () => {
   it("replicate", async () => expect((await replicateGauntlet()).score).toBe(100));
   it("frontier", () => expect(frontierGauntlet().score).toBe(100));
   it("reliability (≥97.5% of optimum on every landscape)", async () => expect((await reliabilityGauntlet()).score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 14 modules", async () => {
+  it("certify (optimality certificate)", async () => expect((await certifyGauntlet()).score).toBe(100));
+  it("aggregate meleteGauntlet = 100 over all 15 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "cortex", "engine", "frontier", "interactive", "oracle", "portfolio", "reliability", "replicate", "resonance", "server", "space", "trace"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "certify", "cortex", "engine", "frontier", "interactive", "oracle", "portfolio", "reliability", "replicate", "resonance", "server", "space", "trace"]);
   });
 });
 
