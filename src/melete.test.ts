@@ -178,8 +178,8 @@ describe("wave-particle map projection — accuracy", () => {
     expect(vizProject(20, 20, 1, nx, ny)[1]).toBeLessThan(vizProject(20, 20, 0, nx, ny)[1]);
   });
   it("the height scale is exact + linear in the score", () => {
-    expect(vizProject(20, 20, 0, nx, ny)[1] - vizProject(20, 20, 1, nx, ny)[1]).toBeCloseTo(128, 6);
-    expect(vizProject(20, 20, 0, nx, ny)[1] - vizProject(20, 20, 0.5, nx, ny)[1]).toBeCloseTo(64, 6);
+    expect(vizProject(20, 20, 0, nx, ny)[1] - vizProject(20, 20, 1, nx, ny)[1]).toBeCloseTo(120, 6);
+    expect(vizProject(20, 20, 0, nx, ny)[1] - vizProject(20, 20, 0.5, nx, ny)[1]).toBeCloseTo(60, 6);
   });
   it("back rows sit higher than front rows (depth ordering)", () => {
     expect(vizProject(0, ny - 1, 0, nx, ny)[1]).toBeLessThan(vizProject(0, 0, 0, nx, ny)[1]);

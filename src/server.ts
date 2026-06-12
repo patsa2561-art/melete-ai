@@ -18,6 +18,9 @@ const SHELL_CSS = `
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:var(--ind);text-decoration:none;font-weight:600}a:hover{text-decoration:underline}
+.langsw{position:fixed;top:14px;right:16px;z-index:60;display:flex;background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;box-shadow:0 4px 14px rgba(20,20,50,.12)}
+.lb{border:0;background:transparent;border-radius:999px;padding:6px 13px;font-size:13px;font-weight:700;color:#6a6c84;cursor:pointer}
+.lb.on{background:var(--grad);color:#fff}
 .wrap{max-width:1000px;margin:0 auto;padding:0 24px}
 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero{position:relative;overflow:hidden;text-align:center;padding:84px 24px 54px;background:radial-gradient(70% 90% at 50% -10%,#eef0ff,transparent 60%)}
@@ -175,7 +178,7 @@ function meli(cls = ""): string {
 
 /** The Wave-Particle map projection (shared, exact, with the client). Tested for accuracy in
  * serverGauntlet: higher score rises, back rows sit higher, everything stays inside the 600×600 canvas. */
-const VZ_C = { mL: 54, plotW: 486, mT: 140, depth: 320, skew: 44, h: 128 };
+const VZ_C = { mL: 54, plotW: 486, mT: 130, depth: 250, skew: 44, h: 120 };
 export function vizProject(gi: number, gj: number, t: number, nx: number, ny: number): [number, number] {
   const fx = nx > 1 ? gi / (nx - 1) : 0.5, fz = ny > 1 ? gj / (ny - 1) : 0.5;
   return [VZ_C.mL + fx * VZ_C.plotW + fz * VZ_C.skew, VZ_C.mT + (1 - fz) * VZ_C.depth - t * VZ_C.h];
@@ -184,6 +187,8 @@ export function vizProject(gi: number, gj: number, t: number, nx: number, ny: nu
 export function landingPage(version = "0.4.0"): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Melete — find the best answer in the fewest experiments</title><style>${SHELL_CSS}</style></head><body>
+
+<div class="langsw"><button id="lang-en" class="lb on" onclick="setLang('en')">EN</button><button id="lang-th" class="lb" onclick="setLang('th')">ไทย</button></div>
 
 <div class="hero">
   <div class="herochar">${meli("hero")}</div>
@@ -273,7 +278,7 @@ export function landingPage(version = "0.4.0"): string {
 <p class="muted" style="margin:0 0 16px">In this browser demo the "score" is faked by a formula so it runs instantly. For your real work the score comes from your real process — see <a href="#use">how to use it for your work</a> below.</p>
 <div class="card">
 <div class="modetabs"><button class="mt on" id="mt-simple" onclick="setMode('simple')">🟢 Simple — pick &amp; watch</button><button class="mt" id="mt-advanced" onclick="setMode('advanced')">⚙️ Advanced — edit the values</button></div>
-<label>Scenario</label>
+<label data-i18n="scenarioL">Scenario</label>
 <select id="preset" onchange="loadPreset()">
   <option value="peak">📈 Find a hidden peak — the simplest demo (2 knobs)</option>
   <option value="coffee">☕ Best espresso recipe — temperature · grind · dose</option>
@@ -293,14 +298,14 @@ export function landingPage(version = "0.4.0"): string {
 <label>Budget — experiments allowed</label>
 <input id="budget" value="40">
 </div>
-<button class="btn primary" style="margin-top:16px;width:100%" onclick="run()">▶ Watch Melete discover</button>
+<button class="btn primary" style="margin-top:16px;width:100%" onclick="run()" data-i18n="watch">▶ Watch Melete discover</button>
 <div class="result" id="out">Pick a scenario, then press Watch — the best settings, a movie of how it searched, and a signed proof appear here.</div>
 <div class="narrate" id="narrate" style="display:none"></div>
 
 <div id="map">
 <div class="mapgrid">
   <div>
-    <div class="caps">Discovery cinema — watch Meli search</div>
+    <div class="caps" data-i18n="cinema">Discovery cinema — watch Meli search</div>
     <canvas id="surf" width="600" height="600"></canvas>
     <div class="player">
       <button id="play" class="pbtn" onclick="togglePlay()">▶ Replay</button>
@@ -311,10 +316,13 @@ export function landingPage(version = "0.4.0"): string {
     <div class="muted" id="mapcap" style="font-size:12.5px;margin-top:6px">Heat = the score it learned · each dot = one experiment, coloured by the <b>strategy</b> that proposed it · ★ = best.</div>
   </div>
   <div>
-    <div class="caps">How the score climbed (higher = better)</div>
+    <div class="caps" data-i18n="climb">How the score climbed (higher = better)</div>
     <canvas id="conv" width="380" height="120" style="height:96px"></canvas>
-    <div class="caps" style="margin-top:16px">Meli's team — who did the work</div>
-    <div id="arms"></div>
+    <div id="teampanel" style="display:none">
+      <div class="caps" style="margin-top:16px" data-i18n="team">Meli's team — who did the work</div>
+      <div class="muted" style="font-size:12px;margin:-3px 0 8px" data-i18n="teamhint">Expert detail: the search helpers Meli used, and how many tries each got. You don't need this to use the result.</div>
+      <div id="arms"></div>
+    </div>
     <div class="caps" style="margin-top:16px">Proof</div>
     <div id="proof" class="kv"></div>
   </div>
@@ -373,6 +381,18 @@ Honest: the engine is a context-adaptive ensemble — its guarantee is robustnes
 </footer>
 
 <script>
+var LANG='en';try{var _sl=localStorage.getItem('mlang');if(_sl)LANG=_sl;}catch(e){}
+var T={
+ en:{watch:'▶ Watch Melete discover',replay:'▶ Replay',team:"Meli's team — who did the work",teamhint:"Expert detail: the helpers Meli used. You don't need this to use the result.",climb:'How the score climbed (higher = better)',cinema:'Discovery cinema — watch Meli search',scenarioL:'Scenario',knobs:'You adjust',score:'You score',budget:'Tries',ph:'Pick a scenario, then press Watch.',plainHdr:'In plain words',tried:'Melete tried',settings:'settings and zeroed in on the best one',winning:'The winning setup',signed:'Every step is cryptographically signed — the result is independently verifiable. No faking, no guessing.'},
+ th:{watch:'▶ ดู Melete ค้นพบ',replay:'▶ เล่นใหม่',team:'ทีมของ Meli — ใครลงมือบ้าง',teamhint:'รายละเอียดผู้เชี่ยวชาญ: ผู้ช่วยที่ Meli ใช้ ไม่จำเป็นต้องรู้ก็ใช้ผลได้',climb:'คะแนนไต่ขึ้นยังไง (สูง = ดี)',cinema:'โรงหนังการค้นพบ — ดู Meli ค้นหา',scenarioL:'เลือกสถานการณ์',knobs:'สิ่งที่ปรับได้',score:'วัดเป็นคะแนน',budget:'จำนวนครั้ง',ph:'เลือกสถานการณ์ แล้วกดดู',plainHdr:'สรุปภาษาคน',tried:'Melete ลอง',settings:'แบบ แล้วล็อกแบบที่ดีที่สุด',winning:'สูตรที่ชนะ',signed:'ทุกขั้นเซ็นด้วยคริปโต — ผลตรวจสอบได้จริง ไม่มีโม้ ไม่มีเดา'}
+};
+function tr(k){var o=T[LANG]||T.en;return o[k]!=null?o[k]:T.en[k];}
+function setLang(l){LANG=l;try{localStorage.setItem('mlang',l);}catch(e){}
+ var e1=document.getElementById('lang-en'),e2=document.getElementById('lang-th');if(e1)e1.className='lb'+(l==='en'?' on':'');if(e2)e2.className='lb'+(l==='th'?' on':'');
+ var els=document.querySelectorAll('[data-i18n]');for(var i=0;i<els.length;i++){var v=tr(els[i].getAttribute('data-i18n'));if(v!=null)els[i].innerHTML=v;}
+ if(typeof loadPreset==='function')loadPreset();
+ if(window.LASTJ)renderMap(window.LASTJ);
+}
 var PRESETS={
   peak:{space:'[{"name":"x","type":"real","min":0,"max":10},{"name":"y","type":"real","min":0,"max":10}]',obj:'Math.exp(-((x-7.2)**2+(y-3.4)**2)/3)',budget:40,
     s:['🎛️ Knobs','two dials, x &amp; y, each 0–10'],t:['🧪 Score','a hidden peak the demo simulates — highest at one secret spot'],b:['🎯 Budget','40 tries — watch it find the secret high point']},
@@ -390,13 +410,27 @@ var PRESETS={
     s:['🎛️ Variables','LLM serving — batch 1–64 · KV-cache 1–40GB · quantization 4–16 bits'],t:['🧪 Score','a simulated tokens/sec at a quality bar (real life: load-test the server)'],b:['🎯 Budget','55 configs — Melete finds the fastest serving setup']},
 };
 function tryScenario(k){var sel=document.getElementById('preset');sel.value=k;loadPreset();var t=document.getElementById('try');if(t)t.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(run,650);}
-function setMode(m){var a=document.getElementById('advbox');if(a)a.style.display=(m==='advanced')?'block':'none';var s=document.getElementById('mt-simple'),v=document.getElementById('mt-advanced');if(s)s.className='mt'+(m==='simple'?' on':'');if(v)v.className='mt'+(m==='advanced'?' on':'');}
+function setMode(m){var adv=(m==='advanced');var set=function(id,sh){var el=document.getElementById(id);if(el)el.style.display=sh;};
+  set('advbox',adv?'block':'none');set('teampanel',adv?'block':'none');set('legend',adv?'flex':'none');
+  var s=document.getElementById('mt-simple'),v=document.getElementById('mt-advanced');if(s)s.className='mt'+(!adv?' on':'');if(v)v.className='mt'+(adv?' on':'');}
 function loadPreset(){var p=PRESETS[document.getElementById('preset').value];document.getElementById('space').value=p.space;document.getElementById('obj').value=p.obj;document.getElementById('budget').value=p.budget;
-  document.getElementById('scenario').innerHTML=[p.s,p.t,p.b].map(function(r){return '<div class="srow"><b>'+r[0]+'</b><span>'+r[1]+'</span></div>'}).join('');
-  document.getElementById('out').textContent='Ready — press ▶ Watch Melete discover.';var m=document.getElementById('map');if(m)m.className='';}
+  var rows=[['🎛️ '+tr('knobs'),p.s[1]],['🧪 '+tr('score'),p.t[1]],['🎯 '+tr('budget'),p.b[1]]];
+  document.getElementById('scenario').innerHTML=rows.map(function(r){return '<div class="srow"><b>'+r[0]+'</b><span>'+r[1]+'</span></div>'}).join('');
+  document.getElementById('out').textContent=tr('ph');var m=document.getElementById('map');if(m)m.className='';}
 var ARMCOL={gp:'#6d5cf0',cmaes:'#0ea5b7',"kernel-ucb":'#f97316',"trust-region":'#a855f7',anneal:'#ef4444',maximin:'#22c55e',"basin-hop":'#eab308',random:'#94a3b8',seed:'#cbd5e1'};
-var STRAT={gp:['🔮 The Forecaster','predicts which untried setting will score high'],cmaes:['🧬 The Evolver','breeds better tries from the best so far'],"kernel-ucb":['⚖️ The Balancer','weighs the best-known against the unknown'],"trust-region":['🔍 The Zoomer','zooms in carefully around the current best'],anneal:['🌡️ The Wanderer','roams boldly early, then settles down'],maximin:['🛰️ The Scout','checks the most unexplored areas'],"basin-hop":['🦘 The Jumper','leaps to fresh regions to escape dead ends'],random:['🎲 The Wildcard','tries random spots as a sanity check'],seed:['🌱 The Opening','the first spread-out tries to get going']};
-function sName(a){return (STRAT[a]||[a])[0];}
+var STRAT={
+ gp:['🔮 The Forecaster','predicts which untried setting will score high','🔮 ผู้พยากรณ์','ทายว่าจุดไหนน่าจะคะแนนสูง'],
+ cmaes:['🧬 The Evolver','breeds better tries from the best so far','🧬 นักวิวัฒน์','ผสมพันธุ์ค่าที่ดีให้ดีขึ้นเรื่อยๆ'],
+ "kernel-ucb":['⚖️ The Balancer','weighs the best-known against the unknown','⚖️ นักชั่งใจ','ชั่งระหว่างของดีที่รู้แล้วกับที่ยังไม่รู้'],
+ "trust-region":['🔍 The Zoomer','zooms in carefully around the current best','🔍 นักซูม','ซูมเข้าใกล้ค่าที่ดีที่สุดอย่างระวัง'],
+ anneal:['🌡️ The Wanderer','roams boldly early, then settles down','🌡️ นักท่อง','ออกสำรวจกว้างตอนแรก แล้วค่อยนิ่ง'],
+ maximin:['🛰️ The Scout','checks the most unexplored areas','🛰️ นักสอดแนม','ไปดูพื้นที่ที่ยังไม่เคยลอง'],
+ "basin-hop":['🦘 The Jumper','leaps to fresh regions to escape dead ends','🦘 นักกระโดด','กระโดดไปจุดใหม่เพื่อหนีทางตัน'],
+ random:['🎲 The Wildcard','tries random spots as a sanity check','🎲 ไพ่ตาย','ลองสุ่มเพื่อเช็คความชัวร์'],
+ seed:['🌱 The Opening','the first spread-out tries to get going','🌱 การเปิดเกม','ลองกระจายๆ ช่วงเริ่มต้น']
+};
+function sName(a){var s=STRAT[a]||[a,'',a,''];return LANG==='th'?(s[2]||s[0]):s[0];}
+function sDesc(a){var s=STRAT[a]||['','','',''];return LANG==='th'?(s[3]||s[1]):s[1];}
 function heat(t){t=Math.max(0,Math.min(1,t));var a=[40,32,84],b=[14,120,170],c=[16,185,160],d=[250,232,80];var seg=t<.33?[a,b,t/.33]:t<.66?[b,c,(t-.33)/.33]:[c,d,(t-.66)/.34];return 'rgb('+seg[0].map(function(v,i){return Math.round(v+(seg[1][i]-v)*seg[2])}).join(',')+')';}
 var MAP={};
 function fmt(v){var r=Math.round(v*100)/100;return ''+r;}
@@ -418,10 +452,21 @@ function drawFlat(x,S,k){
 }
 // WAVE-PARTICLE map (2-D): the learned score surface as a rippling 2.5-D terrain (the WAVE) + each
 // experiment as a glowing quanta-dot sitting on it (the PARTICLE) + a gold star at the peak.
-var VZ={mL:54,plotW:486,mT:140,depth:320,skew:44,h:128};
+var VZ={mL:54,plotW:486,mT:130,depth:250,skew:44,h:120,floorY:472,floorD:72};
 function vproj(gi,gj,t,nx,ny){var fx=nx>1?gi/(nx-1):0.5,fz=ny>1?gj/(ny-1):0.5;return [VZ.mL+fx*VZ.plotW+fz*VZ.skew, VZ.mT+(1-fz)*VZ.depth-t*VZ.h];}
+function fproj(gi,gj,nx,ny){var fx=nx>1?gi/(nx-1):0.5,fz=ny>1?gj/(ny-1):0.5;return [VZ.mL+fx*VZ.plotW+fz*VZ.skew, VZ.floorY-fz*VZ.floorD];}
+function drawContourFloor(x,s,nx,ny,zmin,zr){
+  var st=2,gi,gj;
+  for(gj=0;gj<ny-1;gj+=st)for(gi=0;gi<nx-1;gi+=st){var t=(s.z[gj*nx+gi]-zmin)/zr,band=Math.floor(t*7)/7;
+    var a=fproj(gi,gj,nx,ny),b=fproj(gi+st,gj,nx,ny),c=fproj(gi+st,gj+st,nx,ny),d=fproj(gi,gj+st,nx,ny);
+    x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.lineTo(c[0],c[1]);x.lineTo(d[0],d[1]);x.closePath();
+    x.fillStyle=heat(band);x.globalAlpha=0.34;x.fill();x.globalAlpha=1;}
+  var c0=fproj(0,0,nx,ny),c1=fproj(nx-1,0,nx,ny),c2=fproj(nx-1,ny-1,nx,ny),c3=fproj(0,ny-1,nx,ny);
+  x.strokeStyle='rgba(110,110,150,.20)';x.lineWidth=1;x.beginPath();x.moveTo(c0[0],c0[1]);x.lineTo(c1[0],c1[1]);x.lineTo(c2[0],c2[1]);x.lineTo(c3[0],c3[1]);x.closePath();x.stroke();
+}
 function drawWaveParticle(x,S,k){
   var s=MAP.surface,nx=s.nx,ny=s.ny,p=MAP.path,zmin=Math.min.apply(null,s.z),zmax=Math.max.apply(null,s.z),zr=(zmax-zmin)||1;
+  drawContourFloor(x,s,nx,ny,zmin,zr);
   for(var gj=ny-1;gj>=0;gj--){
     var rmax=0,i;for(i=0;i<nx;i++){var tt=(s.z[gj*nx+i]-zmin)/zr;if(tt>rmax)rmax=tt;}
     x.beginPath();for(i=0;i<nx;i++){var t=(s.z[gj*nx+i]-zmin)/zr,P=vproj(i,gj,t,nx,ny);i?x.lineTo(P[0],P[1]):x.moveTo(P[0],P[1]);}
@@ -470,7 +515,7 @@ function renderMap(j){
   cc.strokeStyle='#5b53e8';cc.lineWidth=2.5;cc.lineJoin='round';cc.beginPath();run.forEach(function(v,i){var X=i/(run.length-1||1)*W,Y=H-9-(v-lo)/rg*(H-18);i?cc.lineTo(X,Y):cc.moveTo(X,Y);});cc.stroke();
   // arm bars
   var tot=(j.armStats||[]).reduce(function(s,a){return s+a.pulls},0)||1;
-  document.getElementById('arms').innerHTML=(j.armStats||[]).filter(function(a){return a.pulls>0}).sort(function(a,b){return b.pulls-a.pulls}).map(function(a){var sd=STRAT[a.name]||[a.name,''];return '<div class="kv" style="display:flex;justify-content:space-between;font-size:13px;align-items:center;gap:8px"><span title="'+sd[1]+'"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(ARMCOL[a.name]||'#94a3b8')+';margin-right:6px"></i>'+sd[0]+' <span class="muted" style="font-size:11px">('+a.name+')</span></span><span class="muted">'+a.pulls+'×</span></div><div class="bar" style="width:'+Math.round(a.pulls/tot*100)+'%;background:'+(ARMCOL[a.name]||'#94a3b8')+'"></div>'}).join('');
+  document.getElementById('arms').innerHTML=(j.armStats||[]).filter(function(a){return a.pulls>0}).sort(function(a,b){return b.pulls-a.pulls}).map(function(a){return '<div class="kv" style="display:flex;justify-content:space-between;font-size:13px;align-items:center;gap:8px"><span title="'+sDesc(a.name)+'"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(ARMCOL[a.name]||'#94a3b8')+';margin-right:6px"></i>'+sName(a.name)+' <span class="muted" style="font-size:11px">('+a.name+')</span></span><span class="muted">'+a.pulls+'×</span></div><div class="bar" style="width:'+Math.round(a.pulls/tot*100)+'%;background:'+(ARMCOL[a.name]||'#94a3b8')+'"></div>'}).join('');
   // proof
   document.getElementById('proof').innerHTML='best score <b>'+(+j.best.value).toFixed(4)+'</b> · '+j.evaluations+' experiments<br>📜 '+j.trace.frames.length+' frames · <b style="color:'+(j.verify?'#0e9f6e':'#dc2626')+'">'+(j.verify?'verified ✓':'unverified')+'</b> (Ed25519, offline)';
   // ── plain-language narration (anyone, any job, understands) ──
@@ -478,10 +523,9 @@ function renderMap(j){
   var bestStr=Object.keys(j.best.experiment).map(function(kk){var v=j.best.experiment[kk];return '<b>'+kk+'</b> = '+(Math.round(v*1000)/1000)}).join(' · ');
   var nar=document.getElementById('narrate');
   nar.style.display='block';
-  nar.innerHTML='<b>📖 In plain words:</b> Melete tried <b>'+j.evaluations+'</b> settings and zeroed in on the best one (score <b>'+(+j.best.value).toFixed(2)+'</b>). '
-    +'It used a <b>team of search helpers</b> and leaned most on '+(top2.join(' and ')||'its helpers')+'. '
-    +'<br>🏆 <b>The winning setup:</b> '+bestStr+'.'
-    +'<br>📜 Every step was cryptographically signed, so the result is <b>independently verifiable</b> — no faking, no guessing.';
+  nar.innerHTML='<b>📖 '+tr('plainHdr')+':</b> '+tr('tried')+' <b>'+j.evaluations+'</b> '+tr('settings')+' ('+(LANG==='th'?'คะแนน':'score')+' <b>'+(+j.best.value).toFixed(2)+'</b>).'
+    +'<br>🏆 <b>'+tr('winning')+':</b> '+bestStr+'.'
+    +'<br>📜 '+tr('signed');
   stopPlay();setTimeout(togglePlay,250);   // auto-play the discovery
 }
 async function run(){
@@ -490,7 +534,7 @@ async function run(){
     var space=JSON.parse(document.getElementById('space').value);
     var body={space:space,objective:document.getElementById('obj').value,budget:+document.getElementById('budget').value,goal:'maximize'};
     var r=await fetch('/discover',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
-    var j=await r.json();
+    var j=await r.json();window.LASTJ=j;
     if(j.error){out.textContent='⚠ '+j.error;return;}
     out.innerHTML='🔬 <b>Best:</b> score '+(+j.best.value).toFixed(5)+' at <b>'+JSON.stringify(j.best.experiment)+'</b> &nbsp;·&nbsp; found in <b>'+j.evaluations+'</b> experiments. <span class="muted">▶ watch it search below</span>';
     renderMap(j);
@@ -556,7 +600,7 @@ export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string
     { name: "LIGHT-THEME", pass: html.includes("--bg:#ffffff") && !html.includes("background:#07070c"), detail: "clean light theme (not the old dark background)" },
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
     { name: "DISCOVERY-MAP", pass: html.includes("Discovery cinema") && html.includes('id="surf"') && html.includes("renderMap") && html.includes("heat(") && html.includes("drawParallel") && html.includes("drawWaveParticle"), detail: "interactive discovery cinema: 2-D Wave-Particle terrain OR an any-dimension parallel-coordinates view, animated + convergence + strategy" },
-    { name: "VIZ-ACCURACY", pass: (() => { const nx = 44, ny = 44; const rises = vizProject(20, 20, 1, nx, ny)[1] < vizProject(20, 20, 0, nx, ny)[1]; const exactH = Math.abs((vizProject(20, 20, 0, nx, ny)[1] - vizProject(20, 20, 1, nx, ny)[1]) - 128) < 1e-9; const depthOrder = vizProject(0, ny - 1, 0, nx, ny)[1] < vizProject(0, 0, 0, nx, ny)[1]; let inB = true; for (const c of [[0, 0, 0], [nx - 1, ny - 1, 1], [nx - 1, 0, 1], [0, ny - 1, 1], [22, 22, 0.5]] as Array<[number, number, number]>) { const pr = vizProject(c[0], c[1], c[2], nx, ny); if (pr[0] < 0 || pr[0] > 600 || pr[1] < 0 || pr[1] > 600) inB = false; } const det = JSON.stringify(vizProject(7, 9, 0.6, nx, ny)) === JSON.stringify(vizProject(7, 9, 0.6, nx, ny)); return rises && exactH && depthOrder && inB && det; })(), detail: "the Wave-Particle projection is faithful: higher score rises, back rows sit higher, peaks stay inside the canvas, deterministic" },
+    { name: "VIZ-ACCURACY", pass: (() => { const nx = 44, ny = 44; const rises = vizProject(20, 20, 1, nx, ny)[1] < vizProject(20, 20, 0, nx, ny)[1]; const exactH = Math.abs((vizProject(20, 20, 0, nx, ny)[1] - vizProject(20, 20, 1, nx, ny)[1]) - 120) < 1e-9; const depthOrder = vizProject(0, ny - 1, 0, nx, ny)[1] < vizProject(0, 0, 0, nx, ny)[1]; let inB = true; for (const c of [[0, 0, 0], [nx - 1, ny - 1, 1], [nx - 1, 0, 1], [0, ny - 1, 1], [22, 22, 0.5]] as Array<[number, number, number]>) { const pr = vizProject(c[0], c[1], c[2], nx, ny); if (pr[0] < 0 || pr[0] > 600 || pr[1] < 0 || pr[1] > 600) inB = false; } const det = JSON.stringify(vizProject(7, 9, 0.6, nx, ny)) === JSON.stringify(vizProject(7, 9, 0.6, nx, ny)); return rises && exactH && depthOrder && inB && det; })(), detail: "the Wave-Particle projection is faithful: higher score rises, back rows sit higher, peaks stay inside the canvas, deterministic" },
     { name: "WHO-ITS-FOR+STEPS", pass: html.includes("Who it's for") && html.includes("Pharma") && html.includes("AI / ML teams") && html.includes("How it works") && html.includes("Score one try"), detail: "audiences + the 3-step explainer (journalist-style, 1-minute readable)" },
     { name: "MELI-STORYBOOK", pass: html.includes("Meet Meli") && html.includes('class="meli') && html.includes("storybook") && html.includes('data-beat') && html.includes("IntersectionObserver") && html.includes('linearGradient id="mbody"') && html.includes("@keyframes blink"), detail: "original animated mascot (Meli) stars in an interactive scroll-revealed comic storybook with synced effects — geometric art, no third-party/copyright, every browser + mobile" },
     { name: "MODES+INDUSTRY", pass: html.includes("Simple — pick") && html.includes("Advanced — edit") && html.includes("setMode") && html.includes("Click an industry") && html.includes("Drug formulation") && html.includes("GPU kernel tuning") && html.includes("tryScenario") && html.includes("Contact about Melete"), detail: "Simple/Advanced modes + clickable industry scenarios (pharma / GPU / semiconductor) that run live, + a licensing/acquisition contact CTA" },
