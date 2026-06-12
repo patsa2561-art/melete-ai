@@ -121,11 +121,13 @@ const server = createServer(async (req, res) => {
       let surprise = null; try { surprise = M.analyzeSurprise(frontierObs, space, goal); } catch { surprise = null; }
       // RASHOMON — the family of genuinely different recipes that all score near-best
       let rashomon = null; try { rashomon = M.analyzeRashomon(frontierObs, space, goal); } catch { rashomon = null; }
+      // SHAPE — the geometry of the optimum (peak / ridge / saddle / plateau / bowl)
+      let shape = null; try { shape = M.analyzeShape(frontierObs, space, goal); } catch { shape = null; }
       // ◆ MELETE PRIME — the Red Diamond: the unified brain that composes every lens into one decision
       let prime = null; try { prime = M.meletePrime(frontierObs, space, goal); } catch { prime = null; }
       // expose the space + a capped sample of observations so the browser can run the WHAT-IF twin (/predict)
       const obsOut = (frontierObs || []).slice(0, 200).map((o) => ({ experiment: o.experiment, value: o.value }));
-      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, space: space.dims, observations: obsOut, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, efficiency, prescription, lineage, sloppiness, cliffs, surprise, rashomon, prime, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, space: space.dims, observations: obsOut, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, efficiency, prescription, lineage, sloppiness, cliffs, surprise, rashomon, shape, prime, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {

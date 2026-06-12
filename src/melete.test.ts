@@ -12,7 +12,7 @@ import {
   Tracer, verifyTrace,
   multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
-  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions, territoryGauntlet, assessTerritory, coverageScore, costAwareGauntlet, proposeNextCostAware, costAwareDiscover, confidenceGauntlet, stopConfidence, driftGauntlet, analyzeDrift, achievabilityGauntlet, assessAchievability, inverseGauntlet, inverseDesign, efficiencyGauntlet, discoveryEfficiency, prescriptionGauntlet, buildPrescription, batchGauntlet, proposeBatch, twinGauntlet, predictAt, constrainedGauntlet, bestFeasible, proposeNextSafe, lineageGauntlet, buildLineage, sloppinessGauntlet, analyzeSloppiness, cliffGauntlet, analyzeCliffs, primeGauntlet, meletePrime, surpriseGauntlet, analyzeSurprise, rashomonGauntlet, analyzeRashomon, processIntelligence,
+  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions, territoryGauntlet, assessTerritory, coverageScore, costAwareGauntlet, proposeNextCostAware, costAwareDiscover, confidenceGauntlet, stopConfidence, driftGauntlet, analyzeDrift, achievabilityGauntlet, assessAchievability, inverseGauntlet, inverseDesign, efficiencyGauntlet, discoveryEfficiency, prescriptionGauntlet, buildPrescription, batchGauntlet, proposeBatch, twinGauntlet, predictAt, constrainedGauntlet, bestFeasible, proposeNextSafe, lineageGauntlet, buildLineage, sloppinessGauntlet, analyzeSloppiness, cliffGauntlet, analyzeCliffs, primeGauntlet, meletePrime, surpriseGauntlet, analyzeSurprise, rashomonGauntlet, analyzeRashomon, processIntelligence, shapeGauntlet, analyzeShape,
 } from "./index.js";
 
 describe("gauntlets (every module = 100)", () => {
@@ -51,11 +51,12 @@ describe("gauntlets (every module = 100)", () => {
   it("◆ MELETE PRIME (the Red Diamond — unified brain)", () => expect(primeGauntlet().score).toBe(100));
   it("breakthrough radar / surprise detector", () => expect(surpriseGauntlet().score).toBe(100));
   it("rashomon set / equifinality (the family of best recipes)", () => expect(rashomonGauntlet().score).toBe(100));
+  it("response shape (peak / ridge / saddle / plateau / bowl)", () => expect(shapeGauntlet().score).toBe(100));
   it("Φ process-intelligence formula: identity + conjunctive + bounded", () => { expect(processIntelligence({ optimized: 1, robust: 1, trustworthy: 1, confident: 1, understood: 1, safe: 1, feasible: 1 })).toBe(100); expect(processIntelligence({ optimized: 0, robust: 1, trustworthy: 1, confident: 1, understood: 1, safe: 1, feasible: 1 })).toBe(0); });
-  it("aggregate meleteGauntlet = 100 over all 38 modules", async () => {
+  it("aggregate meleteGauntlet = 100 over all 39 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["achievability", "arms", "batch", "bench", "certify", "cliff", "confidence", "constrained", "cortex", "costaware", "drift", "efficiency", "engine", "federated", "frontier", "interaction", "interactive", "inverse", "lineage", "multiobjective", "noise", "oracle", "poopt", "portfolio", "prescription", "prime", "rashomon", "reliability", "replicate", "resonance", "sensitivity", "server", "sloppiness", "space", "surprise", "territory", "trace", "twin"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["achievability", "arms", "batch", "bench", "certify", "cliff", "confidence", "constrained", "cortex", "costaware", "drift", "efficiency", "engine", "federated", "frontier", "interaction", "interactive", "inverse", "lineage", "multiobjective", "noise", "oracle", "poopt", "portfolio", "prescription", "prime", "rashomon", "reliability", "replicate", "resonance", "sensitivity", "server", "shape", "sloppiness", "space", "surprise", "territory", "trace", "twin"]);
   });
 });
 
