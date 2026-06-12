@@ -151,6 +151,17 @@ const server = createServer(async (req, res) => {
       catch (e) { return json(res, 400, { error: "inverse failed: " + e.message.slice(0, 120) }); }
     }
 
+    // WHAT-IF TWIN — "what score would I get at THIS setting?" (predict without running it)
+    if (req.method === "POST" && path === "/predict") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const space = { dims: Array.isArray(body.space) ? body.space : body.space?.dims };
+      if (!space.dims?.length) return json(res, 400, { error: "space must be a non-empty array of {name,type,min,max}" });
+      const obs = Array.isArray(body.observations) ? body.observations.filter((o) => o && o.experiment && Number.isFinite(+o.value)).map((o) => ({ experiment: o.experiment, value: +o.value })) : [];
+      if (!body.query || typeof body.query !== "object") return json(res, 400, { error: "query must be a {name:value} setting object" });
+      try { return json(res, 200, M.predictAt(obs, space, body.query)); }
+      catch (e) { return json(res, 400, { error: "predict failed: " + e.message.slice(0, 120) }); }
+    }
+
     // BATCH PLANNER — "give me the k best experiments to run in PARALLEL this round"
     if (req.method === "POST" && path === "/batch") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
