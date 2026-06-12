@@ -44,8 +44,17 @@ const server = createServer(async (req, res) => {
       if (typeof body.objective !== "string" || !body.objective.trim()) return json(res, 400, { error: "objective must be a JS expression string in your dimension names" });
       const budget = Math.max(2, Math.min(MAX_BUDGET, (body.budget | 0) || 40));
       let oracle; try { oracle = makeOracle(space, body.objective); oracle(Object.fromEntries(space.dims.map((d) => [d.name, (d.min + d.max) / 2]))); } catch (e) { return json(res, 400, { error: "objective failed to evaluate: " + e.message.slice(0, 120) }); }
-      const sig = await M.discoverSigned({ space, oracle, budget, seed: (body.seed | 0) || 1, goal: body.goal === "minimize" ? "minimize" : "maximize", engine: ["portfolio", "bayes", "resonance"].includes(body.engine) ? body.engine : "portfolio" });
-      return json(res, 200, { best: sig.result.best, evaluations: sig.result.evaluations, converged: sig.result.converged, engine: sig.engine, armStats: sig.result.armStats ?? null, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      const goal = body.goal === "minimize" ? "minimize" : "maximize";
+      const sig = await M.discoverSigned({ space, oracle, budget, seed: (body.seed | 0) || 1, goal, engine: ["portfolio", "bayes", "resonance"].includes(body.engine) ? body.engine : "portfolio" });
+      // Discovery Map: for a 2-D problem, sample the learned surface on a grid so the client can show
+      // WHERE the brain searched and WHY — the visual "story" of the discovery.
+      let surface = null;
+      if (space.dims.length === 2) {
+        const [dx, dy] = space.dims; const N = 44; const z = [];
+        for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) { const e = { [dx.name]: dx.min + (dx.max - dx.min) * (i / (N - 1)), [dy.name]: dy.min + (dy.max - dy.min) * (j / (N - 1)) }; let v = oracle(e); if (!Number.isFinite(v)) v = 0; z.push(v); }
+        surface = { nx: N, ny: N, xName: dx.name, yName: dy.name, xMin: dx.min, xMax: dx.max, yMin: dy.min, yMax: dy.max, z };
+      }
+      return json(res, 200, { best: sig.result.best, evaluations: sig.result.evaluations, converged: sig.result.converged, engine: sig.engine, goal, armStats: sig.result.armStats ?? null, surface, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/verify") {

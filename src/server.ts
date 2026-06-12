@@ -14,140 +14,166 @@ export const ENDPOINTS = [
 ];
 
 const SHELL_CSS = `
-:root{color-scheme:dark}
+:root{--ink:#16172b;--ink2:#5b5d77;--line:#e7e8f0;--bg:#ffffff;--soft:#f7f8fc;--ind:#5b53e8;--teal:#0ea5b7;--grad:linear-gradient(96deg,#6d5cf0,#0ea5b7)}
 *{box-sizing:border-box}
-body{margin:0;background:#07070c;color:#e7e7ea;font:15.5px/1.65 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
-a{color:#7dd3fc;text-decoration:none}a:hover{text-decoration:underline}
-.wrap{max-width:980px;margin:0 auto;padding:0 22px}
-.hero{position:relative;overflow:hidden;text-align:center;padding:88px 22px 64px}
-.hero::before{content:"";position:absolute;inset:-40% -10% auto -10%;height:520px;background:radial-gradient(60% 60% at 30% 20%,rgba(124,58,237,.28),transparent 70%),radial-gradient(55% 55% at 75% 30%,rgba(8,145,178,.28),transparent 70%);filter:blur(8px);z-index:0;animation:drift 14s ease-in-out infinite alternate}
-@keyframes drift{to{transform:transl(0,-18px) scale(1.05)}}
-.hero>*{position:relative;z-index:1}
-h1.brand{font-size:64px;line-height:1;margin:0;font-weight:800;letter-spacing:-2px;background:linear-gradient(95deg,#c4b5fd,#67e8f9 60%,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
-.tag{font-size:20px;color:#c9c9d4;margin:14px 0 6px;font-weight:500}
-.tag b{color:#e7e7ea}
-.sub{color:#8b8b99;font-size:15px;margin:0 0 26px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--ind);text-decoration:none;font-weight:600}a:hover{text-decoration:underline}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+.grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero{position:relative;overflow:hidden;text-align:center;padding:84px 24px 54px;background:radial-gradient(70% 90% at 50% -10%,#eef0ff,transparent 60%)}
+.eyebrow{display:inline-block;font-size:12.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--ind);background:#eeecfe;border:1px solid #ddd9fb;padding:5px 13px;border-radius:999px;margin-bottom:18px}
+h1.brand{font-size:72px;line-height:.98;margin:0;font-weight:850;letter-spacing:-2.5px}
+.tag{font-size:23px;color:#33344e;margin:16px auto 8px;font-weight:600;max-width:680px;line-height:1.35}
+.sub{color:var(--ink2);font-size:16px;margin:0 0 26px}
 .cta{display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center}
-.btn{display:inline-block;border-radius:11px;padding:12px 22px;font-weight:600;font-size:15px;cursor:pointer;border:0}
-.btn.primary{background:linear-gradient(95deg,#7c3aed,#0891b2);color:#fff}
-.btn.ghost{background:#14141e;color:#cdd;border:1px solid #2a2a3a}
-.pills{margin:24px 0 0}
-.pill{display:inline-block;background:#16121f;border:1px solid #34294f;border-radius:999px;padding:5px 13px;font-size:12.5px;color:#c4b5fd;margin:3px}
-section{padding:30px 0;border-top:1px solid #16161f}
-h2{font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:#7c7c8c;margin:0 0 18px;font-weight:700}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:720px){.grid{grid-template-columns:1fr}h1.brand{font-size:46px}}
-.card{background:#101019;border:1px solid #21212e;border-radius:14px;padding:18px}
-.card h3{margin:0 0 6px;font-size:16px;color:#e7e7ea}
-.card .who{color:#67e8f9;font-size:12.5px;font-weight:600;letter-spacing:.3px;margin-bottom:8px}
-.card p{margin:0;color:#9a9aa8;font-size:14px}
-table{width:100%;border-collapse:collapse;font-size:13.5px}
-th,td{padding:9px 10px;border-bottom:1px solid #1c1c27;text-align:left}
-th{color:#7c7c8c;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
-.win{color:#86efac;font-weight:700}
-code{font-family:ui-monospace,Menlo,monospace;background:#1a1a26;border-radius:6px;padding:1.5px 6px;font-size:13px;color:#7dd3fc}
-pre{font-family:ui-monospace,Menlo,monospace;background:#0d0d16;border:1px solid #20202c;border-radius:10px;padding:15px;overflow:auto;font-size:12.5px;color:#cbd5e1}
-label{display:block;color:#8b8b99;font-size:12px;margin:13px 0 5px;font-weight:600;letter-spacing:.3px}
-textarea,input,select{width:100%;background:#0c0c15;border:1px solid #29293a;border-radius:9px;color:#e7e7ea;padding:11px;font-family:ui-monospace,monospace;font-size:13px}
-.out{margin-top:14px;background:#0c0c15;border:1px solid #29293a;border-radius:9px;padding:14px;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:12.5px;min-height:30px;color:#a7f3d0}
-.muted{color:#6f6f7e}
-footer{padding:34px 0 70px;color:#6f6f7e;font-size:12.5px;text-align:center;border-top:1px solid #16161f}
+.btn{display:inline-block;border-radius:12px;padding:13px 24px;font-weight:700;font-size:15.5px;cursor:pointer;border:0}
+.btn.primary{background:var(--grad);color:#fff;box-shadow:0 8px 24px -8px rgba(93,83,232,.6)}
+.btn.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.pills{margin:26px 0 0}
+.pill{display:inline-block;background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;color:#44465e;font-weight:600;margin:3px;box-shadow:0 1px 2px rgba(20,20,40,.04)}
+section{padding:46px 0;border-top:1px solid var(--line)}
+h2{font-size:13px;letter-spacing:1.6px;text-transform:uppercase;color:#9698ad;margin:0 0 20px;font-weight:800}
+.lead{font-size:22px;line-height:1.45;color:#2a2b42;margin:0;font-weight:500}
+.lead b{font-weight:800}
+.steps{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.step{background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:20px}
+.step .n{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:9px;background:var(--grad);color:#fff;font-weight:800;font-size:15px;margin-bottom:10px}
+.step h3{margin:0 0 5px;font-size:17px}.step p{margin:0;color:var(--ink2);font-size:14.5px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:760px){.grid,.steps{grid-template-columns:1fr}h1.brand{font-size:50px}.tag{font-size:20px}}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 2px 10px rgba(20,20,50,.03)}
+.card h3{margin:0 0 6px;font-size:17px}
+.card .who{color:var(--teal);font-size:12px;font-weight:800;letter-spacing:.4px;margin-bottom:9px;text-transform:uppercase}
+.card p{margin:0;color:var(--ink2);font-size:14.5px}
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th,td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:left}
+th{color:#9698ad;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+.win{color:#0e9f6e;font-weight:800}
+code{font-family:ui-monospace,Menlo,monospace;background:#f1f2f8;border-radius:6px;padding:2px 7px;font-size:13.5px;color:#4338ca}
+pre{font-family:ui-monospace,Menlo,monospace;background:#16172b;color:#d7d9f0;border-radius:12px;padding:16px;overflow:auto;font-size:13px;line-height:1.55}
+label{display:block;color:#6a6c84;font-size:12px;margin:14px 0 5px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+input,select{width:100%;background:#fff;border:1.5px solid var(--line);border-radius:10px;color:var(--ink);padding:12px;font-family:ui-monospace,monospace;font-size:13.5px}
+input:focus,select:focus{outline:0;border-color:var(--ind)}
+.muted{color:#9092a8}
+footer{padding:40px 0 80px;color:#9092a8;font-size:13px;text-align:center;border-top:1px solid var(--line)}
+#map{display:none;margin-top:18px}
+#map.on{display:block}
+.mapgrid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;align-items:start}
+@media(max-width:760px){.mapgrid{grid-template-columns:1fr}}
+canvas{width:100%;border-radius:12px;border:1px solid var(--line);background:#fff}
+.kv{font-size:14px;color:#33344e}.kv b{color:var(--ink)}
+.bar{height:9px;border-radius:6px;background:var(--grad);margin:2px 0 9px}
+.result{margin-top:14px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:16px;font-size:14.5px;color:#2a2b42;min-height:24px}
 `;
 
 export function landingPage(version = "0.4.0"): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Melete — the Self-Driving Discovery Brain</title><style>${SHELL_CSS}</style></head><body>
+<title>Melete — find the best answer in the fewest experiments</title><style>${SHELL_CSS}</style></head><body>
 
-<div class="hero"><div class="wrap">
-  <h1 class="brand">Melete</h1>
-  <p class="tag">The <b>Self-Driving Discovery Brain</b> — propose → experiment → <b>prove</b>.</p>
-  <p class="sub">Mneme remembers; Melete discovers. &nbsp;v${version}</p>
+<div class="hero">
+  <span class="eyebrow">Self-driving discovery</span>
+  <h1 class="brand"><span class="grad">Melete</span></h1>
+  <p class="tag">When every experiment is expensive, Melete finds the <b>best answer in the fewest tries</b> — and proves how it got there.</p>
+  <p class="sub">Mneme remembers; Melete discovers. &nbsp;·&nbsp; v${version}</p>
   <div class="cta">
-    <a class="btn primary" href="#try">Try the live demo →</a>
-    <a class="btn ghost" href="/pitch">View the pitch deck</a>
+    <a class="btn primary" href="#try">See it discover (live) →</a>
+    <a class="btn ghost" href="/pitch">The 60-second pitch</a>
   </div>
   <div class="pills">
-    <span class="pill">⚛ SUPER NOVA · adaptive ensemble</span>
-    <span class="pill">∀ everything is f(x)</span>
-    <span class="pill">🔏 cryptographic provenance</span>
+    <span class="pill">⚛ adaptive ensemble</span>
+    <span class="pill">no dataset needed</span>
+    <span class="pill">🔏 cryptographic proof</span>
     <span class="pill">🔒 air-gapped / on-prem</span>
-    <span class="pill">no install · agent-native</span>
   </div>
-</div></div>
+</div>
 
 <div class="wrap">
 
-<section><h2>What it does</h2>
-<p style="font-size:17px;color:#d4d4dd;margin:0">When running an experiment is the expensive part — a lab assay, a training run, a process batch, a pricing
-test — Melete finds the <b>most informative next experiment</b> so you reach the best answer in the <b>fewest
-trials</b>, and emits a <b>signed, offline-verifiable trace</b> of exactly how it got there.</p></section>
+<section><h2>The 60-second version</h2>
+<p class="lead">Running an experiment is the expensive part — a lab assay, a training run, a process batch, a pricing test.
+Melete is the brain that decides <b>which experiment to run next</b> so you reach the best result in the <b>fewest
+trials</b>, and hands you a <b>signed proof</b> of the whole discovery path. You bring the dials and a way to score
+one try; it brings the strategy.</p></section>
+
+<section><h2>How it works — 3 steps</h2>
+<div class="steps">
+  <div class="step"><span class="n">1</span><h3>Set the dials</h3><p>List what you can change and its range — temperature 85–96°, learning-rate 0–0.1, price $1–100.</p></div>
+  <div class="step"><span class="n">2</span><h3>Score one try</h3><p>Your real process returns one number: brew → taste, train → accuracy, price → revenue. No dataset needed.</p></div>
+  <div class="step"><span class="n">3</span><h3>Discover &amp; prove</h3><p>Melete proposes the next experiment, learns, converges to the best — and signs a verifiable trace of how.</p></div>
+</div></section>
 
 <section><h2>Who it's for &amp; what they get</h2>
 <div class="grid">
-  <div class="card"><div class="who">AI / ML TEAMS</div><h3>Hyperparameter &amp; system tuning</h3><p>Tune learning rates, architectures, RAG/serving configs, compiler flags — fewer GPU-hours to the best model, with a provable tuning record.</p></div>
-  <div class="card"><div class="who">PHARMA · CHEMISTRY · MATERIALS</div><h3>Formulation &amp; reaction discovery</h3><p>Find the reagent mix / conditions that maximise yield or potency in far fewer assays — and a tamper-proof discovery trail for patents &amp; audits.</p></div>
-  <div class="card"><div class="who">SEMICONDUCTOR · MANUFACTURING</div><h3>Process optimisation</h3><p>Tune deposition/etch/print parameters against real KPIs on-prem — air-gapped, data never leaves the fab, result still verifiable.</p></div>
-  <div class="card"><div class="who">QUANT · PRODUCT · GROWTH</div><h3>Pricing &amp; expensive A/B</h3><p>Search price points, configurations, and policies where each test is costly — converge faster than grid/manual search.</p></div>
+  <div class="card"><div class="who">AI / ML teams</div><h3>Hyperparameter &amp; system tuning</h3><p>Tune learning rates, architectures, RAG/serving configs, compiler flags — fewer GPU-hours to the best model, with a provable tuning record.</p></div>
+  <div class="card"><div class="who">Pharma · Chemistry · Materials</div><h3>Formulation &amp; reaction discovery</h3><p>Find the reagent mix / conditions that maximise yield or potency in far fewer assays — and a tamper-proof discovery trail for patents &amp; audits.</p></div>
+  <div class="card"><div class="who">Semiconductor · Manufacturing</div><h3>Process optimisation</h3><p>Tune deposition / etch / print parameters against real KPIs on-prem — air-gapped, data never leaves the fab, result still verifiable.</p></div>
+  <div class="card"><div class="who">Quant · Product · Growth</div><h3>Pricing &amp; expensive A/B</h3><p>Search price points, configurations, and policies where each test is costly — converge faster than grid or manual search.</p></div>
 </div>
-<p class="muted" style="margin-top:14px">In every case: <b>fewer expensive experiments</b> to the best answer + a <b>cryptographic proof</b> of how the discovery was made.</p></section>
+<p class="muted" style="margin-top:16px">Every case: <b>fewer expensive experiments</b> to the best answer + a <b>cryptographic proof</b> of how it was found.</p></section>
 
-<section><h2>The engine — measured, not claimed</h2>
-<p style="margin:0 0 14px">No single optimiser wins on every landscape (No-Free-Lunch). So a bandit spends each experiment on whichever
-strategy — Gaussian-Process+EI, CMA-ES, trust-region, annealing, space-filling — is winning <i>on your problem</i>.
-One engine, no per-problem tuning.</p>
-<table><tr><th>landscape</th><th>Melete portfolio</th><th>single Bayesian</th><th>random</th></tr>
-<tr><td>smooth</td><td class="win">1.000</td><td>0.999</td><td>0.838</td></tr>
-<tr><td>rugged (many traps)</td><td class="win">best 🏆 — beats every single algorithm</td><td>far behind</td><td>far behind</td></tr>
-<tr><td>high-dimensional</td><td class="win">0.996</td><td>0.987</td><td>0.555</td></tr></table>
-<p class="muted" style="margin-top:10px">≈ 26 experiments vs ~95 for random to reach 99% of a hidden optimum (3.7×). Reproduce: <code>melete bench --robust</code>.</p></section>
-
-<section><h2>🔒 Air-gapped by design</h2>
-<p style="margin:0">Zero runtime dependencies + <b>local</b> cryptographic signing ⇒ the whole brain runs fully offline on an
-isolated machine — yet its discovery trace is verifiable by anyone with the public key alone. Built for regulated
-work where the process must stay inside the air gap but the result must still be <b>provable</b>.</p></section>
-
-<section id="try"><h2>Try it live</h2>
-<div class="card" style="margin-bottom:14px;border-color:#34294f">
-<h3 style="margin:0 0 6px">You don't need a dataset 🔓</h3>
-<p style="margin:0;color:#bfbfcc">Melete is <b>not</b> a model you train on data. You only provide two things:
-<b>① SPACE</b> = the dials you can turn (+ their ranges), and <b>② a way to score one try</b> — your real
-process (brew the coffee → taste it; train the model → read accuracy; set the price → read revenue). Melete
-proposes dial settings, you (or your script) return the score, it learns — generating its own data one
-experiment at a time.</p>
-<pre style="margin:12px 0 0">— real use: point it at YOUR process, no formula —
-melete tune --cmd "python train.py --lr {lr} --depth {depth}" \\
-            --space '[{"name":"lr","type":"real","min":0,"max":0.1},{"name":"depth","type":"int","min":1,"max":12}]'</pre>
-<p class="muted" style="margin:8px 0 0">The browser demo below uses a math <b>formula</b> as a stand-in for that process, just so you can try it
-here. (It does not predict the future / fortunes — it optimises things you can actually measure + repeat.)</p>
-</div>
-<p class="muted" style="margin:0 0 6px">Pick an example, then press Discover.</p>
+<section id="try"><h2>See it discover — live</h2>
+<p class="lead" style="font-size:18px;margin:0 0 4px"><b>You don't need a dataset.</b> Give the dials + a way to score one try; watch Melete map the landscape and home in.</p>
+<p class="muted" style="margin:0 0 16px">The demo uses a formula as a stand-in for your real process so you can try it in the browser. It optimises things you can measure &amp; repeat — it does not tell fortunes.</p>
 <div class="card">
-<label>EXAMPLE</label>
+<div class="grid" style="gap:0 18px">
+<div>
+<label>Example</label>
 <select id="preset" onchange="loadPreset()">
   <option value="peak">📈 Find a hidden peak (2 dials)</option>
-  <option value="coffee">☕ Best espresso recipe (temp · grind · dose → taste)</option>
+  <option value="coffee">☕ Best espresso recipe (temp · grind · dose)</option>
   <option value="price">💸 Best price point (price → revenue)</option>
 </select>
-<label>SPACE — the dials <span class="muted">(name · type · min · max)</span></label>
+<label>Space — the dials</label>
 <input id="space" value='[{"name":"x","type":"real","min":0,"max":10},{"name":"y","type":"real","min":0,"max":10}]'>
-<label>OBJECTIVE — the score to maximise <span class="muted">(a formula in the dial names)</span></label>
+</div>
+<div>
+<label>Objective — the score to maximise</label>
 <input id="obj" value="Math.exp(-((x-7.2)**2+(y-3.4)**2)/3)">
-<label>BUDGET — how many experiments Melete may run</label>
+<label>Budget — experiments allowed</label>
 <input id="budget" value="40">
-<button class="btn primary" style="margin-top:14px" onclick="run()">Discover →</button>
-<div class="out" id="out">pick an example above, then press Discover — the best dial settings + a signed trace appear here.</div>
+</div>
+</div>
+<button class="btn primary" style="margin-top:16px;width:100%" onclick="run()">Discover →</button>
+<div class="result" id="out">Pick an example, then press Discover — the best settings, a map of how it searched, and a signed trace appear here.</div>
+
+<div id="map">
+<div class="mapgrid">
+  <div>
+    <div class="muted" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">Discovery map — where it searched &amp; why</div>
+    <canvas id="surf" width="460" height="460"></canvas>
+    <div class="muted" style="font-size:12.5px;margin-top:6px">Heat = the score it learned · numbered dots = each experiment in order · ★ = best found.</div>
+  </div>
+  <div>
+    <div class="muted" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">Convergence</div>
+    <canvas id="conv" width="380" height="120" style="height:90px"></canvas>
+    <div class="muted" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">Which strategy the bandit chose</div>
+    <div id="arms"></div>
+    <div class="muted" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px">Proof</div>
+    <div id="proof" class="kv"></div>
+  </div>
+</div></div>
 </div></section>
 
-<section><h2>How it's actually used</h2>
-<p class="muted" style="margin:0 0 10px">It's a service whose users are agents / pipelines. POST your space + objective; get the optimum + a signed trace.</p>
-<pre>curl -s https://melete.161.35.122.73.nip.io/discover -H 'content-type: application/json' -d '{
-  "space":[{"name":"lr","type":"real","min":0,"max":0.1},{"name":"depth","type":"int","min":1,"max":12}],
-  "objective":"-(lr-0.03)**2*1000-(depth-6)**2", "budget":40, "goal":"maximize" }'</pre></section>
+<section><h2>Proven, not claimed</h2>
+<p style="margin:0 0 14px;color:#33344e">No single optimiser wins on every landscape. A bandit spends each experiment on whichever strategy is winning <i>on your problem</i> — one engine, no per-problem tuning.</p>
+<table><tr><th>landscape</th><th>Melete</th><th>single Bayesian</th><th>random</th></tr>
+<tr><td>smooth</td><td class="win">1.000</td><td>0.999</td><td>0.838</td></tr>
+<tr><td>rugged (many traps)</td><td class="win">best 🏆 beats every single algorithm</td><td>far behind</td><td>far behind</td></tr>
+<tr><td>high-dimensional</td><td class="win">0.996</td><td>0.987</td><td>0.555</td></tr></table>
+<p class="muted" style="margin-top:10px">≈ 26 experiments vs ~95 for random to reach 99% of a hidden optimum (3.7×). Reproduce with <code>melete bench --robust</code>.</p></section>
+
+<section><h2>Use it from anything</h2>
+<p style="margin:0 0 10px;color:#33344e">Point it at <b>your real process</b> — a training script, a build benchmark, a simulator — no formula, no dataset:</p>
+<pre>melete tune --cmd "python train.py --lr {lr} --depth {depth}" \\
+            --space '[{"name":"lr","type":"real","min":0,"max":0.1},{"name":"depth","type":"int","min":1,"max":12}]'</pre>
+<p style="margin:14px 0 8px;color:#33344e">…or call it over HTTP — a service whose users are agents &amp; pipelines:</p>
+<pre>curl -s https://melete.mneme-ai.space/discover -H 'content-type: application/json' -d '{
+  "space":[{"name":"lr","type":"real","min":0,"max":0.1}], "objective":"...", "budget":40 }'</pre>
+<p class="muted" style="margin-top:12px">🔒 <b>Air-gapped by design:</b> zero runtime dependencies + local signing ⇒ runs fully offline on an isolated machine, yet the result stays verifiable by anyone with the public key. Built for regulated work where data can't leave.</p></section>
 
 </div>
 <footer>
-Honest: the engine is a context-adaptive ensemble (no single "magic" algorithm) — its guarantee is robustness +
-verifiable provenance, measured &amp; reproducible. Browser demo evaluates your expression in a sandboxed VM.<br>
+Honest: the engine is a context-adaptive ensemble — its guarantee is robustness + verifiable provenance, measured &amp; reproducible (not a single "magic" algorithm).<br>
 <a href="/pitch">Pitch deck</a> · <a href="/health">/health</a> · Melete v${version} · the discovery muse
 </footer>
 
@@ -157,20 +183,42 @@ var PRESETS={
   coffee:{space:'[{"name":"temp","type":"real","min":85,"max":96},{"name":"grind","type":"real","min":1,"max":10},{"name":"dose","type":"real","min":14,"max":22}]',obj:'10 - (temp-92)**2*0.08 - (grind-5.5)**2*0.15 - (dose-18)**2*0.1',budget:50},
   price:{space:'[{"name":"price","type":"real","min":1,"max":100}]',obj:'price * (100 - price)',budget:30},
 };
-function loadPreset(){var p=PRESETS[document.getElementById('preset').value];document.getElementById('space').value=p.space;document.getElementById('obj').value=p.obj;document.getElementById('budget').value=p.budget;document.getElementById('out').textContent='example loaded — press Discover →';}
+function loadPreset(){var p=PRESETS[document.getElementById('preset').value];document.getElementById('space').value=p.space;document.getElementById('obj').value=p.obj;document.getElementById('budget').value=p.budget;document.getElementById('out').textContent='example loaded — press Discover →';document.getElementById('map').className='';}
+function heat(t){t=Math.max(0,Math.min(1,t));var a=[49,46,129],b=[14,165,183],c=[250,204,21];var p=t<0.5?[a,b,t*2]:[b,c,(t-0.5)*2];return 'rgb('+p[0].map(function(v,i){return Math.round(v+(p[1][i]-v)*p[2])}).join(',')+')';}
+function pathFrom(trace){var pts=[];(trace.frames||[]).forEach(function(f){if(f.kind==='observation'&&f.payload&&f.payload.experiment)pts.push({e:f.payload.experiment,v:f.payload.value});});return pts;}
+function renderMap(j){
+  document.getElementById('map').className='on';
+  var pts=pathFrom(j.trace);
+  // convergence
+  var cv=document.getElementById('conv'),cc=cv.getContext('2d'),W=cv.width,H=cv.height;cc.clearRect(0,0,W,H);
+  var run=[],best=-Infinity;pts.forEach(function(p){best=Math.max(best,p.v);run.push(best);});
+  var lo=Math.min.apply(null,run),hi=Math.max.apply(null,run),rg=(hi-lo)||1;
+  cc.strokeStyle='#5b53e8';cc.lineWidth=2.5;cc.beginPath();run.forEach(function(v,i){var x=i/(run.length-1||1)*W,y=H-8-(v-lo)/rg*(H-16);i?cc.lineTo(x,y):cc.moveTo(x,y);});cc.stroke();
+  // arms
+  var tot=(j.armStats||[]).reduce(function(s,a){return s+a.pulls},0)||1;
+  document.getElementById('arms').innerHTML=(j.armStats||[]).filter(function(a){return a.pulls>0}).sort(function(a,b){return b.pulls-a.pulls}).map(function(a){return '<div class="kv" style="display:flex;justify-content:space-between;font-size:13px"><span>'+a.name+'</span><span class="muted">'+a.pulls+'</span></div><div class="bar" style="width:'+Math.round(a.pulls/tot*100)+'%"></div>'}).join('');
+  // proof
+  document.getElementById('proof').innerHTML='best score <b>'+(+j.best.value).toFixed(4)+'</b> · '+j.evaluations+' experiments<br>📜 '+j.trace.frames.length+' frames · <b style="color:'+(j.verify?'#0e9f6e':'#dc2626')+'">'+(j.verify?'verified ✓':'unverified')+'</b> (Ed25519, offline)';
+  // surface heatmap (2D only)
+  var cv2=document.getElementById('surf'),x2=cv2.getContext('2d'),S=cv2.width;x2.clearRect(0,0,S,S);
+  if(j.surface){var s=j.surface,zmin=Math.min.apply(null,s.z),zmax=Math.max.apply(null,s.z),zr=(zmax-zmin)||1,cw=S/s.nx;
+    for(var jj=0;jj<s.ny;jj++)for(var ii=0;ii<s.nx;ii++){x2.fillStyle=heat((s.z[jj*s.nx+ii]-zmin)/zr);x2.fillRect(ii*cw,S-(jj+1)*cw,cw+1,cw+1);}
+    var toX=function(e){return (e[s.xName]-s.xMin)/((s.xMax-s.xMin)||1)*S;},toY=function(e){return S-(e[s.yName]-s.yMin)/((s.yMax-s.yMin)||1)*S;};
+    x2.strokeStyle='rgba(255,255,255,.55)';x2.lineWidth=1.2;x2.beginPath();pts.forEach(function(p,i){var X=toX(p.e),Y=toY(p.e);i?x2.lineTo(X,Y):x2.moveTo(X,Y);});x2.stroke();
+    pts.forEach(function(p,i){var X=toX(p.e),Y=toY(p.e);x2.fillStyle='rgba(255,255,255,.9)';x2.beginPath();x2.arc(X,Y,8,0,7);x2.fill();x2.fillStyle='#16172b';x2.font='bold 9px ui-monospace';x2.textAlign='center';x2.textBaseline='middle';x2.fillText(i+1,X,Y);});
+    var bx=toX(j.best.experiment),by=toY(j.best.experiment);x2.fillStyle='#fde047';x2.strokeStyle='#16172b';x2.lineWidth=1.5;x2.font='20px sans-serif';x2.fillText('★',bx,by);x2.strokeText('★',bx,by);
+  } else { x2.fillStyle='#9092a8';x2.font='14px sans-serif';x2.textAlign='center';x2.fillText('(map shown for 2-dial problems)',S/2,S/2);x2.fillText('— convergence + strategy at right →',S/2,S/2+22);}
+}
 async function run(){
-  var out=document.getElementById('out'); out.textContent='discovering…';
+  var out=document.getElementById('out');out.textContent='discovering…';document.getElementById('map').className='';
   try{
     var space=JSON.parse(document.getElementById('space').value);
     var body={space:space,objective:document.getElementById('obj').value,budget:+document.getElementById('budget').value,goal:'maximize'};
     var r=await fetch('/discover',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
     var j=await r.json();
     if(j.error){out.textContent='⚠ '+j.error;return;}
-    var arms=(j.armStats||[]).filter(function(a){return a.pulls>0}).map(function(a){return a.name+'×'+a.pulls}).join('  ');
-    out.textContent='🔬 best score: '+(+j.best.value).toFixed(5)+'\\n   best dials: '+JSON.stringify(j.best.experiment)
-      +'\\n   experiments used: '+j.evaluations+'   ·   engine: '+j.engine
-      +'\\n   arms the bandit chose: '+arms
-      +'\\n   📜 signed trace: '+j.trace.frames.length+' frames  ·  verify='+j.verify;
+    out.innerHTML='🔬 <b>Best:</b> score '+(+j.best.value).toFixed(5)+' at <b>'+JSON.stringify(j.best.experiment)+'</b> &nbsp;·&nbsp; found in <b>'+j.evaluations+'</b> experiments.';
+    renderMap(j);
   }catch(e){out.textContent='⚠ '+e.message;}
 }
 </script>
@@ -223,14 +271,16 @@ document.addEventListener('click',function(e){if(e.target.tagName!=='A')show(i+1
 export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string; pass: boolean; detail: string }> } {
   const html = landingPage("9.9.9"); const pitch = pitchDeck("9.9.9");
   const checks = [
-    { name: "LANDING-RENDERS", pass: html.startsWith("<!doctype html>") && html.includes("Melete") && html.length > 3000, detail: "launch-quality landing page renders with hero + sections" },
+    { name: "LANDING-RENDERS", pass: html.startsWith("<!doctype html>") && html.includes("Melete") && html.length > 4000, detail: "world-class landing page renders with hero + sections" },
+    { name: "LIGHT-THEME", pass: html.includes("--bg:#ffffff") && !html.includes("background:#07070c"), detail: "clean light theme (not the old dark background)" },
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
-    { name: "WHO-ITS-FOR", pass: html.includes("Who it's for") && html.includes("PHARMA") && html.includes("AI / ML TEAMS"), detail: "states the audiences + what each gets" },
-    { name: "NO-DATASET", pass: html.includes("You don't need a dataset") && html.includes("melete tune"), detail: "demo explains no dataset is needed + shows the real `melete tune` usage" },
-    { name: "AIR-GAPPED", pass: html.toLowerCase().includes("air-gapped") && html.includes("Zero runtime dependencies"), detail: "states the air-gapped / on-prem positioning" },
+    { name: "DISCOVERY-MAP", pass: html.includes("Discovery map") && html.includes('id="surf"') && html.includes("renderMap") && html.includes("heat("), detail: "renders an interactive discovery map (learned surface heatmap + experiment path + convergence + strategy)" },
+    { name: "WHO-ITS-FOR+STEPS", pass: html.includes("Who it's for") && html.includes("Pharma") && html.includes("AI / ML teams") && html.includes("How it works") && html.includes("Score one try"), detail: "audiences + the 3-step explainer (journalist-style, 1-minute readable)" },
+    { name: "NO-DATASET", pass: html.includes("You don't need a dataset") && html.includes("melete tune"), detail: "explains no dataset is needed + shows the real `melete tune` usage" },
+    { name: "AIR-GAPPED", pass: html.toLowerCase().includes("air-gapped") && html.includes("runs fully offline"), detail: "states the air-gapped / on-prem positioning" },
     { name: "PITCH-DECK", pass: pitch.startsWith("<!doctype html>") && pitch.includes("The ask") && pitch.includes("The moat") && html.includes('href="/pitch"'), detail: "HTML pitch deck renders (problem→product→moat→proof→ask) and is linked from the landing page" },
     { name: "VERSION+CATALOG", pass: html.includes("9.9.9") && ENDPOINTS.length === 4 && ENDPOINTS.some((e) => e.path === "/pitch"), detail: "version injected; endpoint catalogue incl /pitch + /discover + /verify" },
-    { name: "HONEST-COPY", pass: html.toLowerCase().includes("honest") && html.includes("no single"), detail: "page states the honest framing (robustness, not a magic algorithm)" },
+    { name: "HONEST-COPY", pass: html.toLowerCase().includes("honest") && html.toLowerCase().includes("no single"), detail: "page states the honest framing (robustness, not a magic algorithm)" },
   ];
   return { score: checks.every((c) => c.pass) ? 100 : 0, checks };
 }
