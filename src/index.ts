@@ -34,6 +34,7 @@ export * from "./drift.js";
 export * from "./achievability.js";
 export * from "./inverse.js";
 export * from "./efficiency.js";
+export * from "./prescription.js";
 export * from "./server.js";
 
 import { type DiscoverOpts, type DiscoveryResult, type Step, discover } from "./engine.js";
@@ -91,6 +92,7 @@ import { driftGauntlet } from "./drift.js";
 import { achievabilityGauntlet } from "./achievability.js";
 import { inverseGauntlet } from "./inverse.js";
 import { efficiencyGauntlet } from "./efficiency.js";
+import { prescriptionGauntlet } from "./prescription.js";
 import { serverGauntlet } from "./server.js";
 
 export interface MeleteGauntlet { score: 0 | 100; modules: Array<{ name: string; score: number; checks: Array<{ name: string; pass: boolean }> }> }
@@ -121,6 +123,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "achievability", g: achievabilityGauntlet() },
     { name: "inverse", g: inverseGauntlet() },
     { name: "efficiency", g: efficiencyGauntlet() },
+    { name: "prescription", g: prescriptionGauntlet() },
     { name: "trace", g: traceGauntlet() },
     { name: "bench", g: await benchGauntlet() },
     { name: "server", g: serverGauntlet() },

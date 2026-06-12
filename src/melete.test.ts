@@ -12,7 +12,7 @@ import {
   Tracer, verifyTrace,
   multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
-  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions, territoryGauntlet, assessTerritory, coverageScore, costAwareGauntlet, proposeNextCostAware, costAwareDiscover, confidenceGauntlet, stopConfidence, driftGauntlet, analyzeDrift, achievabilityGauntlet, assessAchievability, inverseGauntlet, inverseDesign, efficiencyGauntlet, discoveryEfficiency,
+  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions, territoryGauntlet, assessTerritory, coverageScore, costAwareGauntlet, proposeNextCostAware, costAwareDiscover, confidenceGauntlet, stopConfidence, driftGauntlet, analyzeDrift, achievabilityGauntlet, assessAchievability, inverseGauntlet, inverseDesign, efficiencyGauntlet, discoveryEfficiency, prescriptionGauntlet, buildPrescription,
 } from "./index.js";
 
 describe("gauntlets (every module = 100)", () => {
@@ -41,10 +41,11 @@ describe("gauntlets (every module = 100)", () => {
   it("achievability (is the target reachable)", () => expect(achievabilityGauntlet().score).toBe(100));
   it("inverse design (recipes that hit a target)", () => expect(inverseGauntlet().score).toBe(100));
   it("discovery efficiency η = ∛(G·R·T)", () => expect(efficiencyGauntlet().score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 28 modules", async () => {
+  it("prescription (the plain-language action card)", () => expect(prescriptionGauntlet().score).toBe(100));
+  it("aggregate meleteGauntlet = 100 over all 29 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["achievability", "arms", "bench", "certify", "confidence", "cortex", "costaware", "drift", "efficiency", "engine", "federated", "frontier", "interaction", "interactive", "inverse", "multiobjective", "noise", "oracle", "poopt", "portfolio", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "territory", "trace"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["achievability", "arms", "bench", "certify", "confidence", "cortex", "costaware", "drift", "efficiency", "engine", "federated", "frontier", "interaction", "interactive", "inverse", "multiobjective", "noise", "oracle", "poopt", "portfolio", "prescription", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "territory", "trace"]);
   });
 });
 
