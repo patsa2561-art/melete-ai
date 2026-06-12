@@ -360,6 +360,7 @@ export function landingPage(version = "0.4.0"): string {
 <div class="savings" id="frontier" style="display:none;margin-top:12px"></div>
 <div class="savings" id="cert" style="display:none;margin-top:12px"></div>
 <div class="savings" id="poopt" style="display:none;margin-top:12px"></div>
+<div class="savings" id="sens" style="display:none;margin-top:12px"></div>
 
 <div id="map">
 <div class="mapgrid">
@@ -691,6 +692,7 @@ function renderMap(j){
   renderFrontier();
   renderCert();
   renderPoopt();
+  renderSens();
   stopPlay();setTimeout(togglePlay,250);   // auto-play the discovery
 }
 function renderSavings(){
@@ -752,6 +754,7 @@ function renderPoopt(){
     +'<button class="btn ghost" style="margin-top:10px;font-size:13px;padding:8px 14px" onclick="dlPoopt()">⬇ '+(th?'ดาวน์โหลดใบรับรอง':'Download certificate')+'</button>';
 }
 function dlPoopt(){var j=window.LASTJ;if(!j||!j.poopt)return;try{var blob=new Blob([JSON.stringify(j.poopt,null,2)],{type:"application/json"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="proof-of-optimization.json";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}catch(e){}}
+function renderSens(){var j=window.LASTJ;if(!j||!j.sensitivity)return;var el=document.getElementById('sens');if(!el)return;var sv=j.sensitivity;var th=(LANG==='th');if(sv.robustness==='unknown'||!sv.variables||!sv.variables.length){el.style.display='none';return;}var color=sv.robustness==='robust'?'#0e9f6e':(sv.robustness==='fragile'?'#c0392b':'#b45309');var rlabel=th?(sv.robustness==='robust'?'ทน (ที่ราบกว้าง)':(sv.robustness==='fragile'?'เปราะ (ยอดแหลม)':'ปานกลาง')):sv.robustness;var rows=sv.variables.slice().sort(function(a,b){return b.importancePct-a.importancePct;}).map(function(v){var w=Math.max(3,Math.min(100,v.importancePct));var tol=(Math.abs(v.toleranceAbs)<1)?(+v.toleranceAbs).toFixed(3):(+v.toleranceAbs).toFixed(1);return '<div style="margin:7px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#33344e;font-weight:600">'+v.name+'</span><span style="color:#8890a8">'+(th?'คุมที่ ±':'hold ±')+tol+' ('+v.importancePct+'%)</span></div><div style="height:6px;background:#eee;border-radius:9px;overflow:hidden;margin-top:3px"><div style="height:100%;width:'+w+'%;background:linear-gradient(90deg,#6366f1,#0ea5b7)"></div></div></div>';}).join('');el.style.display='block';el.innerHTML='<div style="font-size:13px;font-weight:800;color:'+color+';letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px">🎯 '+(th?'ต้องคุมแต่ละค่าแน่นแค่ไหน':'How tightly to hold each knob')+' · '+rlabel+'</div>'+rows+'<div class="muted" style="font-size:11.5px;margin-top:8px">'+(th?'แถบยาว = ไวต่อการเปลี่ยน ต้องคุมแน่น · ประเมินจากการวัดของคุณ (Taguchi robust design)':'longer bar = more sensitive, hold it tighter · estimated from your measurements (Taguchi robust design)')+'</div>';}
 function renderBaseline(){
   var j=window.LASTJ;if(!j||!j.baseline)return;var el=document.getElementById('baseline');if(!el)return;
   var b=j.baseline;var th=(LANG==='th');var min=(j.goal==='minimize');
