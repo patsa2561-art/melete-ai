@@ -58,7 +58,12 @@ const server = createServer(async (req, res) => {
       // discovery by strategy and replay it step by step.
       const path = (sig.result.history || []).map((s) => ({ experiment: s.experiment, value: s.value, n: s.n, arm: (String(s.rationale || "").match(/^\[([^\]]+)\]/) || [, "seed"])[1] }));
       const dims = space.dims.map((d) => ({ name: d.name, min: d.min, max: d.max, type: d.type }));
-      return json(res, 200, { best: sig.result.best, evaluations: sig.result.evaluations, converged: sig.result.converged, engine: sig.engine, goal, dims, armStats: sig.result.armStats ?? null, surface, path, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      // FRONTIER: "should you have run more, or was this the practical best?" — decision support from the
+      // run's own diminishing-returns curve (honest; no fabricated $ unless the client supplies a cost).
+      const frontierObs = (sig.result.history || []).map((st) => ({ experiment: st.experiment, value: st.value }));
+      const cost = (typeof body.costPerExperiment === "number" && body.costPerExperiment > 0) ? body.costPerExperiment : null;
+      const frontier = M.stoppingAdvice(frontierObs, goal, cost);
+      return json(res, 200, { best: sig.result.best, evaluations: sig.result.evaluations, converged: sig.result.converged, engine: sig.engine, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {
@@ -71,7 +76,9 @@ const server = createServer(async (req, res) => {
       try {
         const next = M.proposeNext(space, obs, goal, (body.seed | 0) || 1);
         const best = obs.length ? obs.reduce((a, b) => (goal === "minimize" ? (b.value < a.value ? b : a) : (b.value > a.value ? b : a))) : null;
-        return json(res, 200, { next, t: obs.length, best, goal });
+        const cost = (typeof body.costPerExperiment === "number" && body.costPerExperiment > 0) ? body.costPerExperiment : null;
+        const advice = M.stoppingAdvice(obs, goal, cost);
+        return json(res, 200, { next, t: obs.length, best, goal, advice });
       } catch (e) { return json(res, 400, { error: "propose failed: " + e.message.slice(0, 120) }); }
     }
 

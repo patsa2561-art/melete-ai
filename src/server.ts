@@ -328,6 +328,7 @@ export function landingPage(version = "0.4.0"): string {
 <div class="result" id="out">Pick a scenario, then press Watch — the best settings, a movie of how it searched, and a signed proof appear here.</div>
 <div class="narrate" id="narrate" style="display:none"></div>
 <div class="savings" id="savings" style="display:none"></div>
+<div class="savings" id="frontier" style="display:none;margin-top:12px"></div>
 
 <div id="map">
 <div class="mapgrid">
@@ -572,6 +573,7 @@ function renderMap(j){
     +'<br>🏆 <b>'+tr('winning')+':</b> '+bestStr+'.'
     +'<br>📜 '+tr('signed');
   renderSavings();
+  renderFrontier();
   stopPlay();setTimeout(togglePlay,250);   // auto-play the discovery
 }
 function renderSavings(){
@@ -591,6 +593,22 @@ function gMoney(){
   var v=parseFloat(c.value);var th=(LANG==='th');
   if(isFinite(v)&&v>0&&window.__saved){m.innerHTML='→ <b style="color:#0e9f6e;font-size:16px">≈ $'+Math.round(window.__saved*v).toLocaleString()+'</b> '+(th?'ที่ประหยัดได้':'saved');}
   else{m.innerHTML='';}
+}
+function renderFrontier(){
+  var j=window.LASTJ;if(!j||!j.frontier)return;var el=document.getElementById('frontier');if(!el)return;
+  var f=j.frontier;var th=(LANG==='th');var rec=f.recommendation;
+  var color=rec==='STOP'?'#0e9f6e':(rec==='CONTINUE'?'#6366f1':'#8890a8');
+  var label=th?(rec==='STOP'?'พอแล้ว — เจอค่าที่ดีในทางปฏิบัติแล้ว':(rec==='CONTINUE'?'ควรทดลองต่อ — ยังขยับขึ้นได้':'ยังบอกไม่ได้ — ข้อมูลยังน้อย'))
+              :(rec==='STOP'?'STOP — practical best reached':(rec==='CONTINUE'?'RUN ANOTHER — still improving':'UNKNOWN — too few experiments'));
+  var head=th?'ควรทดลองต่ออีกไหม?':'Should you run another experiment?';
+  var bestTxt=isFinite(f.best)?((th?'ดีที่สุดตอนนี้ ':'best so far ')+'<b>'+(+f.best).toPrecision(4)+'</b> '+(th?'จาก ':'in ')+f.n+(th?' ครั้ง':' experiments')):'';
+  var gain=(isFinite(f.expectedGainNext)&&rec!=='UNKNOWN')?('<div style="margin-top:6px;color:#475;font-size:13px">'+(th?'คาดว่าทดลองอีก 1 ครั้งจะดีขึ้น ~':'one more is expected to gain ~')+'<b>'+(+f.expectedGainNext).toExponential(2)+'</b></div>'):'';
+  var money=(f.spentSoFar!=null)?('<div style="margin-top:4px;color:#475;font-size:13px">'+(th?'ใช้ไปแล้วราว $':'spent so far ≈ $')+(+f.spentSoFar).toLocaleString()+'</div>'):'';
+  el.style.display='block';
+  el.innerHTML='<div style="font-size:13px;font-weight:800;color:'+color+';letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">🧭 '+head+'</div>'
+    +'<div style="font-size:16px;color:'+color+';font-weight:700">'+label+'</div>'
+    +'<div style="margin-top:6px;color:#33344e">'+bestTxt+'</div>'+gain+money
+    +'<div class="muted" style="font-size:11.5px;margin-top:8px">'+(th?'คำแนะนำจากเส้นทางการทดลองของคุณเอง (ผลตอบแทนลดน้อยถอยลง) — เป็นตัวช่วยตัดสินใจ ไม่ใช่การรับประกัน':'From your own diminishing-returns curve — decision support, not a guarantee.')+'</div>';
 }
 async function run(){
   var out=document.getElementById('out');out.textContent='discovering…';document.getElementById('map').className='';stopPlay();
