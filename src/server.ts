@@ -149,6 +149,11 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 @media(max-width:640px){.panel,.panel:nth-child(even){flex-direction:column;text-align:center}.panel-text p{font-size:17.5px}.prop.cup .score{position:static;display:inline-block;margin-top:6px}}
 @media(prefers-reduced-motion:reduce){.panel{transition:none;opacity:1;transform:none}}
 /*premium-layer*/
+/*select-styled*/
+select{appearance:none !important;-webkit-appearance:none !important;-moz-appearance:none !important;background-color:#f5f3ff !important;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236d28d9' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;background-repeat:no-repeat !important;background-position:right 13px center !important;background-size:13px !important;border:1.5px solid #d6cffa !important;border-radius:11px !important;padding:11px 40px 11px 14px !important;font-weight:600 !important;font-size:14px !important;color:#33344e !important;cursor:pointer;transition:border-color .15s,box-shadow .15s,background-color .15s}
+select:hover{border-color:#b3a6f0 !important;background-color:#efeaff !important}
+select:focus{outline:none;border-color:var(--ind) !important;box-shadow:0 0 0 3px rgba(91,83,232,.18) !important}
+select option{font-weight:500;color:#1a1b30;background:#fff}
 /*gsteps-anim*/
 #gsteps>div:last-child>div>div:first-child{animation:gbglow 3.6s ease-in-out infinite}
 #gsteps>div:last-child>div:nth-child(2)>div:first-child{animation-delay:.9s}
