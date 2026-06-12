@@ -124,7 +124,10 @@ const server = createServer(async (req, res) => {
         const advice = M.stoppingAdvice(obs, goal, cost);
         const territory = M.assessTerritory(next, obs, space);
         const confidence = M.stopConfidence(obs, goal);
-        return json(res, 200, { next, t: obs.length, best, goal, advice, territory, confidence });
+        // ACHIEVABILITY — if the user named a target, is it even reachable with these variables?
+        let achievability = null;
+        if (typeof body.target === "number" && Number.isFinite(body.target)) { try { achievability = M.assessAchievability(obs, space, body.target, goal); } catch { achievability = null; } }
+        return json(res, 200, { next, t: obs.length, best, goal, advice, territory, confidence, achievability });
       } catch (e) { return json(res, 400, { error: "propose failed: " + e.message.slice(0, 120) }); }
     }
 

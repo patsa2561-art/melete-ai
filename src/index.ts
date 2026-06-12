@@ -31,6 +31,7 @@ export * from "./territory.js";
 export * from "./costaware.js";
 export * from "./confidence.js";
 export * from "./drift.js";
+export * from "./achievability.js";
 export * from "./server.js";
 
 import { type DiscoverOpts, type DiscoveryResult, type Step, discover } from "./engine.js";
@@ -85,6 +86,7 @@ import { territoryGauntlet } from "./territory.js";
 import { costAwareGauntlet } from "./costaware.js";
 import { confidenceGauntlet } from "./confidence.js";
 import { driftGauntlet } from "./drift.js";
+import { achievabilityGauntlet } from "./achievability.js";
 import { serverGauntlet } from "./server.js";
 
 export interface MeleteGauntlet { score: 0 | 100; modules: Array<{ name: string; score: number; checks: Array<{ name: string; pass: boolean }> }> }
@@ -112,6 +114,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "costaware", g: costAwareGauntlet() },
     { name: "confidence", g: confidenceGauntlet() },
     { name: "drift", g: driftGauntlet() },
+    { name: "achievability", g: achievabilityGauntlet() },
     { name: "trace", g: traceGauntlet() },
     { name: "bench", g: await benchGauntlet() },
     { name: "server", g: serverGauntlet() },
