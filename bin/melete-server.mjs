@@ -102,7 +102,9 @@ const server = createServer(async (req, res) => {
       let sensitivity = null; try { sensitivity = M.analyzeSensitivity(frontierObs, space, goal); } catch { sensitivity = null; }
       // NOISE — measurement-reliability / replication advisor.
       let noise = null; try { noise = M.analyzeNoise(frontierObs, space, goal); } catch { noise = null; }
-      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      // INTERACTIONS — which variables are coupled (cannot be tuned independently).
+      let interactions = null; try { interactions = M.analyzeInteractions(frontierObs, space, goal); } catch { interactions = null; }
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {
