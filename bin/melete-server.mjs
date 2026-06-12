@@ -120,6 +120,11 @@ const server = createServer(async (req, res) => {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       const v = M.verifyTrace(body.trace || body); return json(res, 200, v);
     }
+    if (req.method === "POST" && path === "/poopt/verify") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const cert = body.poopt || body; const v = M.verifyProofOfOptimization(cert);
+      return json(res, 200, { ...v, subject: cert?.subject ?? null, efficiencyPct: cert?.efficiencyPct ?? null, experimentsSaved: cert?.experimentsSaved ?? null, co2SavedKg: cert?.co2SavedKg ?? null });
+    }
     json(res, 404, { error: "no such endpoint", path, endpoints: M.ENDPOINTS });
   } catch (e) { json(res, 500, { error: e.message }); }
 });
