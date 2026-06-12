@@ -177,20 +177,34 @@ b,strong,.result,input[type=number]{font-variant-numeric:tabular-nums}
 ::selection{background:rgba(91,83,232,.18)}
 h1.brand{letter-spacing:-2.5px;font-feature-settings:"ss01","cv01"}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.card{transition:none}}
-/* — elegant futuristic layer (white, luxe) — */
-body{background:#fff;background-image:radial-gradient(circle at 1px 1px,rgba(109,92,240,.045) 1px,transparent 0);background-size:26px 26px;background-attachment:fixed}
-body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(60% 50% at 85% -5%,rgba(20,184,166,.07),transparent 60%),radial-gradient(55% 45% at 8% 8%,rgba(109,92,240,.06),transparent 55%)}
-.card{border-radius:22px;border:1px solid #eef0f7;box-shadow:0 1px 2px rgba(20,20,50,.04),0 22px 50px -34px rgba(60,50,140,.30);transition:transform .5s cubic-bezier(.22,1,.36,1),box-shadow .5s cubic-bezier(.22,1,.36,1)}
-.card:hover{box-shadow:0 1px 2px rgba(20,20,50,.05),0 30px 64px -32px rgba(60,50,140,.40)}
+/* — elegant FUTURISTIC layer (white, luxe, clearly visible) — */
+body{background:#fbfbfe;font-variant-numeric:tabular-nums}
+/* visible mesh-gradient aurora blooms (Linear/Stripe style) — white-dominant, slowly drifting */
+body::before{content:"";position:fixed;inset:-20% -10%;z-index:-2;pointer-events:none;
+  background:radial-gradient(34% 34% at 82% 6%,rgba(20,184,166,.20),transparent 62%),
+  radial-gradient(40% 40% at 6% 12%,rgba(109,92,240,.18),transparent 60%),
+  radial-gradient(36% 38% at 92% 78%,rgba(167,139,250,.16),transparent 60%),
+  radial-gradient(30% 30% at 14% 92%,rgba(14,165,183,.14),transparent 60%);
+  filter:blur(20px);animation:meshDrift 26s ease-in-out infinite alternate}
+@keyframes meshDrift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(0,-2.2%,0) scale(1.06)}100%{transform:translate3d(1.5%,1.5%,0) scale(1.03)}}
+/* faint precision grid over the blooms */
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;
+  background-image:radial-gradient(circle at 1px 1px,rgba(80,70,160,.07) 1px,transparent 0);background-size:30px 30px}
+@media(prefers-reduced-motion:reduce){body::before{animation:none}}
+/* frosted-glass cards with depth + a gradient hairline */
+.card{border-radius:22px;border:1px solid rgba(230,228,248,.9);background:rgba(255,255,255,.82);backdrop-filter:blur(14px) saturate(1.25);-webkit-backdrop-filter:blur(14px) saturate(1.25);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 6px rgba(30,25,80,.05),0 30px 60px -36px rgba(70,55,160,.45);
+  transition:transform .55s cubic-bezier(.22,1,.36,1),box-shadow .55s cubic-bezier(.22,1,.36,1)}
+.card:hover{transform:translateY(-3px);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 6px rgba(30,25,80,.06),0 44px 80px -36px rgba(70,55,160,.55)}
 .btn{transition:transform .4s cubic-bezier(.22,1,.36,1),box-shadow .4s cubic-bezier(.22,1,.36,1),filter .25s}
-.btn.primary{box-shadow:0 10px 26px -12px rgba(99,76,240,.6)}
-.btn.primary:hover{transform:translateY(-1px);box-shadow:0 16px 34px -12px rgba(99,76,240,.7)}
-.pill{backdrop-filter:saturate(1.2);box-shadow:0 1px 2px rgba(20,20,40,.05),0 8px 18px -14px rgba(60,50,140,.5)}
+.btn.primary{box-shadow:0 12px 30px -10px rgba(99,76,240,.65)}
+.btn.primary:hover{transform:translateY(-2px);box-shadow:0 20px 42px -12px rgba(99,76,240,.78)}
+.pill{background:rgba(255,255,255,.78);backdrop-filter:blur(8px) saturate(1.2);box-shadow:0 1px 2px rgba(20,20,40,.05),0 10px 22px -16px rgba(60,50,140,.6)}
+h1.brand .grad{filter:drop-shadow(0 8px 30px rgba(109,92,240,.35))}
 h2{letter-spacing:-.6px}
-section h2{position:relative}
-.wrap section h2::after{content:"";display:block;width:46px;height:3px;margin-top:9px;border-radius:9px;background:linear-gradient(90deg,#6d5cf0,#14b8a6)}
-body{font-variant-numeric:tabular-nums}
-.eyebrow{background:linear-gradient(96deg,#6d5cf0,#0ea5b7);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;letter-spacing:.6px}
+.wrap section h2{position:relative}
+.wrap section h2::after{content:"";display:block;width:52px;height:3px;margin-top:10px;border-radius:9px;background:linear-gradient(90deg,#6d5cf0,#14b8a6)}
+.eyebrow{background:linear-gradient(96deg,#6d5cf0,#0ea5b7);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:800;letter-spacing:.7px}
 `;
 
 /** Meli — Melete's original mascot: an antenna-topped discovery sprite (the glowing orb = "the next
@@ -388,6 +402,8 @@ export function landingPage(version = "0.4.0"): string {
 <div class="savings" id="noise" style="display:none;margin-top:12px"></div>
 <div class="savings" id="inter" style="display:none;margin-top:12px"></div>
 <div class="savings" id="drift" style="display:none;margin-top:12px"></div>
+<div id="whatif" style="display:none;margin-top:12px"></div>
+<div id="batchp" style="display:none;margin-top:12px"></div>
 
 <div id="map">
 <div class="mapgrid">
@@ -729,6 +745,8 @@ function renderMap(j){
   renderNoise();
   renderInter();
   renderDrift();
+  renderWhatif();
+  renderBatch();
   stopPlay();setTimeout(togglePlay,250);   // auto-play the discovery
 }
 function renderSavings(){
@@ -835,6 +853,12 @@ el.innerHTML='<div style="position:relative;background:#fff;border:1px solid #ec
 +bars
 +'<div style="font-size:11px;color:#a0a4b8;margin-top:9px;font-family:ui-monospace,Menlo,monospace">'+(+e.gain).toFixed(2)+' &middot; '+(+e.robustness).toFixed(2)+' &middot; '+(+e.trust).toFixed(2)+' &rarr; &eta; '+(+e.eta).toFixed(2)+' &middot; '+e.evaluations+(th?' การทดลอง':' runs')+'</div>'
 +'</div></div></div>';}
+function renderBatch(){var j=window.LASTJ;var el=document.getElementById('batchp');if(!el)return;if(!j||!j.space||!j.observations||j.observations.length<4){el.style.display='none';return;}var th=(LANG==='th');el.style.display='block';el.innerHTML='<div style="background:rgba(255,255,255,.82);backdrop-filter:blur(12px);border:1px solid #e7e4f6;border-radius:18px;padding:18px 20px;box-shadow:0 24px 54px -36px rgba(70,55,160,.5)"><div style="font-size:13px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#0e7a8a;margin-bottom:3px">🔬 '+(th?'รันหลายเครื่องพร้อมกัน':'Run several at once')+'</div><div style="font-size:12.5px;color:#8890a8;margin-bottom:11px">'+(th?'ถ้าคุณมีหลายเครื่อง/หลายเตา Melete เลือกชุดการทดลองที่คุ้มสุด+หลากหลาย ให้รันขนานกันรอบเดียว':'If you have several machines/reactors, Melete picks the most valuable, diverse set to run in parallel this round')+'</div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label style="font-size:13px;color:#33344e;font-weight:600">'+(th?'จำนวนเครื่อง':'how many at once')+'</label><input id="bk" type="number" min="2" max="12" value="4" style="width:72px;padding:8px;border:1px solid #d7d9ea;border-radius:9px;font-size:14px"><button class="btn primary" onclick="gBatch()" style="font-size:13.5px;padding:9px 16px">🔬 '+(th?'วางแผนรันขนาน':'Plan the parallel batch')+'</button></div><div id="bkout" style="margin-top:12px"></div></div>';}
+function gBatch(){var j=window.LASTJ;if(!j||!j.space)return;var th=(LANG==='th');var k=parseInt((document.getElementById('bk')||{}).value,10)||4;var out=document.getElementById('bkout');out.innerHTML='<span style="color:#8890a8;font-size:13px">'+(th?'กำลังวางแผน…':'planning…')+'</span>';fetch('/batch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({space:j.space,observations:j.observations,goal:j.goal||'maximize',k:k})}).then(function(r){return r.json();}).then(function(b){if(b.error||!b.batch){out.innerHTML='<span style="color:#c33;font-size:13px">'+(b.error||'—')+'</span>';return;}var rows=b.batch.map(function(e,i){var cfg=j.space.map(function(d){return d.name+'='+(+e[d.name]).toFixed(d.type==='int'?0:2);}).join(' · ');return '<div style="display:flex;gap:9px;align-items:center;margin:5px 0;font-size:13.5px"><span style="flex:0 0 auto;width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#6d5cf0,#14b8a6);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center">'+(i+1)+'</span><span style="color:#1a1b30">'+cfg+'</span></div>';}).join('');out.innerHTML='<div style="font-size:12.5px;color:#475;margin-bottom:6px">'+(th?'รัน '+b.batch.length+' ชุดนี้พร้อมกันได้เลย แล้วเอาคะแนนกลับมาใส่:':'Run these '+b.batch.length+' in parallel, then feed the scores back:')+'</div>'+rows;}).catch(function(){out.innerHTML='<span style="color:#c33;font-size:13px">error</span>';});}
+function renderWhatif(){var j=window.LASTJ;var el=document.getElementById('whatif');if(!el)return;if(!j||!j.space||!j.observations||j.observations.length<4||!j.best){el.style.display='none';return;}var th=(LANG==='th');var dims=j.space;var best=j.best.experiment||{};var inputs=dims.map(function(d){var v=best[d.name]!=null?(+best[d.name]):((+(d.min||0)+ +(d.max||1))/2);var step=(d.type==='int')?'1':'any';return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><label style="flex:0 0 38%;font-size:13px;color:#33344e;font-weight:600">'+d.name+'</label><input class="wifx" data-n="'+d.name+'" type="number" step="'+step+'" value="'+(+v).toFixed(d.type==='int'?0:2)+'" style="flex:1;padding:8px 10px;border:1px solid #d7d9ea;border-radius:9px;font-size:14px;width:0"><span style="font-size:11px;color:#9aa0b8;flex:0 0 auto">'+(+(d.min||0))+'–'+(+(d.max||1))+'</span></div>';}).join('');
+el.style.display='block';
+el.innerHTML='<div style="background:rgba(255,255,255,.82);backdrop-filter:blur(12px);border:1px solid #e7e4f6;border-radius:18px;padding:18px 20px;box-shadow:0 24px 54px -36px rgba(70,55,160,.5)"><div style="font-size:13px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#6d28d9;margin-bottom:3px">🔮 '+(th?'ลองถามดู — "ถ้าฉันตั้งค่าเป็น…?"':'Ask "what if I set it to…?"')+'</div><div style="font-size:12.5px;color:#8890a8;margin-bottom:11px">'+(th?'พิมพ์ค่าที่อยากลอง แล้วดูคะแนนที่ Melete ทำนาย — โดยไม่ต้องทดลองจริง (มันจะบอกตรงๆ ว่ามั่นใจหรือเดา)':'Type a setting and see Melete\\'s predicted score — without running it (it tells you if it\\'s sure or guessing)')+'</div>'+inputs+'<button class="btn primary" onclick="gPredict()" style="margin-top:10px;font-size:13.5px;padding:9px 16px">🔮 '+(th?'ทำนายคะแนน':'Predict the score')+'</button><div id="wifout" style="margin-top:12px"></div></div>';}
+function gPredict(){var j=window.LASTJ;if(!j||!j.space)return;var th=(LANG==='th');var q={};document.querySelectorAll('.wifx').forEach(function(i){var v=parseFloat(i.value);if(isFinite(v))q[i.getAttribute('data-n')]=v;});var out=document.getElementById('wifout');out.innerHTML='<span style="color:#8890a8;font-size:13px">'+(th?'กำลังทำนาย…':'predicting…')+'</span>';fetch('/predict',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({space:j.space,observations:j.observations,query:q})}).then(function(r){return r.json();}).then(function(p){if(p.error||!isFinite(p.predicted)){out.innerHTML='<span style="color:#c33;font-size:13px">'+(p.error||'—')+'</span>';return;}var cmap={measured:{c:'#0e7a4f',t:th?'เชื่อถือได้ (วัดใกล้ตรงนี้แล้ว)':'reliable — measured near here'},confident:{c:'#0e7a4f',t:th?'ค่อนข้างเชื่อถือได้':'fairly reliable'},rough:{c:'#b45309',t:th?'ประมาณคร่าวๆ':'a rough estimate'},guess:{c:'#c0392b',t:th?'นี่คือการเดา — ควรทดลองจริงก่อนเชื่อ':'a GUESS — test it before trusting'}};var cm=cmap[p.confidence]||cmap.rough;out.innerHTML='<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><span style="font-size:26px;font-weight:800;font-family:ui-monospace,Menlo,monospace;color:'+cm.c+'">'+(+p.predicted).toPrecision(4)+'</span><span style="font-size:13px;color:#475">'+(isFinite(p.uncertainty)&&p.uncertainty>0?('± '+(+p.uncertainty).toPrecision(2)+' · '):'')+'<b style="color:'+cm.c+'">'+cm.t+'</b></span></div>';}).catch(function(){out.innerHTML='<span style="color:#c33;font-size:13px">error</span>';});}
 function renderDrift(){var j=window.LASTJ;if(!j||!j.drift)return;var el=document.getElementById('drift');if(!el)return;var dr=j.drift;var th=(LANG==='th');if(!dr.note||dr.note.indexOf('need')>=0){el.style.display='none';return;}var color=dr.detected?'#c0392b':'#0e9f6e';var label=dr.detected?(th?'พบแนวโน้มตามเวลา — ผลอาจปนเปื้อน (confound)':'a time-trend was found — results may be confounded'):(th?'ไม่พบแนวโน้มตามเวลา — ผลไม่ปนเปื้อนกับลำดับ':'no time-trend — results are not confounded with order');var corr=(+dr.residualOrderCorr).toFixed(2);var pct=Math.round((+dr.driftFraction)*100);var w=Math.max(3,Math.min(100,Math.round(Math.abs(+dr.residualOrderCorr)*100)));var bar=dr.detected?'<div style="height:6px;background:#eee;border-radius:9px;overflow:hidden;margin-top:7px"><div style="height:100%;width:'+w+'%;background:linear-gradient(90deg,#f59e0b,#c0392b)"></div></div>':'';var detail=dr.detected?('<div style="font-size:13px;color:#475;margin-top:4px">'+(th?'สัมพันธ์กับลำดับ ':'correlation with order ')+corr+' · ≈'+pct+(th?'% ของการกระจายผล · ทดสอบผู้ชนะใหม่อีกครั้ง':'% of the spread · re-test the winner fresh')+'</div>'):'';el.style.display='block';el.innerHTML='<div style="font-size:13px;font-weight:800;color:'+color+';letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">⏱ '+(th?'ผลถูกปนเปื้อนตามเวลาไหม':'Time-confound check')+'</div><div style="font-size:15px;color:'+color+';font-weight:700">'+label+'</div>'+bar+detail+'<div class="muted" style="font-size:11.5px;margin-top:8px">'+(th?'เช็คว่าส่วนที่ตัวแปรอธิบายไม่ได้ ค่อยๆ เปลี่ยนตามลำดับการทดลองหรือไม่ (เครื่องร้อน/สารเปลี่ยนล็อต) — ความถูกต้องเชิงวิทยาศาสตร์':'checks whether the part your variables can\\'t explain drifts with measurement order (a warming rig, a new reagent batch) — scientific validity')+'</div>';}
 function renderBaseline(){
   var j=window.LASTJ;if(!j||!j.baseline)return;var el=document.getElementById('baseline');if(!el)return;

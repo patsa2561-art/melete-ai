@@ -111,7 +111,9 @@ const server = createServer(async (req, res) => {
       let efficiency = null; try { efficiency = M.discoveryEfficiency(frontierObs, space, goal); } catch { efficiency = null; }
       // PRESCRIPTION — the plain-language action card: what to DO with this result.
       let prescription = null; try { prescription = M.buildPrescription(frontierObs, space, goal); } catch { prescription = null; }
-      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, efficiency, prescription, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      // expose the space + a capped sample of observations so the browser can run the WHAT-IF twin (/predict)
+      const obsOut = (frontierObs || []).slice(0, 200).map((o) => ({ experiment: o.experiment, value: o.value }));
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, space: space.dims, observations: obsOut, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, efficiency, prescription, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {
