@@ -13,7 +13,7 @@
  * anyone can re-run it and check the per-landscape numbers.
  */
 import { type Space, type Experiment } from "./space.js";
-import { type Goal } from "./engine.js";
+import { type Goal, type Observation } from "./engine.js";
 import { portfolioDiscover } from "./portfolio.js";
 
 export interface Landscape { name: string; space: Space; f: (e: Experiment) => number; budget: number; note: string }
@@ -63,21 +63,46 @@ export function polish(space: Space, oracle: (e: Experiment) => number, start: E
 }
 
 /**
- * RELIABLE DISCOVER — Melete's memetic mode: the self-allocating portfolio EXPLORES globally, then `polish`
- * EXPLOITS locally around the best. Global finds the right basin; local nails the bottom of it. The split
- * is deterministic, so the whole run stays reproducible + signable.
+ * RELIABLE DISCOVER — Melete's signature 3-paradigm memetic engine. Three fundamentally different searchers
+ * compose into one run: (1) the self-allocating PORTFOLIO explores globally to find the right basin;
+ * (2) an OPTIMISTIC LIPSCHITZ INFILL (DIRECT-style) turns Melete's own optimality certificate INTO an
+ * acquisition — it samples the single point where the certified upper bound is highest, i.e. the most
+ * promising unexplored region the data cannot yet rule out; (3) NELDER–MEAD polish exploits locally to nail
+ * the optimum. Global basin → certificate-guided infill of the gaps → local precision. Fully deterministic
+ * ⇒ reproducible + signable. The diamond (CERTIFY) is not just a report here — it steers the search.
  */
 export async function reliableDiscover(opts: { space: Space; oracle: (e: Experiment) => number; budget: number; seed?: number; goal?: Goal }) {
   const goal = opts.goal ?? "maximize";
-  // the global explorer only needs enough to land in the right basin; the Nelder–Mead polish is the cheap,
-  // powerful precision engine — so most of the budget goes to local exploitation.
-  const globalBudget = Math.max(8, Math.round(opts.budget * 0.35));
-  const localBudget = Math.max(8, opts.budget - globalBudget);
-  const g = await portfolioDiscover({ space: opts.space, oracle: opts.oracle, budget: globalBudget, seed: opts.seed ?? 1, goal });
-  const p = polish(opts.space, opts.oracle, g.best.experiment, localBudget, goal);
+  const space = opts.space, oracle = opts.oracle, dims = space.dims, D = dims.length;
+  const sgn = goal === "minimize" ? -1 : 1;
   const better = (a: number, b: number) => (goal === "minimize" ? a < b : a > b);
-  const best = better(p.value, g.best.value) ? { experiment: p.experiment, value: p.value } : g.best;
-  return { best, armStats: g.armStats, evaluations: g.evaluations + localBudget, goal };
+  const globalBudget = Math.max(8, Math.round(opts.budget * 0.30));
+  const infillBudget = Math.max(0, Math.round(opts.budget * 0.20));
+  const localBudget = Math.max(8, opts.budget - globalBudget - infillBudget);
+  // PHASE 1 — global explore (find the basin)
+  const g = await portfolioDiscover({ space, oracle, budget: globalBudget, seed: opts.seed ?? 1, goal });
+  const obs: Observation[] = (g.history || []).map((s) => ({ experiment: s.experiment, value: s.value }));
+  // normalise ↔ real + a deterministic Halton space-filling probe
+  const lo = (i: number) => dims[i].min ?? 0, hi = (i: number) => dims[i].max ?? 1;
+  const toN = (e: Experiment) => dims.map((d, i) => { const sp = hi(i) - lo(i) || 1; return Math.max(0, Math.min(1, ((+e[d.name] || 0) - lo(i)) / sp)); });
+  const toE = (v: number[]): Experiment => { const e: Experiment = {}; dims.forEach((d, i) => (e[d.name] = lo(i) + v[i] * (hi(i) - lo(i)))); return e; };
+  const HB = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
+  const hal = (k: number, b: number) => { let f = 1, r = 0, i = k + 1; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; };
+  const dst = (a: number[], c: number[]) => { let s = 0; for (let i = 0; i < a.length; i++) s += (a[i] - c[i]) ** 2; return Math.sqrt(s); };
+  // PHASE 2 — optimistic Lipschitz infill (certificate-guided): each step samples the point of highest upper bound
+  for (let k = 0; k < infillBudget; k++) {
+    const npts = obs.map((o) => toN(o.experiment)), vals = obs.map((o) => sgn * o.value);
+    let L = 0; for (let i = 0; i < npts.length; i++) for (let j = i + 1; j < npts.length; j++) { const dx = dst(npts[i], npts[j]); if (dx > 1e-9) L = Math.max(L, Math.abs(vals[i] - vals[j]) / dx); }
+    L = (L > 0 ? L : 1e-6) * 1.3;
+    let bestC: number[] | null = null, bestUB = -Infinity;
+    for (let s = 0; s < 1500; s++) { const c: number[] = []; for (let d = 0; d < D; d++) c.push(hal(k * 1500 + s + 1, HB[d % HB.length])); let ub = Infinity; for (let i = 0; i < npts.length; i++) { const b = vals[i] + L * dst(c, npts[i]); if (b < ub) ub = b; } if (ub > bestUB) { bestUB = ub; bestC = c; } }
+    if (bestC) { const e = toE(bestC); obs.push({ experiment: e, value: oracle(e) }); }
+  }
+  let best = obs.reduce((a, b) => (better(b.value, a.value) ? b : a), g.best);
+  // PHASE 3 — Nelder–Mead local polish (nail the optimum)
+  const p = polish(space, oracle, best.experiment, localBudget, goal);
+  if (better(p.value, best.value)) best = { experiment: p.experiment, value: p.value };
+  return { best, armStats: g.armStats, evaluations: globalBudget + infillBudget + localBudget, goal };
 }
 
 const realDims = (n: number, lo = -5, hi = 5): Space => ({ dims: Array.from({ length: n }, (_, i) => ({ name: "x" + i, type: "real", min: lo, max: hi })) });
@@ -123,15 +148,17 @@ export async function reliabilityBench(seeds = 4): Promise<{ results: LandscapeR
 }
 
 // ── gauntlet ──────────────────────────────────────────────────────────────────
-const BAR = 0.975;   // every landscape must reach ≥ 97.5% of its true optimum (mean over seeds)
+const BAR = 0.99;        // every landscape must reach ≥ 99% of its true optimum (mean over seeds)
+const SEED_BAR = 0.97;   // and no single seed may fall below 97% (no lucky-average hiding a bad run)
 
 export async function reliabilityGauntlet(): Promise<{ score: 0 | 100; checks: Array<{ name: string; pass: boolean; detail: string }> }> {
   const { results, worst } = await reliabilityBench(4);
   const checks = results.map((r) => ({
     name: r.name.toUpperCase(),
-    pass: r.meanPct >= BAR,
+    pass: r.meanPct >= BAR && r.minPct >= SEED_BAR,
     detail: `reached ${(r.meanPct * 100).toFixed(1)}% of optimum (worst seed ${(r.minPct * 100).toFixed(1)}%) — ${r.note}`,
   }));
-  checks.push({ name: "EVERY-LANDSCAPE≥97.5%", pass: worst.meanPct >= BAR, detail: `worst landscape = ${worst.name} at ${(worst.meanPct * 100).toFixed(1)}%` });
+  const minMean = Math.min(...results.map((r) => r.meanPct)), minSeed = Math.min(...results.map((r) => r.minPct));
+  checks.push({ name: "EVERY-LANDSCAPE≥99%", pass: minMean >= BAR && minSeed >= SEED_BAR, detail: `worst mean = ${worst.name} ${(minMean * 100).toFixed(1)}%; worst single seed ${(minSeed * 100).toFixed(1)}%` });
   return { score: checks.every((c) => c.pass) ? 100 : 0, checks };
 }

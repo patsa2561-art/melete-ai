@@ -26,7 +26,7 @@ describe("gauntlets (every module = 100)", () => {
   it("portfolio", async () => expect((await portfolioGauntlet()).score).toBe(100));
   it("replicate", async () => expect((await replicateGauntlet()).score).toBe(100));
   it("frontier", () => expect(frontierGauntlet().score).toBe(100));
-  it("reliability (≥97.5% of optimum on every landscape)", async () => expect((await reliabilityGauntlet()).score).toBe(100));
+  it("reliability (≥99% of optimum on every landscape, every seed)", async () => expect((await reliabilityGauntlet()).score).toBe(100));
   it("certify (optimality certificate)", async () => expect((await certifyGauntlet()).score).toBe(100));
   it("aggregate meleteGauntlet = 100 over all 15 modules", async () => {
     const g = await meleteGauntlet();
