@@ -45,6 +45,8 @@ export * from "./prime.js";
 export * from "./surprise.js";
 export * from "./rashomon.js";
 export * from "./shape.js";
+export * from "./transfer.js";
+export * from "./aegis.js";
 export * from "./server.js";
 
 import { type DiscoverOpts, type DiscoveryResult, type Step, discover } from "./engine.js";
@@ -113,6 +115,8 @@ import { primeGauntlet } from "./prime.js";
 import { surpriseGauntlet } from "./surprise.js";
 import { rashomonGauntlet } from "./rashomon.js";
 import { shapeGauntlet } from "./shape.js";
+import { transferGauntlet } from "./transfer.js";
+import { aegisGauntlet } from "./aegis.js";
 import { serverGauntlet } from "./server.js";
 
 export interface MeleteGauntlet { score: 0 | 100; modules: Array<{ name: string; score: number; checks: Array<{ name: string; pass: boolean }> }> }
@@ -154,6 +158,8 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "surprise", g: surpriseGauntlet() },
     { name: "rashomon", g: rashomonGauntlet() },
     { name: "shape", g: shapeGauntlet() },
+    { name: "transfer", g: transferGauntlet() },
+    { name: "aegis", g: aegisGauntlet() },
     { name: "trace", g: traceGauntlet() },
     { name: "bench", g: await benchGauntlet() },
     { name: "server", g: serverGauntlet() },

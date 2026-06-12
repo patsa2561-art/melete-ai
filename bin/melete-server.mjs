@@ -38,6 +38,21 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && path === "/docs") { const html = M.docsPage(VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
     if (req.method === "GET" && path === "/health") return json(res, 200, { ok: true, version: VERSION, service: "melete" });
 
+    // 🛡 AEGIS — the self-aware engine: returns the best ROBUST optimum (survives wobble), not the fragile spike
+    if (req.method === "POST" && path === "/aegis") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const space = { dims: Array.isArray(body.space) ? body.space : body.space?.dims };
+      if (!space.dims?.length) return json(res, 400, { error: "space must be a non-empty array of {name,type,min,max}" });
+      if (space.dims.length > 12) return json(res, 400, { error: "demo limit: ≤12 dimensions" });
+      if (typeof body.objective !== "string" || !body.objective.trim()) return json(res, 400, { error: "objective must be a JS expression string in your dimension names" });
+      const budget = Math.max(4, Math.min(MAX_BUDGET, (body.budget | 0) || 50));
+      let oracle; try { oracle = makeOracle(space, body.objective); oracle(Object.fromEntries(space.dims.map((d) => [d.name, (d.min + d.max) / 2]))); } catch (e) { return json(res, 400, { error: "objective failed to evaluate: " + e.message.slice(0, 120) }); }
+      const goal = body.goal === "minimize" ? "minimize" : "maximize";
+      try { const r = M.aegisDiscover({ space, oracle, budget, goal, seed: (body.seed | 0) || 1, robustWeight: typeof body.robustWeight === "number" ? body.robustWeight : 0.6 });
+        return json(res, 200, { best: r.best, rawBest: r.rawBest, robustnessOfBest: r.robustnessOfBest, tradedHeight: r.tradedHeight, evaluations: r.evaluations, goal }); }
+      catch (e) { return json(res, 400, { error: "aegis failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       const space = { dims: Array.isArray(body.space) ? body.space : body.space?.dims };
