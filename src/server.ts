@@ -60,7 +60,16 @@ footer{padding:40px 0 80px;color:#9092a8;font-size:13px;text-align:center;border
 #map.on{display:block}
 .mapgrid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;align-items:start}
 @media(max-width:760px){.mapgrid{grid-template-columns:1fr}}
-canvas{width:100%;border-radius:12px;border:1px solid var(--line);background:#fff}
+canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
+#surf{width:100%;height:auto;aspect-ratio:1/1;display:block}
+#conv{width:100%}
+.caps{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#9698ad;margin-bottom:8px}
+.player{display:flex;align-items:center;gap:11px;margin-top:11px}
+.pbtn{background:var(--grad);color:#fff;border:0;border-radius:9px;padding:8px 15px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+#scrub{flex:1;accent-color:var(--ind)}
+.legend{display:flex;flex-wrap:wrap;gap:7px 13px;margin-top:12px;font-size:12px;color:#5b5d77;font-weight:600}
+.legdot{display:inline-flex;align-items:center;gap:5px}
+.legdot i{width:11px;height:11px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,.06)}
 .kv{font-size:14px;color:#33344e}.kv b{color:var(--ink)}
 .bar{height:9px;border-radius:6px;background:var(--grad);margin:2px 0 9px}
 .result{margin-top:14px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:16px;font-size:14.5px;color:#2a2b42;min-height:24px}
@@ -139,16 +148,22 @@ one try; it brings the strategy.</p></section>
 <div id="map">
 <div class="mapgrid">
   <div>
-    <div class="muted" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">Discovery map — where it searched &amp; why</div>
-    <canvas id="surf" width="460" height="460"></canvas>
-    <div class="muted" style="font-size:12.5px;margin-top:6px">Heat = the score it learned · numbered dots = each experiment in order · ★ = best found.</div>
+    <div class="caps">Discovery cinema — watch it search, coloured by strategy</div>
+    <canvas id="surf" width="600" height="600"></canvas>
+    <div class="player">
+      <button id="play" class="pbtn" onclick="togglePlay()">▶ Replay</button>
+      <input id="scrub" type="range" min="0" max="1" value="1" oninput="scrubTo(+this.value)">
+      <span id="stepn" class="muted" style="font-size:12.5px;min-width:78px;text-align:right"></span>
+    </div>
+    <div id="legend" class="legend"></div>
+    <div class="muted" style="font-size:12.5px;margin-top:6px">Heat = the score it learned · each dot = one experiment, coloured by the <b>strategy</b> that proposed it · ★ = best.</div>
   </div>
   <div>
-    <div class="muted" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">Convergence</div>
-    <canvas id="conv" width="380" height="120" style="height:90px"></canvas>
-    <div class="muted" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px">Which strategy the bandit chose</div>
+    <div class="caps">Convergence</div>
+    <canvas id="conv" width="380" height="120" style="height:96px"></canvas>
+    <div class="caps" style="margin-top:16px">Which strategy the bandit chose</div>
     <div id="arms"></div>
-    <div class="muted" style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px">Proof</div>
+    <div class="caps" style="margin-top:16px">Proof</div>
     <div id="proof" class="kv"></div>
   </div>
 </div></div>
@@ -184,40 +199,58 @@ var PRESETS={
   price:{space:'[{"name":"price","type":"real","min":1,"max":100}]',obj:'price * (100 - price)',budget:30},
 };
 function loadPreset(){var p=PRESETS[document.getElementById('preset').value];document.getElementById('space').value=p.space;document.getElementById('obj').value=p.obj;document.getElementById('budget').value=p.budget;document.getElementById('out').textContent='example loaded — press Discover →';document.getElementById('map').className='';}
-function heat(t){t=Math.max(0,Math.min(1,t));var a=[49,46,129],b=[14,165,183],c=[250,204,21];var p=t<0.5?[a,b,t*2]:[b,c,(t-0.5)*2];return 'rgb('+p[0].map(function(v,i){return Math.round(v+(p[1][i]-v)*p[2])}).join(',')+')';}
-function pathFrom(trace){var pts=[];(trace.frames||[]).forEach(function(f){if(f.kind==='observation'&&f.payload&&f.payload.experiment)pts.push({e:f.payload.experiment,v:f.payload.value});});return pts;}
+var ARMCOL={gp:'#6d5cf0',cmaes:'#0ea5b7',"kernel-ucb":'#f97316',"trust-region":'#a855f7',anneal:'#ef4444',maximin:'#22c55e',"basin-hop":'#eab308',random:'#94a3b8',seed:'#cbd5e1'};
+function heat(t){t=Math.max(0,Math.min(1,t));var a=[40,32,84],b=[14,120,170],c=[16,185,160],d=[250,232,80];var seg=t<.33?[a,b,t/.33]:t<.66?[b,c,(t-.33)/.33]:[c,d,(t-.66)/.34];return 'rgb('+seg[0].map(function(v,i){return Math.round(v+(seg[1][i]-v)*seg[2])}).join(',')+')';}
+var MAP={};
+function drawFrame(k){
+  var s=MAP.surface,S=600,cv=document.getElementById('surf'),x=cv.getContext('2d');x.clearRect(0,0,S,S);
+  if(!s){x.fillStyle='#9092a8';x.font='16px system-ui';x.textAlign='center';x.fillText('Discovery map renders for 2-dial problems.',S/2,S/2-10);x.fillText('Convergence + strategy shown on the right →',S/2,S/2+18);return;}
+  var zmin=Math.min.apply(null,s.z),zmax=Math.max.apply(null,s.z),zr=(zmax-zmin)||1,cw=S/s.nx;
+  for(var j=0;j<s.ny;j++)for(var i=0;i<s.nx;i++){x.fillStyle=heat((s.z[j*s.nx+i]-zmin)/zr);x.fillRect(i*cw,S-(j+1)*cw,cw+1.2,cw+1.2);}
+  var p=MAP.path,toX=function(e){return Math.max(9,Math.min(S-9,(e[s.xName]-s.xMin)/((s.xMax-s.xMin)||1)*S));},toY=function(e){return Math.max(9,Math.min(S-9,S-(e[s.yName]-s.yMin)/((s.yMax-s.yMin)||1)*S));};
+  // trail
+  x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=1.3;x.beginPath();for(var t=0;t<=k&&t<p.length;t++){var X=toX(p[t].experiment),Y=toY(p[t].experiment);t?x.lineTo(X,Y):x.moveTo(X,Y);}x.stroke();
+  // dots coloured by strategy
+  for(var t2=0;t2<=k&&t2<p.length;t2++){var P=p[t2],X=toX(P.experiment),Y=toY(P.experiment),cur=(t2===k),r=cur?9:5.5;
+    x.beginPath();x.arc(X,Y,r,0,7);x.fillStyle=ARMCOL[P.arm]||'#94a3b8';x.globalAlpha=cur?1:.85;x.fill();x.globalAlpha=1;x.lineWidth=cur?2.5:1;x.strokeStyle=cur?'#fff':'rgba(255,255,255,.7)';x.stroke();}
+  // best star (once revealed)
+  var bi=MAP.bestIdx;if(k>=bi){var bx=toX(MAP.best.experiment),by=toY(MAP.best.experiment);x.font='30px system-ui';x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fde047';x.strokeStyle='#16172b';x.lineWidth=1.6;x.strokeText('★',bx,by);x.fillText('★',bx,by);}
+  document.getElementById('stepn').textContent='exp '+Math.min(k+1,p.length)+' / '+p.length;
+  document.getElementById('scrub').value=k;
+}
+var TIMER=null;
+function stopPlay(){if(TIMER){clearInterval(TIMER);TIMER=null;}document.getElementById('play').textContent='▶ Replay';}
+function togglePlay(){if(TIMER){stopPlay();return;}var p=MAP.path;if(!p)return;document.getElementById('play').textContent='⏸ Pause';var k=(+document.getElementById('scrub').value>=p.length-1)?0:+document.getElementById('scrub').value;var iv=Math.max(22,Math.round(3200/p.length));TIMER=setInterval(function(){drawFrame(k);if(k>=p.length-1){stopPlay();return;}k++;},iv);}
+function scrubTo(v){stopPlay();drawFrame(v);}
 function renderMap(j){
   document.getElementById('map').className='on';
-  var pts=pathFrom(j.trace);
+  MAP={surface:j.surface,path:j.path||[],best:j.best};
+  var bi=0,bv=-Infinity;MAP.path.forEach(function(p,i){if(p.value>bv){bv=p.value;bi=i;}});MAP.bestIdx=bi;
+  document.getElementById('scrub').max=Math.max(1,MAP.path.length-1);
+  // legend (only arms that appeared)
+  var used={};MAP.path.forEach(function(p){used[p.arm]=1;});
+  document.getElementById('legend').innerHTML=Object.keys(used).map(function(a){return '<span class="legdot"><i style="background:'+(ARMCOL[a]||'#94a3b8')+'"></i>'+a+'</span>';}).join('');
   // convergence
   var cv=document.getElementById('conv'),cc=cv.getContext('2d'),W=cv.width,H=cv.height;cc.clearRect(0,0,W,H);
-  var run=[],best=-Infinity;pts.forEach(function(p){best=Math.max(best,p.v);run.push(best);});
+  var run=[],b=-Infinity;MAP.path.forEach(function(p){b=Math.max(b,p.value);run.push(b);});
   var lo=Math.min.apply(null,run),hi=Math.max.apply(null,run),rg=(hi-lo)||1;
-  cc.strokeStyle='#5b53e8';cc.lineWidth=2.5;cc.beginPath();run.forEach(function(v,i){var x=i/(run.length-1||1)*W,y=H-8-(v-lo)/rg*(H-16);i?cc.lineTo(x,y):cc.moveTo(x,y);});cc.stroke();
-  // arms
+  cc.strokeStyle='#5b53e8';cc.lineWidth=2.5;cc.lineJoin='round';cc.beginPath();run.forEach(function(v,i){var X=i/(run.length-1||1)*W,Y=H-9-(v-lo)/rg*(H-18);i?cc.lineTo(X,Y):cc.moveTo(X,Y);});cc.stroke();
+  // arm bars
   var tot=(j.armStats||[]).reduce(function(s,a){return s+a.pulls},0)||1;
-  document.getElementById('arms').innerHTML=(j.armStats||[]).filter(function(a){return a.pulls>0}).sort(function(a,b){return b.pulls-a.pulls}).map(function(a){return '<div class="kv" style="display:flex;justify-content:space-between;font-size:13px"><span>'+a.name+'</span><span class="muted">'+a.pulls+'</span></div><div class="bar" style="width:'+Math.round(a.pulls/tot*100)+'%"></div>'}).join('');
+  document.getElementById('arms').innerHTML=(j.armStats||[]).filter(function(a){return a.pulls>0}).sort(function(a,b){return b.pulls-a.pulls}).map(function(a){return '<div class="kv" style="display:flex;justify-content:space-between;font-size:13px;align-items:center"><span><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(ARMCOL[a.name]||'#94a3b8')+';margin-right:6px"></i>'+a.name+'</span><span class="muted">'+a.pulls+'</span></div><div class="bar" style="width:'+Math.round(a.pulls/tot*100)+'%;background:'+(ARMCOL[a.name]||'#94a3b8')+'"></div>'}).join('');
   // proof
   document.getElementById('proof').innerHTML='best score <b>'+(+j.best.value).toFixed(4)+'</b> · '+j.evaluations+' experiments<br>📜 '+j.trace.frames.length+' frames · <b style="color:'+(j.verify?'#0e9f6e':'#dc2626')+'">'+(j.verify?'verified ✓':'unverified')+'</b> (Ed25519, offline)';
-  // surface heatmap (2D only)
-  var cv2=document.getElementById('surf'),x2=cv2.getContext('2d'),S=cv2.width;x2.clearRect(0,0,S,S);
-  if(j.surface){var s=j.surface,zmin=Math.min.apply(null,s.z),zmax=Math.max.apply(null,s.z),zr=(zmax-zmin)||1,cw=S/s.nx;
-    for(var jj=0;jj<s.ny;jj++)for(var ii=0;ii<s.nx;ii++){x2.fillStyle=heat((s.z[jj*s.nx+ii]-zmin)/zr);x2.fillRect(ii*cw,S-(jj+1)*cw,cw+1,cw+1);}
-    var toX=function(e){return (e[s.xName]-s.xMin)/((s.xMax-s.xMin)||1)*S;},toY=function(e){return S-(e[s.yName]-s.yMin)/((s.yMax-s.yMin)||1)*S;};
-    x2.strokeStyle='rgba(255,255,255,.55)';x2.lineWidth=1.2;x2.beginPath();pts.forEach(function(p,i){var X=toX(p.e),Y=toY(p.e);i?x2.lineTo(X,Y):x2.moveTo(X,Y);});x2.stroke();
-    pts.forEach(function(p,i){var X=toX(p.e),Y=toY(p.e);x2.fillStyle='rgba(255,255,255,.9)';x2.beginPath();x2.arc(X,Y,8,0,7);x2.fill();x2.fillStyle='#16172b';x2.font='bold 9px ui-monospace';x2.textAlign='center';x2.textBaseline='middle';x2.fillText(i+1,X,Y);});
-    var bx=toX(j.best.experiment),by=toY(j.best.experiment);x2.fillStyle='#fde047';x2.strokeStyle='#16172b';x2.lineWidth=1.5;x2.font='20px sans-serif';x2.fillText('★',bx,by);x2.strokeText('★',bx,by);
-  } else { x2.fillStyle='#9092a8';x2.font='14px sans-serif';x2.textAlign='center';x2.fillText('(map shown for 2-dial problems)',S/2,S/2);x2.fillText('— convergence + strategy at right →',S/2,S/2+22);}
+  stopPlay();setTimeout(togglePlay,250);   // auto-play the discovery
 }
 async function run(){
-  var out=document.getElementById('out');out.textContent='discovering…';document.getElementById('map').className='';
+  var out=document.getElementById('out');out.textContent='discovering…';document.getElementById('map').className='';stopPlay();
   try{
     var space=JSON.parse(document.getElementById('space').value);
     var body={space:space,objective:document.getElementById('obj').value,budget:+document.getElementById('budget').value,goal:'maximize'};
     var r=await fetch('/discover',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
     var j=await r.json();
     if(j.error){out.textContent='⚠ '+j.error;return;}
-    out.innerHTML='🔬 <b>Best:</b> score '+(+j.best.value).toFixed(5)+' at <b>'+JSON.stringify(j.best.experiment)+'</b> &nbsp;·&nbsp; found in <b>'+j.evaluations+'</b> experiments.';
+    out.innerHTML='🔬 <b>Best:</b> score '+(+j.best.value).toFixed(5)+' at <b>'+JSON.stringify(j.best.experiment)+'</b> &nbsp;·&nbsp; found in <b>'+j.evaluations+'</b> experiments. <span class="muted">▶ watch it search below</span>';
     renderMap(j);
   }catch(e){out.textContent='⚠ '+e.message;}
 }
