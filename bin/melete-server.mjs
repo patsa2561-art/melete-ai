@@ -61,6 +61,20 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { best: sig.result.best, evaluations: sig.result.evaluations, converged: sig.result.converged, engine: sig.engine, goal, dims, armStats: sig.result.armStats ?? null, surface, path, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
+    if (req.method === "POST" && path === "/next") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const space = { dims: Array.isArray(body.space) ? body.space : body.space?.dims };
+      if (!space.dims?.length) return json(res, 400, { error: "space must be a non-empty array of {name,type,min,max}" });
+      if (space.dims.length > 12) return json(res, 400, { error: "demo limit: ≤12 dimensions" });
+      const obs = Array.isArray(body.observations) ? body.observations.filter((o) => o && o.experiment && Number.isFinite(+o.value)).map((o) => ({ experiment: o.experiment, value: +o.value })) : [];
+      const goal = body.goal === "minimize" ? "minimize" : "maximize";
+      try {
+        const next = M.proposeNext(space, obs, goal, (body.seed | 0) || 1);
+        const best = obs.length ? obs.reduce((a, b) => (goal === "minimize" ? (b.value < a.value ? b : a) : (b.value > a.value ? b : a))) : null;
+        return json(res, 200, { next, t: obs.length, best, goal });
+      } catch (e) { return json(res, 400, { error: "propose failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/verify") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       const v = M.verifyTrace(body.trace || body); return json(res, 200, v);
