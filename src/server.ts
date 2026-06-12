@@ -149,6 +149,9 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 @media(max-width:640px){.panel,.panel:nth-child(even){flex-direction:column;text-align:center}.panel-text p{font-size:17.5px}.prop.cup .score{position:static;display:inline-block;margin-top:6px}}
 @media(prefers-reduced-motion:reduce){.panel{transition:none;opacity:1;transform:none}}
 /*premium-layer*/
+/*hl*/
+#reliproof>h2,#pricing>h2,#guide>h2{font-size:32px;line-height:1.12;letter-spacing:-1px;text-transform:none;color:var(--ink);margin:8px 0 12px;font-weight:800}
+@media(max-width:640px){#reliproof>h2,#pricing>h2,#guide>h2{font-size:25px}}
 html{scroll-behavior:smooth}
 .btn{transition:transform .15s ease,box-shadow .15s ease,filter .15s ease}
 .btn:hover{transform:translateY(-1px)}
