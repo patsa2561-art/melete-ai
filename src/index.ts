@@ -41,6 +41,7 @@ export * from "./constrained.js";
 export * from "./lineage.js";
 export * from "./sloppiness.js";
 export * from "./cliff.js";
+export * from "./prime.js";
 export * from "./server.js";
 
 import { type DiscoverOpts, type DiscoveryResult, type Step, discover } from "./engine.js";
@@ -105,6 +106,7 @@ import { constrainedGauntlet } from "./constrained.js";
 import { lineageGauntlet } from "./lineage.js";
 import { sloppinessGauntlet } from "./sloppiness.js";
 import { cliffGauntlet } from "./cliff.js";
+import { primeGauntlet } from "./prime.js";
 import { serverGauntlet } from "./server.js";
 
 export interface MeleteGauntlet { score: 0 | 100; modules: Array<{ name: string; score: number; checks: Array<{ name: string; pass: boolean }> }> }
@@ -142,6 +144,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "lineage", g: lineageGauntlet() },
     { name: "sloppiness", g: sloppinessGauntlet() },
     { name: "cliff", g: cliffGauntlet() },
+    { name: "prime", g: primeGauntlet() },
     { name: "trace", g: traceGauntlet() },
     { name: "bench", g: await benchGauntlet() },
     { name: "server", g: serverGauntlet() },
