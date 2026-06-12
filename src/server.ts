@@ -327,6 +327,7 @@ export function landingPage(version = "0.4.0"): string {
 <label style="display:flex;align-items:center;gap:9px;margin-top:14px;font-size:14px;color:#33344e;cursor:pointer"><input type="checkbox" id="reliable" style="width:16px;height:16px"> <span data-i18n="rel_lbl">⚡ Reliable mode — add a Nelder–Mead polish (slower; nails hard curved valleys to the true optimum)</span></label>
 <button class="btn primary" style="margin-top:12px;width:100%" onclick="run()" data-i18n="watch">▶ Watch Melete discover</button>
 <div class="result" id="out">Pick a scenario, then press Watch — the best settings, a movie of how it searched, and a signed proof appear here.</div>
+<div id="hero" style="display:none;margin-bottom:14px"></div>
 <div class="narrate" id="narrate" style="display:none"></div>
 <div class="savings" id="savings" style="display:none"></div>
 <div class="savings" id="baseline" style="display:none;margin-top:12px"></div>
@@ -604,6 +605,7 @@ function renderMap(j){
   nar.innerHTML='<b>📖 '+tr('plainHdr')+':</b> '+tr('tried')+' <b>'+j.evaluations+'</b> '+tr('settings')+' ('+(LANG==='th'?'คะแนน':'score')+' <b>'+(+j.best.value).toFixed(2)+'</b>).'
     +'<br>🏆 <b>'+tr('winning')+':</b> '+bestStr+'.'
     +'<br>📜 '+tr('signed');
+  renderHero();
   renderSavings();
   renderBaseline();
   renderFrontier();
@@ -674,6 +676,28 @@ function renderBaseline(){
     +rows
     +'<div style="font-size:15px;margin-top:10px;color:#1a1b30">'+(vsR!=null?('<b style="color:'+color+'">'+fmt(vsR)+'</b> '+(th?'ดีกว่าการสุ่ม':'better than random')):'')+(vsS!=null&&isFinite(vsS)?(' · <b>'+fmt(vsS)+'</b> '+(th?'เหนือจุดเริ่มต้น':'over your start')):'')+'</div>'
     +'<div class="muted" style="font-size:11.5px;margin-top:8px">'+(th?'เทียบบนงบจำนวนการทดลองเท่ากัน — ทำให้คะแนนดิบมีความหมาย':'Compared at the same experiment budget — so the raw score actually means something.')+'</div>';
+}
+function renderHero(){
+  var j=window.LASTJ;if(!j||!j.best){return;}var el=document.getElementById('hero');if(!el)return;
+  var th=(LANG==='th');var min=(j.goal==='minimize');
+  function tile(label,val){return '<div style="background:rgba(255,255,255,.08);border-radius:14px;padding:14px"><div style="font-size:11px;color:#a5b4fc;text-transform:uppercase;letter-spacing:.3px">'+label+'</div><div style="font-size:18px;font-weight:700;margin-top:4px">'+val+'</div></div>';}
+  var chips=Object.keys(j.best.experiment||{}).map(function(k){var v=j.best.experiment[k];var vs=(typeof v==='number')?(Math.abs(v)>=100?Math.round(v):(+v).toFixed(2)):v;return '<span style="display:inline-block;background:rgba(255,255,255,.14);color:#fff;border-radius:9px;padding:6px 11px;margin:3px 4px 3px 0;font-size:13px;font-weight:600">'+k+' = '+vs+'</span>';}).join('');
+  var vsR=null,vsS=null;
+  if(j.baseline){var b=j.baseline;var imp=function(ref){if(ref==null||!isFinite(ref))return null;var d=min?(ref-b.best):(b.best-ref);var base=Math.abs(ref)>1e-9?Math.abs(ref):1;return d/base*100;};vsR=imp(b.random);vsS=imp(b.start);}
+  function pct(p){return p==null?'':((p>=0?'+':'')+(Math.abs(p)>=10?Math.round(p):p.toFixed(1))+'%');}
+  var rec=j.frontier?j.frontier.recommendation:null;
+  var recTxt=th?(rec==='STOP'?'พอแล้ว':(rec==='CONTINUE'?'ลองต่อได้':'—')):(rec==='STOP'?'Done':(rec==='CONTINUE'?'Run more':'—'));
+  var gtxt='—';if(j.certificate&&j.certificate.withinPct){var w=Math.max(0.01,j.certificate.withinPct);var g=Math.max(0,(100/w-1)*100);gtxt='≤'+(g>=999?'∞':(g<10?g.toFixed(1):Math.round(g)))+'%';}
+  var score=(+j.best.value);var scoreTxt=(Math.abs(score)>=1000?Math.round(score).toLocaleString():(+score).toPrecision(5));
+  el.style.display='block';
+  el.innerHTML='<div style="border-radius:22px;padding:28px;background:linear-gradient(135deg,#1a1b30,#2d2b55);color:#fff;box-shadow:0 22px 60px -26px rgba(45,43,85,.7)">'
+   +'<div style="font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#a5b4fc">🏆 '+(th?'สูตรที่ดีที่สุดที่เจอ':'Best recipe found')+(j.reliable?' · ⚡ reliable':'')+'</div>'
+   +'<div style="margin:12px 0 4px">'+chips+'</div>'
+   +'<div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-top:8px"><div style="font-size:42px;font-weight:800;line-height:1">'+scoreTxt+'</div>'
+     +'<div style="font-size:14px;color:#c7d2fe">'+(vsR!=null?('<b style="color:#6ee7b7">'+pct(vsR)+'</b> '+(th?'ดีกว่าสุ่ม':'vs random')):'')+(vsS!=null&&isFinite(vsS)?(' · <b>'+pct(vsS)+'</b> '+(th?'เหนือจุดเริ่ม':'vs start')):'')+'</div></div>'
+   +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px">'+tile(th?'การทดลอง':'experiments',(j.evaluations||'—'))+tile(th?'ควรทำต่อ?':'next step',recTxt)+tile(th?'รับรอง':'certified',gtxt)+'</div>'
+   +'<div style="margin-top:18px;font-size:13px;color:'+(j.verify?'#6ee7b7':'#fca5a5')+'">'+(j.verify?('🔒 '+(th?'เซ็นและตรวจสอบแล้ว (Ed25519 ออฟไลน์)':'signed & verified (Ed25519, offline)')):'⚠ unverified')+'</div>'
+  +'</div>';
 }
 async function run(){
   var out=document.getElementById('out');out.textContent='discovering…';document.getElementById('map').className='';stopPlay();
