@@ -21,6 +21,14 @@ a{color:var(--ind);text-decoration:none;font-weight:600}a:hover{text-decoration:
 .langsw{position:fixed;top:14px;right:16px;z-index:60;display:flex;background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;box-shadow:0 4px 14px rgba(20,20,50,.12)}
 .lb{border:0;background:transparent;border-radius:999px;padding:6px 13px;font-size:13px;font-weight:700;color:#6a6c84;cursor:pointer}
 .lb.on{background:var(--grad);color:#fff}
+.cmodal{display:none;position:fixed;inset:0;background:rgba(20,18,40,.55);z-index:100;align-items:center;justify-content:center;padding:18px}
+.cbox{background:#fff;border-radius:20px;padding:26px 26px 20px;max-width:430px;width:100%;position:relative;box-shadow:0 30px 80px -20px rgba(20,20,60,.5)}
+.cclose{position:absolute;top:12px;right:14px;border:0;background:#f1f2f8;border-radius:50%;width:30px;height:30px;font-size:14px;cursor:pointer;color:#6a6c84}
+.ctab{width:100%;border-collapse:collapse;font-size:14.5px}
+.ctab td{padding:11px 8px;border-bottom:1px solid var(--line)}
+.ctab tr:last-child td{border-bottom:0}
+.ctab td:first-child{font-weight:700;color:#33344e;white-space:nowrap}
+.thtag{display:inline-block;background:#e9fbf3;color:#0e9f6e;border:1px solid #b7ecd4;border-radius:999px;padding:1px 7px;font-size:10.5px;font-weight:700;margin-left:4px}
 .wrap{max-width:1000px;margin:0 auto;padding:0 24px}
 .grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 .hero{position:relative;overflow:hidden;text-align:center;padding:84px 24px 54px;background:radial-gradient(70% 90% at 50% -10%,#eef0ff,transparent 60%)}
@@ -77,6 +85,7 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 .bar{height:9px;border-radius:6px;background:var(--grad);margin:2px 0 9px}
 .result{margin-top:14px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:16px;font-size:14.5px;color:#2a2b42;min-height:24px}
 .narrate{margin-top:12px;background:linear-gradient(135deg,#f3f1ff,#eafcf8);border:1.5px solid #ddd9fb;border-radius:14px;padding:16px 18px;font-size:15px;line-height:1.65;color:#26283f}
+.savings{margin-top:12px;background:linear-gradient(135deg,#eafcf3,#f7fffb);border:1.5px solid #b7ecd4;border-radius:14px;padding:16px 18px;font-size:14.5px;line-height:1.6;color:#26283f}
 .modetabs{display:inline-flex;background:#f1f2f8;border:1px solid var(--line);border-radius:11px;padding:4px;gap:4px;margin-bottom:6px}
 .mt{background:transparent;border:0;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:700;color:#6a6c84;cursor:pointer}
 .mt.on{background:#fff;color:var(--ind);box-shadow:0 1px 4px rgba(20,20,50,.08)}
@@ -190,6 +199,23 @@ export function landingPage(version = "0.4.0"): string {
 
 <div class="langsw"><button id="lang-en" class="lb on" onclick="setLang('en')">EN</button><button id="lang-th" class="lb" onclick="setLang('th')">ไทย</button></div>
 
+<div class="cmodal" id="contactModal" onclick="if(event.target===this)hideContact()">
+  <div class="cbox">
+    <button class="cclose" onclick="hideContact()" aria-label="close">✕</button>
+    <div style="width:74px;margin:0 auto 4px">${meli()}</div>
+    <h3 style="text-align:center;margin:0 0 2px;font-size:21px">💬 Contact — Shinnapat <span class="muted" style="font-weight:500">(Melete)</span></h3>
+    <p class="muted" style="text-align:center;margin:0 0 16px;font-size:14px">Licensing · acquisition · questions &nbsp;·&nbsp; 🇹🇭 Thailand-based</p>
+    <table class="ctab">
+      <tr><td>📧 Email</td><td><a href="mailto:patsa2561@gmail.com">patsa2561@gmail.com</a></td></tr>
+      <tr><td>🟢 WhatsApp <span class="thtag">Thailand ☎</span></td><td><a href="https://wa.me/66939455645">+66 93 945 5645</a></td></tr>
+      <tr><td>✈️ Telegram</td><td><a href="https://t.me/devson2561">@devson2561</a></td></tr>
+      <tr><td>💬 Discord</td><td>pat195 <span class="muted">(shinnapat)</span></td></tr>
+      <tr><td>🐙 GitHub</td><td><a href="https://github.com/patsa2561-art">@patsa2561-art</a></td></tr>
+      <tr><td>📦 npm</td><td><a href="https://www.npmjs.com/~mneme_npm">@mneme_npm</a></td></tr>
+    </table>
+  </div>
+</div>
+
 <div class="hero">
   <div class="herochar">${meli("hero")}</div>
   <span class="eyebrow">Self-driving discovery</span>
@@ -301,6 +327,7 @@ export function landingPage(version = "0.4.0"): string {
 <button class="btn primary" style="margin-top:16px;width:100%" onclick="run()" data-i18n="watch">▶ Watch Melete discover</button>
 <div class="result" id="out">Pick a scenario, then press Watch — the best settings, a movie of how it searched, and a signed proof appear here.</div>
 <div class="narrate" id="narrate" style="display:none"></div>
+<div class="savings" id="savings" style="display:none"></div>
 
 <div id="map">
 <div class="mapgrid">
@@ -343,7 +370,7 @@ export function landingPage(version = "0.4.0"): string {
   <div style="width:64px;margin:0 auto 6px">${meli()}</div>
   <h3 style="font-size:23px;margin:0 0 8px">Want this for your team — or to acquire the code?</h3>
   <p style="margin:0 auto 16px;color:#33344e;font-size:16px;max-width:560px">Melete is a clean, dependency-free codebase with a live demo, full tests, and a signed-provenance moat. Open to licensing or an IP acquisition.</p>
-  <a class="btn primary" href="mailto:kreevut@gmail.com?subject=Melete%20%E2%80%94%20licensing%20or%20acquisition">📩 Contact about Melete</a>
+  <button class="btn primary" onclick="showContact()">📩 Contact about Melete</button>
   &nbsp;<a class="btn ghost" href="/pitch">Read the pitch</a>
 </div></section>
 
@@ -387,6 +414,8 @@ var T={
  th:{watch:'▶ ดู Melete ค้นพบ',replay:'▶ เล่นใหม่',team:'ทีมของ Meli — ใครลงมือบ้าง',teamhint:'รายละเอียดผู้เชี่ยวชาญ: ผู้ช่วยที่ Meli ใช้ ไม่จำเป็นต้องรู้ก็ใช้ผลได้',climb:'คะแนนไต่ขึ้นยังไง (สูง = ดี)',cinema:'โรงหนังการค้นพบ — ดู Meli ค้นหา',scenarioL:'เลือกสถานการณ์',knobs:'สิ่งที่ปรับได้',score:'วัดเป็นคะแนน',budget:'จำนวนครั้ง',ph:'เลือกสถานการณ์ แล้วกดดู',plainHdr:'สรุปภาษาคน',tried:'Melete ลอง',settings:'แบบ แล้วล็อกแบบที่ดีที่สุด',winning:'สูตรที่ชนะ',signed:'ทุกขั้นเซ็นด้วยคริปโต — ผลตรวจสอบได้จริง ไม่มีโม้ ไม่มีเดา'}
 };
 function tr(k){var o=T[LANG]||T.en;return o[k]!=null?o[k]:T.en[k];}
+function showContact(){document.getElementById('contactModal').style.display='flex';}
+function hideContact(){document.getElementById('contactModal').style.display='none';}
 function setLang(l){LANG=l;try{localStorage.setItem('mlang',l);}catch(e){}
  var e1=document.getElementById('lang-en'),e2=document.getElementById('lang-th');if(e1)e1.className='lb'+(l==='en'?' on':'');if(e2)e2.className='lb'+(l==='th'?' on':'');
  var els=document.querySelectorAll('[data-i18n]');for(var i=0;i<els.length;i++){var v=tr(els[i].getAttribute('data-i18n'));if(v!=null)els[i].innerHTML=v;}
@@ -526,7 +555,22 @@ function renderMap(j){
   nar.innerHTML='<b>📖 '+tr('plainHdr')+':</b> '+tr('tried')+' <b>'+j.evaluations+'</b> '+tr('settings')+' ('+(LANG==='th'?'คะแนน':'score')+' <b>'+(+j.best.value).toFixed(2)+'</b>).'
     +'<br>🏆 <b>'+tr('winning')+':</b> '+bestStr+'.'
     +'<br>📜 '+tr('signed');
+  renderSavings();
   stopPlay();setTimeout(togglePlay,250);   // auto-play the discovery
+}
+function renderSavings(){
+  var j=window.LASTJ;if(!j||!j.dims)return;var sv=document.getElementById('savings');if(!sv)return;
+  var D=j.dims.length, grid=Math.min(20000,Math.round(Math.pow(8,D))), used=j.evaluations||1, saved=Math.max(0,grid-used);
+  var cost=+(document.getElementById('cost')&&document.getElementById('cost').value)||500;
+  var dollars=saved*cost, pct=Math.round(saved/grid*100);
+  var th=(LANG==='th');
+  sv.style.display='block';
+  sv.innerHTML='<div style="font-size:13px;font-weight:800;color:#0e9f6e;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">💰 '+(th?'มูลค่าที่ประหยัด':'Value — money saved')+'</div>'
+    +(th?'การไล่ทดลองให้ทั่วถึง (~8 จุด/ตัวแปร) จะใช้ราว <b>'+grid.toLocaleString()+'</b> ครั้ง. Melete ใช้แค่ <b>'+used+'</b> ครั้ง → ประหยัด <b>~'+saved.toLocaleString()+'</b> ครั้ง ('+pct+'%).'
+            :'A thorough sweep (~8 points/variable) would take ≈<b>'+grid.toLocaleString()+'</b> experiments. Melete used <b>'+used+'</b> → ≈<b>'+saved.toLocaleString()+'</b> fewer ('+pct+'%).')
+    +'<div style="margin-top:9px;font-size:14px">'+(th?'ต้นทุนต่อการทดลอง':'Cost per experiment')+' $ <input id="cost" value="'+cost+'" oninput="renderSavings()" style="width:90px;display:inline-block;padding:6px 8px"> '
+    +'→ <b style="color:#0e9f6e;font-size:17px">≈ $'+Math.round(dollars).toLocaleString()+'</b> '+(th?'ประหยัด':'saved')+'.</div>'
+    +'<div class="muted" style="font-size:11.5px;margin-top:6px">'+(th?'ประมาณการเทียบกับการไล่ทดลองแบบกริด — ไม่ใช่การรับประกัน. ตัวเลขจริงขึ้นกับกระบวนการของคุณ.':'An estimate vs a grid sweep — not a guarantee. Your real number depends on your process.')+'</div>';
 }
 async function run(){
   var out=document.getElementById('out');out.textContent='discovering…';document.getElementById('map').className='';stopPlay();
@@ -558,25 +602,26 @@ export function pitchDeck(version = "0.4.0"): string {
     `<h2>The moat</h2><p class="big">Not one algorithm — a defensible <b>composition</b>.</p><ul><li>Verifiable provenance-of-discovery (no lab/optimiser ships it; patents &amp; audits need it).</li><li>Universal f(x) + air-gap (one engine, every domain, on-prem).</li><li>Robust ensemble — beats every single algorithm on rugged landscapes.</li><li>Accumulating signed-discovery corpus → switching cost compounds.</li></ul>`,
     `<h2>Proof — measured &amp; reproducible</h2><table><tr><th>landscape</th><th>Melete</th><th>Bayesian</th><th>random</th></tr><tr><td>smooth</td><td class="win">1.000</td><td>0.999</td><td>0.838</td></tr><tr><td>rugged</td><td class="win">best 🏆</td><td>far behind</td><td>far behind</td></tr><tr><td>high-D</td><td class="win">0.996</td><td>0.987</td><td>0.555</td></tr></table><p>≈ 26 vs ~95 experiments to the optimum (3.7×). 10 test-gauntlets at 100/100; 32 tests. Run <code>melete bench --robust</code>.</p>`,
     `<h2>Honesty</h2><ul><li>Not a "magic" algorithm; not "disrupting quantum". The win is <b>robustness + verifiable provenance</b>, both measured.</li><li>Optimisation can't be 100% accurate — we ship 100%-passing gauntlets + reproducible benchmarks.</li><li>The brain is software; the physical lab/robot (if any) is the customer's — we plug in.</li></ul>`,
-    `<h2>The ask</h2><p class="big">An IP acquisition / acqui-hire.</p><ul><li>Clean dependency-free TypeScript: engine + arms + signed-trace + universal oracle + HTTP service + deploy.</li><li>Live demo + full tests. Sale transfers the private repo, the <code>melete-ai</code> npm namespace, and the roadmap.</li><li>For anyone who runs expensive experiments at scale — or sells tooling to those who do.</li></ul><p class="dim">Shinnapat Phunsriphatchalakul · kreevut@gmail.com</p>`,
+    `<h2>The ask</h2><p class="big">License it, or acquire the code.</p><ul><li>Clean, dependency-free TypeScript: engine + arms + signed-trace + universal oracle + HTTP service + CLI + deploy.</li><li>Live demo + full tests. Sale transfers the private repo, the <code>melete-ai</code> npm namespace, and the roadmap.</li><li>For anyone who runs expensive experiments at scale — or sells tooling to those who do.</li></ul><p style="font-size:18px;margin-top:8px;color:#33344e">📧 <b>patsa2561@gmail.com</b> &nbsp;·&nbsp; 🟢 WhatsApp <b>+66 93 945 5645</b> (🇹🇭) &nbsp;·&nbsp; ✈️ <b>@devson2561</b></p><a class="pbtn-cta" href="mailto:patsa2561@gmail.com?subject=Melete">📩 Get in touch</a>`,
   ];
   const slideHtml = slides.map((s, i) => `<section class="slide"${i === 0 ? " data-active" : ""}>${s}</section>`).join("\n");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Melete — pitch</title><style>
-:root{color-scheme:dark}*{box-sizing:border-box}
-body{margin:0;background:#07070c;color:#e7e7ea;font:18px/1.6 ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif;overflow:hidden}
-.slide{position:fixed;inset:0;display:none;flex-direction:column;justify-content:center;max-width:900px;margin:0 auto;padding:6vh 7vw}
-.slide[data-active]{display:flex;animation:fade .35s ease}
-@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.brand{font-size:74px;margin:0;font-weight:800;letter-spacing:-2px;background:linear-gradient(95deg,#c4b5fd,#67e8f9,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent}
-h2{font-size:15px;letter-spacing:2px;text-transform:uppercase;color:#7c7c8c;margin:0 0 22px}
-.big{font-size:32px;font-weight:700;line-height:1.25;margin:0 0 18px;color:#ececf2}
-.dim{color:#7c7c8c;font-size:15px}
-ul{margin:0;padding-left:22px}li{margin:11px 0;color:#c4c4d0;font-size:19px}li b{color:#e7e7ea}
-table{border-collapse:collapse;font-size:18px;margin:6px 0 14px}th,td{padding:9px 18px 9px 0;text-align:left}th{color:#7c7c8c;font-size:13px;text-transform:uppercase}
-.win{color:#86efac;font-weight:700}code{font-family:ui-monospace,monospace;background:#1a1a26;border-radius:6px;padding:2px 7px;font-size:15px;color:#7dd3fc}
-.nav{position:fixed;bottom:20px;left:0;right:0;text-align:center;color:#55555f;font-size:13px;z-index:9}
-.nav a{color:#7dd3fc;text-decoration:none}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#2a2a3a;margin:0 3px}.dot.on{background:#a78bfa}
+:root{color-scheme:light}*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(120% 90% at 50% 0%,#eef0ff,#ffffff 55%);color:#16172b;font:18px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+.slide{position:fixed;inset:0;display:none;flex-direction:column;justify-content:center;max-width:920px;margin:0 auto;padding:6vh 7vw}
+.slide[data-active]{display:flex;animation:fade .4s ease}
+@keyframes fade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.brand{font-size:80px;margin:0;font-weight:850;letter-spacing:-2.5px;background:linear-gradient(95deg,#6d5cf0,#0ea5b7,#a855f7);-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:#0ea5b7;margin:0 0 22px;font-weight:800}
+.big{font-size:34px;font-weight:800;line-height:1.25;margin:0 0 18px;color:#16172b}
+.dim{color:#6a6c84;font-size:15.5px}
+ul{margin:0;padding-left:4px;list-style:none}li{margin:13px 0;color:#33344e;font-size:19.5px;padding-left:26px;position:relative}li::before{content:"◆";position:absolute;left:0;color:#6d5cf0;font-size:13px;top:4px}li b{color:#16172b}
+table{border-collapse:collapse;font-size:18px;margin:6px 0 14px}th,td{padding:11px 22px 11px 0;text-align:left}th{color:#9698ad;font-size:13px;text-transform:uppercase}td{border-bottom:1px solid #eceef6}
+.win{color:#0e9f6e;font-weight:800}code{font-family:ui-monospace,monospace;background:#f1f2f8;border-radius:6px;padding:2px 8px;font-size:15px;color:#4338ca}
+.nav{position:fixed;bottom:20px;left:0;right:0;text-align:center;color:#9698ad;font-size:13px;z-index:9}
+.nav a{color:#5b53e8;text-decoration:none;font-weight:700}.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#d9dbe9;margin:0 3px}.dot.on{background:#6d5cf0;width:18px;border-radius:4px}
+.pbtn-cta{display:inline-block;margin-top:18px;background:linear-gradient(95deg,#6d5cf0,#0ea5b7);color:#fff;border-radius:12px;padding:13px 26px;font-weight:800;font-size:17px;text-decoration:none}
 </style></head><body>
 ${slideHtml}
 <div class="nav"><span id="dots"></span> &nbsp; <span id="ctr"></span> &nbsp;·&nbsp; <a href="/">← demo</a></div>
