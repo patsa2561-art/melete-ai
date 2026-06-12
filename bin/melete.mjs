@@ -127,12 +127,39 @@ async function main() {
     process.exit(v.ok ? 0 : 1);
   }
 
+  if (cmd === "multi") {
+    const goals = [{ name: "f1", goal: "maximize" }, { name: "f2", goal: "maximize" }];
+    const space = { dims: [{ name: "x", type: "real", min: 0, max: 10 }] };
+    const f = (x) => [-((x - 2) ** 2), -((x - 8) ** 2)];   // f1 peaks at x=2, f2 at x=8 → they trade off
+    const obs = [];
+    for (let i = 0; i < 40; i++) { const e = M.proposeNextMulti(space, obs, goals, 7); const v = f(e.x ?? 0); obs.push({ experiment: e, values: v }); }
+    const front = M.paretoFront(obs, goals).sort((a, b) => (a.experiment.x ?? 0) - (b.experiment.x ?? 0));
+    out("\n🧬 Multi-objective demo — two goals that trade off (f1 peaks at x=2, f2 at x=8)");
+    out(`   Pareto front: ${front.length} non-dominated trade-offs`);
+    for (const o of front) out(`     x=${(o.experiment.x ?? 0).toFixed(2)}   f1=${o.values[0].toFixed(2)}   f2=${o.values[1].toFixed(2)}`);
+    out("   (real use: POST /next-multi with YOUR N objectives — Melete proposes, you measure each)");
+    process.exit(0);
+  }
+
+  if (cmd === "poopt") {
+    const path = argv[1]; if (!path) { out("usage: melete poopt <certificate.json>"); process.exit(2); }
+    const cert = JSON.parse(readFileSync(path, "utf8"));
+    const v = M.verifyProofOfOptimization(cert.poopt || cert);
+    out(`\n💠 ${v.ok ? "✅ VALID" : "❌ INVALID"} Proof of Optimization`);
+    out(`   ${v.reason}`);
+    if (v.recomputed) out(`   efficiency: ${v.recomputed.efficiencyPct}%  (${v.recomputed.experimentsSaved} experiments saved vs a full grid sweep)`);
+    out(`   (verified OFFLINE with the embedded public key — no Melete, no network)`);
+    process.exit(v.ok ? 0 : 1);
+  }
+
   out("melete — the Self-Driving Discovery Brain\n");
   out("  melete tune --cmd \"prog --a {a}\" --space '[...]'   tune ANY command/script (no dataset needed)");
   out("  melete bench [--robust]      prove the brain beats random/grid");
   out("  melete gauntlet              run all correctness gauntlets");
   out("  melete discover --demo       run a discovery + write a signed trace");
+  out("  melete multi                 multi-objective demo — print the Pareto front");
   out("  melete verify <trace.json>   re-verify a discovery trace offline");
+  out("  melete poopt <cert.json>     verify a Proof of Optimization offline");
   process.exit(cmd ? 1 : 0);
 }
 main().catch((e) => { out("error: " + e.message); process.exit(1); });

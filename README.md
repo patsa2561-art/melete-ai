@@ -1,144 +1,42 @@
 # Melete — the Self-Driving Discovery Brain
 
-> **Mneme remembers; Melete discovers.**
-> A closed-loop engine that proposes the next best experiment, reads the result from **any** pluggable oracle, learns, and converges — recording every step as a **signed, offline-verifiable discovery trace**.
+**Find the best settings for any expensive-to-test process in the fewest experiments — with a signed proof.**
+Live: **https://melete.mneme-ai.space**
 
-Melete (Μελέτη) is one of the three original Greek muses — the muse of **practice and experimentation**. The sister of Mneme (memory). This is her brain.
+When every experiment costs real money or time (a lab assay, a wafer run, a GPU sweep, a fraud model), you can't try everything. Melete proposes the next experiment to run, you measure it, and it converges to the best — then signs a certificate anyone can verify offline.
 
----
+## Why it's different
+- 🧪 **No formula, no code.** Tell it what you can change (pH, temperature, …); it tells you what to try next. You measure the real result and type the score.
+- 🛑 **Knows when to stop.** It tells you when more experiments won't be worth the cost.
+- 🧬 **Multi-objective.** Optimize potency *and* stability *and* cost at once — get the Pareto front of trade-offs.
+- 🔒 **Air-gapped + signed.** Runs fully offline; every result carries an Ed25519 **Proof of Optimization** anyone verifies without trusting us.
 
-## Why this exists
+## Quick start
+**Web:** open the live site, pick your field (Pharma · Semiconductor · Fintech · AI safety · …), follow the 4-step loop.
 
-Producing hypotheses is cheap now. The expensive, scarce thing in real discovery is the **experiment** — each assay, each robot run, each training run, each costly A/B test burns time and money. So the question that matters is:
-
-> **What is the single most informative experiment to run next — and can you prove how you got there?**
-
-Melete answers both. It is **not** a wet-lab automation product and it does **not** need a robot. It is the *decision brain* that any expensive evaluation process plugs into.
-
-## What makes it a moat (honest version)
-
-Self-driving labs and Bayesian optimisation already exist — so "automated lab" is **not** novel, and we don't claim it. Melete's defensible composition is:
-
-1. **The SUPER NOVA engine — a context-adaptive ensemble.** No single optimiser wins on every landscape (the No-Free-Lunch theorem). So Melete runs a **portfolio** of strategy arms (Bayesian kernel-UCB, CMA-ES evolution, a wave-interference field, random) and a **bandit** spends each expensive experiment on whichever arm is delivering the most improvement *on this problem right now*. The result: **one engine that adapts to the problem instead of being re-tuned per problem** — and on rugged landscapes the ensemble **beats every single algorithm** (measured below).
-2. **Pluggable oracle — everything is `f(x)`.** The brain doesn't care whether the oracle is a simulation, a lab robot over HTTP, a factory process, a hyperparameter trainer, an LLM grading a qualitative result, or a **shell command** (a CI run, a training script). `f(x) = score(run(x))` turns *anything scorable* into an optimisable experiment. The market is far larger than chemistry.
-3. **Cryptographic discovery trace.** Every hypothesis → observation → update (and *which arm proposed it*) is **Ed25519-signed and hash-chained**. Anyone can verify **offline**, with the public key alone, that the discovery path is authentic, unaltered, and in order. In a field with a replication crisis (p-hacking, data ghosting), *provable* provenance-of-discovery is worth a great deal — for patents, audits, journals, acquisitions. **No optimiser or lab ships this.**
-4. **Deterministic + reproducible.** Same seed + same oracle ⇒ identical run (and identical arm allocation) ⇒ the signed trace actually means something.
-
-### Measured robustness (`melete bench --robust`) — mean best reached, higher = better
-
-| landscape | **PORTFOLIO** | kernel-ucb | cmaes | resonance | random |
-|---|---|---|---|---|---|
-| smooth-2D | 0.988 | 0.999 | 1.000 | 0.091 | 0.867 |
-| **rugged-2D** | **−1.705** 🏆 | −6.814 | −3.362 | −24.419 | −4.518 |
-| high-5D | 0.992 | 0.985 | 1.000 | 0.006 | 0.568 |
-
-The portfolio is **never the worst**, tracks the best arm on every landscape **with no per-problem tuning**, and on the **rugged** surface (many local optima) the ensemble **beats every individual algorithm**. That robustness — not any one "magic" algorithm — is the production guarantee.
-
----
-
-## Live demo
-
-**https://melete.161.35.122.73.nip.io** — discovery-as-a-service. Paste a space + objective, watch the
-brain discover the optimum and hand back a signed, verifiable trace. `POST /discover`, `POST /verify`.
-
-## Install
-
+**CLI:**
 ```bash
-npm install melete-ai          # library
-# or use the CLI directly:
-npx melete-ai bench
-# run the web service yourself:
-npx melete-server              # http://127.0.0.1:8790
+npm i -g melete-ai
+melete bench         # measured: beats random/grid search
+melete multi         # multi-objective demo → the Pareto front
+melete gauntlet      # every module's correctness check (must be 100)
+melete poopt c.json  # verify a Proof of Optimization offline
 ```
 
-## CLI
-
-```bash
-melete bench                   # prove the brain beats random/grid (measured)
-melete gauntlet                # run every module's correctness gauntlet (must be 100/100)
-melete discover --demo         # run a discovery on the built-in surface + write a signed trace
-melete discover --objective "-(x-3)**2-(y+1)**2" --goal maximize --budget 50
-melete verify melete-trace.json   # re-verify a discovery trace OFFLINE
+**API (connect your real process):**
+```
+POST /next         { space, observations }         → next experiment to try
+POST /next-multi   { space, goals, observations }  → next + the Pareto front
+POST /poopt/verify { …cert }                       → verify offline, no trust needed
 ```
 
-## Library
+## The loop
+1. Tell Melete what you can change (or pick your field)
+2. It proposes the exact next setting to try
+3. You run it for real and type the score you measured
+4. Repeat ~20–40× → best config + a signed, verifiable proof
 
-```ts
-import { discoverSigned, verifyTrace, scoredOracle } from "melete-ai";
+## Honest by design
+Melete is an **optimizer**, not a fortune-teller. Efficiency and Pareto results are exact and reproducible; the optimality bound is conditional (stated on the certificate). Run `melete gauntlet` — every claim is a check you can re-run.
 
-// 1. define WHAT you can measure (here: an LLM/benchmark grading whatever run() produces)
-const oracle = scoredOracle(
-  (x) => buildAndRun(x),          // produce an artifact for experiment x (async, expensive)
-  (artifact) => grade(artifact),  // score it → a single number
-);
-
-// 2. let the brain discover the best x in as few experiments as possible — with a signed trail
-const { result, trace } = await discoverSigned({
-  space: { dims: [
-    { name: "temperature", type: "real", min: 0, max: 1 },
-    { name: "depth",       type: "int",  min: 1, max: 12 },
-  ]},
-  oracle,
-  budget: 40,            // never run more than 40 (expensive!) experiments
-  goal: "maximize",
-  engine: "bayes",       // the proven core engine
-});
-
-console.log(result.best);                 // { experiment, value }
-console.log(verifyTrace(trace).ok);       // true — provenance verifies offline
-```
-
-## Plugging in a real lab / process
-
-```ts
-import { httpOracle, meteredOracle } from "melete-ai";
-const robot = meteredOracle(httpOracle("https://lab.internal/run"), 100);  // hard budget of 100 runs
-// POSTs { experiment } → expects { result: <number> }. The brain is unchanged.
-```
-
----
-
-## Architecture
-
-```
-  discoverSigned(opts)
-        │
-        ├── engine: bayes  ──► closed loop: propose → observe → update → converge   [proven core]
-        │       (Gaussian-kernel surrogate + UCB acquisition, exploration anneals)
-        ├── engine: resonance ─► Melete Resonance Field — a novel non-Bayesian wave-      [experimental]
-        │       interference optimiser. Ships, runs, deterministic — but see HONESTY below.
-        │
-        ├── Tracer ──► every step Ed25519-signed + sha-256 hash-chained
-        │
-        ▼
-  Pluggable Oracle  f(x)
-        ├── simOracle(fn)              — simulation / benchmark / test
-        ├── scoredOracle(run, score)   — EVERYTHING IS f(x): compile+bench, render+rate, prompt+judge…
-        ├── compositeOracle([...])     — weighted multi-objective (yield − cost − toxicity)
-        └── httpOracle(url)            — a lab robot / industrial service / training cluster
-```
-
-Every module ships an `xGauntlet()` returning `0 | 100`; `meleteGauntlet()` requires **all** of them at 100.
-
-## Measured proof (`melete bench`)
-
-On a smooth multimodal surface, experiments needed to reach 99% of the optimum (lower = better):
-
-| method | experiments to optimum |
-|---|---|
-| **Melete brain (bayes core)** | **~26** |
-| random search (avg) | ~95 |
-| systematic grid | did not reach within budget |
-
-≈ **3.7× more sample-efficient than random.** Each saved experiment is saved reagents / robot-time / money.
-
-## ⚠️ Honesty (DIAKRISIS)
-
-- The **`bayes` core engine works and is the default.** The numbers above are measured + reproducible (`melete bench`).
-- The **`resonance` engine is experimental.** It is a genuinely original, deterministic, non-Bayesian mechanism — but head-to-head it does **not** currently beat the core on smooth single-peak surfaces (a greedy interference attractor escapes a bad cold-start slower than UCB exploration). It is shipped, clearly labelled, as open research. We do **not** claim it is a breakthrough.
-- The surrogate is a lightweight kernel model, not a full Gaussian process; it is strong on smooth-ish surfaces, and heavier surrogates are an open slot in the architecture.
-- "Provenance" proves the **path** (authentic, unaltered, reproducible) — it does not, by itself, prove the **science** is correct. It removes the "did you fake/forget how you got here?" question, which is the one that wrecks replication.
-
-## License
-
-MIT
+MIT-licensed · zero runtime dependencies
