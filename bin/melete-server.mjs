@@ -151,6 +151,19 @@ const server = createServer(async (req, res) => {
       catch (e) { return json(res, 400, { error: "inverse failed: " + e.message.slice(0, 120) }); }
     }
 
+    // BATCH PLANNER — "give me the k best experiments to run in PARALLEL this round"
+    if (req.method === "POST" && path === "/batch") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const space = { dims: Array.isArray(body.space) ? body.space : body.space?.dims };
+      if (!space.dims?.length) return json(res, 400, { error: "space must be a non-empty array of {name,type,min,max}" });
+      if (space.dims.length > 12) return json(res, 400, { error: "demo limit: ≤12 dimensions" });
+      const obs = Array.isArray(body.observations) ? body.observations.filter((o) => o && o.experiment && Number.isFinite(+o.value)).map((o) => ({ experiment: o.experiment, value: +o.value })) : [];
+      const goal = body.goal === "minimize" ? "minimize" : "maximize";
+      const k = Math.max(1, Math.min(16, (body.k | 0) || 4));
+      try { return json(res, 200, { batch: M.proposeBatch(space, obs, goal, k, (body.seed | 0) || 1), k, t: obs.length, goal }); }
+      catch (e) { return json(res, 400, { error: "batch failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/next-multi") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       const space = { dims: Array.isArray(body.space) ? body.space : body.space?.dims };
