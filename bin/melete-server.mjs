@@ -125,10 +125,26 @@ const server = createServer(async (req, res) => {
         const territory = M.assessTerritory(next, obs, space);
         const confidence = M.stopConfidence(obs, goal);
         // ACHIEVABILITY — if the user named a target, is it even reachable with these variables?
-        let achievability = null;
-        if (typeof body.target === "number" && Number.isFinite(body.target)) { try { achievability = M.assessAchievability(obs, space, body.target, goal); } catch { achievability = null; } }
-        return json(res, 200, { next, t: obs.length, best, goal, advice, territory, confidence, achievability });
+        let achievability = null, inverse = null;
+        if (typeof body.target === "number" && Number.isFinite(body.target)) {
+          try { achievability = M.assessAchievability(obs, space, body.target, goal); } catch { achievability = null; }
+          // INVERSE DESIGN — the recipes that hit the target (needs a few measurements first)
+          if (obs.length >= 5) { try { inverse = M.inverseDesign(obs, space, body.target); } catch { inverse = null; } }
+        }
+        return json(res, 200, { next, t: obs.length, best, goal, advice, territory, confidence, achievability, inverse });
       } catch (e) { return json(res, 400, { error: "propose failed: " + e.message.slice(0, 120) }); }
+    }
+
+    // INVERSE DESIGN — "find the recipes that hit my target value" (the inverse of optimization)
+    if (req.method === "POST" && path === "/inverse") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const space = { dims: Array.isArray(body.space) ? body.space : body.space?.dims };
+      if (!space.dims?.length) return json(res, 400, { error: "space must be a non-empty array of {name,type,min,max}" });
+      if (space.dims.length > 12) return json(res, 400, { error: "demo limit: ≤12 dimensions" });
+      if (typeof body.target !== "number" || !Number.isFinite(body.target)) return json(res, 400, { error: "target must be a finite number" });
+      const obs = Array.isArray(body.observations) ? body.observations.filter((o) => o && o.experiment && Number.isFinite(+o.value)).map((o) => ({ experiment: o.experiment, value: +o.value })) : [];
+      try { return json(res, 200, M.inverseDesign(obs, space, body.target)); }
+      catch (e) { return json(res, 400, { error: "inverse failed: " + e.message.slice(0, 120) }); }
     }
 
     if (req.method === "POST" && path === "/next-multi") {
