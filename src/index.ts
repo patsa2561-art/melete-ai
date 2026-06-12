@@ -19,6 +19,7 @@ export * from "./bench.js";
 export * from "./replicate.js";
 export * from "./interactive.js";
 export * from "./frontier.js";
+export * from "./reliability.js";
 export * from "./server.js";
 
 import { type DiscoverOpts, type DiscoveryResult, type Step, discover } from "./engine.js";
@@ -61,6 +62,7 @@ import { cortexGauntlet } from "./cortex.js";
 import { replicateGauntlet } from "./replicate.js";
 import { interactiveGauntlet } from "./interactive.js";
 import { frontierGauntlet } from "./frontier.js";
+import { reliabilityGauntlet } from "./reliability.js";
 import { serverGauntlet } from "./server.js";
 
 export interface MeleteGauntlet { score: 0 | 100; modules: Array<{ name: string; score: number; checks: Array<{ name: string; pass: boolean }> }> }
@@ -76,6 +78,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "replicate", g: await replicateGauntlet() },
     { name: "interactive", g: interactiveGauntlet() },
     { name: "frontier", g: frontierGauntlet() },
+    { name: "reliability", g: await reliabilityGauntlet() },
     { name: "trace", g: traceGauntlet() },
     { name: "bench", g: await benchGauntlet() },
     { name: "server", g: serverGauntlet() },
