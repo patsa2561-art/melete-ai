@@ -83,13 +83,54 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 .story{background:linear-gradient(180deg,#f7f8ff,#fff);border:1px solid var(--line);border-radius:16px;padding:22px 24px}
 .story p{margin:0 0 12px}.story p:last-child{margin:0}
 .chat{font-size:14.5px;color:#33344e;margin:3px 0;padding-left:14px;border-left:2px solid #ddd9fb}
+.meli{display:block;animation:bob 3.4s ease-in-out infinite}
+.meli.hero{width:104px;height:auto;margin:0 auto 8px}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+.orb{transform-box:fill-box;transform-origin:center;animation:pulse 1.9s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.24);opacity:.82}}
+.arm{transform-box:fill-box;transform-origin:bottom center;animation:wave 2.6s ease-in-out infinite}
+@keyframes wave{0%,100%{transform:rotate(-32deg)}50%{transform:rotate(-12deg)}}
+.guide{display:flex;gap:24px;align-items:center;background:linear-gradient(180deg,#f7f8ff,#fff);border:1px solid var(--line);border-radius:18px;padding:24px 26px}
+.meliwrap{flex:0 0 auto}.meliwrap .meli{width:148px;height:auto}
+.guidebody{flex:1;min-width:0}
+.bubble{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:15px 18px;font-size:16.5px;color:#1a1b30;min-height:54px;box-shadow:0 2px 12px rgba(20,20,50,.05);transition:opacity .3s}
+.bubble::before{content:"";position:absolute;left:-9px;top:22px;width:16px;height:16px;background:#fff;border-left:1.5px solid var(--line);border-bottom:1.5px solid var(--line);transform:rotate(45deg)}
+.dots{margin-top:13px;display:flex;gap:6px}
+.dots i{width:7px;height:7px;border-radius:50%;background:#d9dbe9;display:inline-block;transition:.3s}
+.dots i.on{background:var(--ind);width:19px;border-radius:4px}
+@media(max-width:640px){.guide{flex-direction:column;text-align:center}.bubble::before{display:none}.dots{justify-content:center}}
 `;
+
+/** Meli — Melete's original mascot (an antenna-topped discovery sprite). 100% geometric SVG, no third-
+ * party art / no copyright. The glowing orb on the antenna = "the next experiment to try". */
+function meli(cls = ""): string {
+  return `<svg class="meli ${cls}" viewBox="0 0 140 165" xmlns="http://www.w3.org/2000/svg" aria-label="Meli, the Melete mascot">
+  <defs>
+    <linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d5cf0"/><stop offset="1" stop-color="#0ea5b7"/></linearGradient>
+    <radialGradient id="orb" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#fff8d8"/><stop offset="0.6" stop-color="#fcd34d"/><stop offset="1" stop-color="#f59e0b"/></radialGradient>
+  </defs>
+  <ellipse cx="66" cy="150" rx="40" ry="8" fill="#16172b" opacity="0.07"/>
+  <path class="ant" d="M70 58 C 80 38, 96 38, 100 20" stroke="#0ea5b7" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  <g class="orb"><circle cx="101" cy="17" r="10" fill="url(#orb)"/><circle cx="97.5" cy="13.5" r="2.6" fill="#fff" opacity="0.85"/></g>
+  <ellipse cx="64" cy="100" rx="47" ry="49" fill="url(#mg)"/>
+  <ellipse cx="60" cy="110" rx="31" ry="30" fill="#ffffff" opacity="0.12"/>
+  <ellipse class="arm" cx="111" cy="86" rx="9" ry="15" fill="url(#mg)" transform="rotate(-32 111 86)"/>
+  <ellipse cx="18" cy="108" rx="9" ry="15" fill="url(#mg)" transform="rotate(24 18 108)"/>
+  <circle cx="50" cy="92" r="10" fill="#fff"/><circle cx="80" cy="92" r="10" fill="#fff"/>
+  <circle class="eye" cx="52.5" cy="94" r="5" fill="#1a1b30"/><circle class="eye" cx="82.5" cy="94" r="5" fill="#1a1b30"/>
+  <circle cx="54.5" cy="92" r="1.7" fill="#fff"/><circle cx="84.5" cy="92" r="1.7" fill="#fff"/>
+  <path d="M55 110 Q66 119 77 110" stroke="#1a1b30" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+  <ellipse cx="40" cy="104" rx="5.5" ry="3.4" fill="#ff8fb1" opacity="0.55"/>
+  <ellipse cx="88" cy="104" rx="5.5" ry="3.4" fill="#ff8fb1" opacity="0.55"/>
+</svg>`;
+}
 
 export function landingPage(version = "0.4.0"): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Melete — find the best answer in the fewest experiments</title><style>${SHELL_CSS}</style></head><body>
 
 <div class="hero">
+  <div class="herochar">${meli("hero")}</div>
   <span class="eyebrow">Self-driving discovery</span>
   <h1 class="brand"><span class="grad">Melete</span></h1>
   <p class="tag">When every experiment is expensive, Melete finds the <b>best answer in the fewest tries</b> — and proves how it got there.</p>
@@ -117,6 +158,16 @@ export function landingPage(version = "0.4.0"): string {
 <div class="chat" style="opacity:.6">… a few more …</div>
 <div class="chat">🎯 After ~<b>20 cups</b>, it found your best recipe — instead of randomly trying 200.</div>
 <p style="color:#33344e;margin-top:14px">Swap “coffee” for a <b>training run</b>, a <b>chemical reaction</b>, or a <b>price</b> — it's the same: Melete finds the best settings in the <b>fewest expensive tries</b>, and signs a <b>proof</b> of how it got there. <span class="muted">You bring the thing you can adjust and a way to score one try; it brings the strategy.</span></p>
+</div></section>
+
+<section><h2>Meet Meli — your discovery guide</h2>
+<div class="guide">
+  <div class="meliwrap">${meli()}</div>
+  <div class="guidebody">
+    <div class="bubble" id="meliSay">Hi! I'm Meli 👋</div>
+    <div class="dots" id="meliDots"></div>
+    <p class="muted" style="margin-top:12px">Meli proposes the next experiment, you score it, Meli learns — that smart loop is the whole product.</p>
+  </div>
 </div></section>
 
 <section><h2>How it works — 3 steps</h2>
@@ -281,6 +332,16 @@ async function run(){
     renderMap(j);
   }catch(e){out.textContent='⚠ '+e.message;}
 }
+var SAY=[
+ "Hi! I'm Meli 👋 — I help you find the best settings for something that's expensive to test.",
+ "Tell me what you can adjust (like coffee temp, grind, dose) and a way to score one try.",
+ "I'll suggest the smartest next experiment to run — you try it and tell me the score.",
+ "I learn from every score and zero in — finding the best in a few tries, not hundreds.",
+ "And I sign a proof of how we got there, so anyone can verify it. ✨"
+];
+var si=0;
+function meliCycle(){var b=document.getElementById('meliSay');if(!b)return;b.style.opacity=0;setTimeout(function(){b.textContent=SAY[si];var ds=document.querySelectorAll('#meliDots i');ds.forEach(function(d,k){d.className=k===si?'on':''});b.style.opacity=1;si=(si+1)%SAY.length;},300);}
+(function(){var dd=document.getElementById('meliDots');if(dd){dd.innerHTML=SAY.map(function(){return '<i></i>'}).join('');meliCycle();setInterval(meliCycle,3200);}})();
 loadPreset();
 </script>
 </body></html>`;
@@ -337,6 +398,7 @@ export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
     { name: "DISCOVERY-MAP", pass: html.includes("Discovery map") && html.includes('id="surf"') && html.includes("renderMap") && html.includes("heat("), detail: "renders an interactive discovery map (learned surface heatmap + experiment path + convergence + strategy)" },
     { name: "WHO-ITS-FOR+STEPS", pass: html.includes("Who it's for") && html.includes("Pharma") && html.includes("AI / ML teams") && html.includes("How it works") && html.includes("Score one try"), detail: "audiences + the 3-step explainer (journalist-style, 1-minute readable)" },
+    { name: "MELI-MASCOT", pass: html.includes("Meet Meli") && html.includes('class="meli') && html.includes("meliCycle") && html.includes('linearGradient id="mg"'), detail: "original animated SVG mascot (Meli) guides the explanation — geometric art, no third-party / copyright" },
     { name: "NO-DATASET", pass: html.includes("No dataset") && html.includes("melete tune"), detail: "explains no dataset is needed + shows the real `melete tune` usage" },
     { name: "AIR-GAPPED", pass: html.toLowerCase().includes("air-gapped") && html.includes("runs fully offline"), detail: "states the air-gapped / on-prem positioning" },
     { name: "PITCH-DECK", pass: pitch.startsWith("<!doctype html>") && pitch.includes("The ask") && pitch.includes("The moat") && html.includes('href="/pitch"'), detail: "HTML pitch deck renders (problem→product→moat→proof→ask) and is linked from the landing page" },
