@@ -73,6 +73,13 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 .kv{font-size:14px;color:#33344e}.kv b{color:var(--ink)}
 .bar{height:9px;border-radius:6px;background:var(--grad);margin:2px 0 9px}
 .result{margin-top:14px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:16px;font-size:14.5px;color:#2a2b42;min-height:24px}
+.modetabs{display:inline-flex;background:#f1f2f8;border:1px solid var(--line);border-radius:11px;padding:4px;gap:4px;margin-bottom:6px}
+.mt{background:transparent;border:0;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:700;color:#6a6c84;cursor:pointer}
+.mt.on{background:#fff;color:var(--ind);box-shadow:0 1px 4px rgba(20,20,50,.08)}
+.advbox{display:none;margin-top:6px;padding-top:8px;border-top:1px dashed var(--line)}
+.indcard{cursor:pointer;transition:transform .15s,box-shadow .15s;border:1.5px solid var(--line)}
+.indcard:hover{transform:translateY(-3px);box-shadow:0 12px 28px -10px rgba(80,60,220,.28);border-color:#c7c2f5}
+.indcard .go{margin-top:10px;color:var(--ind);font-weight:700;font-size:13.5px}
 .scenario{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:13px 16px;margin:12px 0}
 .srow{display:flex;gap:12px;padding:5px 0;font-size:14.5px;color:#33344e;line-height:1.4}
 .srow b{min-width:94px;white-space:nowrap}
@@ -97,19 +104,19 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 @keyframes twinkle{0%,100%{opacity:.25;transform:scale(.6) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(40deg)}}
 @media(prefers-reduced-motion:reduce){.meli,.orb,.arm,.eyes,.spark{animation:none}}
 .storybook{display:flex;flex-direction:column;gap:18px}
-.panel{display:flex;align-items:center;gap:26px;border:1.5px solid var(--line);border-radius:22px;padding:24px 28px;opacity:0;transform:translateY(34px);transition:opacity .65s cubic-bezier(.2,.7,.2,1),transform .65s cubic-bezier(.2,.7,.2,1);box-shadow:0 6px 22px rgba(30,28,80,.05)}
+.panel{display:flex;align-items:center;gap:26px;border:2.5px solid var(--line);border-radius:24px;padding:24px 28px;opacity:0;transform:translateY(36px) scale(.97);transition:opacity .6s cubic-bezier(.2,.7,.2,1),transform .6s cubic-bezier(.2,.7,.2,1)}
 .panel.in{opacity:1;transform:none}
 .panel:nth-child(even){flex-direction:row-reverse}
-.panel-art{flex:0 0 170px;position:relative;display:flex;justify-content:center}
-.panel-art .meli{width:152px;height:auto}
+.panel-art{flex:0 0 172px;position:relative;display:flex;justify-content:center}
+.panel-art .meli{width:154px;height:auto}
 .panel-text{flex:1;min-width:0}
 .panel-text p{margin:0;font-size:19.5px;line-height:1.55;color:#26283f}
-.beatnum{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:9px;background:var(--grad);color:#fff;font-weight:800;font-size:15px;margin-bottom:11px}
-.panel.wish{background:linear-gradient(180deg,#fff6fb,#fff)}
-.panel.maze{background:linear-gradient(180deg,#f5f6ff,#fff)}
-.panel.think{background:linear-gradient(180deg,#f2f0ff,#fff)}
-.panel.dance{background:linear-gradient(180deg,#edfcf6,#fff)}
-.panel.win{background:linear-gradient(180deg,#fffaef,#fff)}
+.beatnum{display:inline-flex;width:32px;height:32px;align-items:center;justify-content:center;border-radius:10px;background:var(--grad);color:#fff;font-weight:800;font-size:15px;margin-bottom:11px;box-shadow:0 4px 10px -2px rgba(80,60,220,.4)}
+.panel.wish{background:linear-gradient(155deg,#fff0f8,#fff);border-color:#f9a8d4;box-shadow:0 10px 30px -12px rgba(236,72,153,.30)}
+.panel.maze{background:linear-gradient(155deg,#eef0ff,#fff);border-color:#a5b4fc;box-shadow:0 10px 30px -12px rgba(99,102,241,.30)}
+.panel.think{background:linear-gradient(155deg,#f3eeff,#fff);border-color:#c4b5fd;box-shadow:0 10px 30px -12px rgba(139,92,246,.30)}
+.panel.dance{background:linear-gradient(155deg,#e8fcf4,#fff);border-color:#5eead4;box-shadow:0 10px 30px -12px rgba(13,148,136,.30)}
+.panel.win{background:linear-gradient(155deg,#fff7e6,#fff);border-color:#fcd34d;box-shadow:0 12px 34px -10px rgba(245,158,11,.40)}
 .prop{position:absolute;pointer-events:none;opacity:0;transition:opacity .5s .25s}
 .panel.in .prop{opacity:1}
 .prop.hearts{top:-4px;right:24px;font-size:26px;animation:floatup 2.6s ease-in-out infinite}
@@ -256,21 +263,26 @@ export function landingPage(version = "0.4.0"): string {
 <p class="lead" style="font-size:18px;margin:0 0 4px">Melete tunes <b>knobs</b>. You don't write code or upload data here — <b>pick a scenario and press Watch.</b></p>
 <p class="muted" style="margin:0 0 16px">In this browser demo the "score" is faked by a formula so it runs instantly. For your real work the score comes from your real process — see <a href="#use">how to use it for your work</a> below.</p>
 <div class="card">
+<div class="modetabs"><button class="mt on" id="mt-simple" onclick="setMode('simple')">🟢 Simple — pick &amp; watch</button><button class="mt" id="mt-advanced" onclick="setMode('advanced')">⚙️ Advanced — edit the values</button></div>
 <label>Scenario</label>
 <select id="preset" onchange="loadPreset()">
   <option value="peak">📈 Find a hidden peak — the simplest demo (2 knobs)</option>
   <option value="coffee">☕ Best espresso recipe — temperature · grind · dose</option>
   <option value="price">💸 Best price point — which price earns the most</option>
+  <option value="pharma">💊 Drug formulation — pH · temperature · excipient → stability</option>
+  <option value="gpu">⚡ GPU kernel tuning — tile · unroll · occupancy → throughput</option>
+  <option value="etch">🔬 Semiconductor etch — power · pressure · time → yield</option>
 </select>
 <div id="scenario" class="scenario"></div>
-<details class="adv"><summary>Advanced — the exact dials &amp; the demo's simulated score (you don't need to touch this)</summary>
-<label>Space — the dials (name · type · min · max)</label>
+<div id="advbox" class="advbox">
+<p class="muted" style="font-size:12.5px;margin:0 0 4px">In the browser the score is a <b>simulated model</b> of the process. For real numbers, connect your real process (see below).</p>
+<label>Space — the variables (name · type · min · max)</label>
 <input id="space" value='[{"name":"x","type":"real","min":0,"max":10},{"name":"y","type":"real","min":0,"max":10}]'>
-<label>Objective — the simulated score (a formula, only for this browser demo)</label>
+<label>Objective — the simulated score (a formula, browser demo only)</label>
 <input id="obj" value="Math.exp(-((x-7.2)**2+(y-3.4)**2)/3)">
 <label>Budget — experiments allowed</label>
 <input id="budget" value="40">
-</details>
+</div>
 <button class="btn primary" style="margin-top:16px;width:100%" onclick="run()">▶ Watch Melete discover</button>
 <div class="result" id="out">Pick a scenario, then press Watch — the best settings, a movie of how it searched, and a signed proof appear here.</div>
 
@@ -285,7 +297,7 @@ export function landingPage(version = "0.4.0"): string {
       <span id="stepn" class="muted" style="font-size:12.5px;min-width:78px;text-align:right"></span>
     </div>
     <div id="legend" class="legend"></div>
-    <div class="muted" style="font-size:12.5px;margin-top:6px">Heat = the score it learned · each dot = one experiment, coloured by the <b>strategy</b> that proposed it · ★ = best.</div>
+    <div class="muted" id="mapcap" style="font-size:12.5px;margin-top:6px">Heat = the score it learned · each dot = one experiment, coloured by the <b>strategy</b> that proposed it · ★ = best.</div>
   </div>
   <div>
     <div class="caps">Convergence</div>
@@ -296,6 +308,23 @@ export function landingPage(version = "0.4.0"): string {
     <div id="proof" class="kv"></div>
   </div>
 </div></div>
+</div></section>
+
+<section><h2>Click an industry — see Melete work on it</h2>
+<p class="muted" style="margin:0 0 16px">Each card runs the live demo on a realistic, domain-shaped scenario. <b>The browser score is a simulated model</b> of the process — the <b>optimisation is real &amp; reproducible</b>; connect your real assay / benchmark / process for real numbers.</p>
+<div class="grid">
+  <div class="card indcard" onclick="tryScenario('pharma')"><div class="who">💊 Pharma · biotech</div><h3>Drug formulation</h3><p>Variables: pH · temperature · excipient %. Goal: stability / potency. Melete finds the most stable formulation in ~60 assays — instead of hundreds.</p><div class="go">▶ Run it now</div></div>
+  <div class="card indcard" onclick="tryScenario('gpu')"><div class="who">⚡ AI infrastructure · accelerators</div><h3>GPU kernel tuning</h3><p>Variables: tile size · unroll · occupancy. Goal: throughput (GFLOP/s). Find the fastest config in ~50 benchmark runs.</p><div class="go">▶ Run it now</div></div>
+  <div class="card indcard" onclick="tryScenario('etch')"><div class="who">🔬 Semiconductor · fab</div><h3>Plasma-etch process</h3><p>Variables: power · pressure · time. Goal: wafer yield %. Tune the recipe to maximum yield — air-gapped, on-prem.</p><div class="go">▶ Run it now</div></div>
+  <div class="card indcard" onclick="tryScenario('coffee')"><div class="who">☕ Everyday</div><h3>Best espresso recipe</h3><p>Variables: temp · grind · dose. Goal: taste. The friendliest way to watch the idea click.</p><div class="go">▶ Run it now</div></div>
+</div></section>
+
+<section><div class="card" style="text-align:center;background:linear-gradient(120deg,#f3f1ff,#eafcf8);border-color:#ddd9fb;padding:28px">
+  <div style="width:64px;margin:0 auto 6px">${meli()}</div>
+  <h3 style="font-size:23px;margin:0 0 8px">Want this for your team — or to acquire the code?</h3>
+  <p style="margin:0 auto 16px;color:#33344e;font-size:16px;max-width:560px">Melete is a clean, dependency-free codebase with a live demo, full tests, and a signed-provenance moat. Open to licensing or an IP acquisition.</p>
+  <a class="btn primary" href="mailto:kreevut@gmail.com?subject=Melete%20%E2%80%94%20licensing%20or%20acquisition">📩 Contact about Melete</a>
+  &nbsp;<a class="btn ghost" href="/pitch">Read the pitch</a>
 </div></section>
 
 <section><h2>Proven, not claimed</h2>
@@ -336,31 +365,55 @@ var PRESETS={
   peak:{space:'[{"name":"x","type":"real","min":0,"max":10},{"name":"y","type":"real","min":0,"max":10}]',obj:'Math.exp(-((x-7.2)**2+(y-3.4)**2)/3)',budget:40,
     s:['🎛️ Knobs','two dials, x &amp; y, each 0–10'],t:['🧪 Score','a hidden peak the demo simulates — highest at one secret spot'],b:['🎯 Budget','40 tries — watch it find the secret high point']},
   coffee:{space:'[{"name":"temp","type":"real","min":85,"max":96},{"name":"grind","type":"real","min":1,"max":10},{"name":"dose","type":"real","min":14,"max":22}]',obj:'10 - (temp-92)**2*0.08 - (grind-5.5)**2*0.15 - (dose-18)**2*0.1',budget:50,
-    s:['🎛️ Knobs','temperature 85–96° · grind 1–10 · dose 14–22g'],t:['🧪 Score','a simulated taste rating (in real life: a barista tastes it — you don\\'t calculate anything)'],b:['🎯 Budget','50 brews — Melete finds the best recipe without being told it']},
+    s:['🎛️ Knobs','temperature 85–96° · grind 1–10 · dose 14–22g'],t:['🧪 Score','a simulated taste rating (real life: a barista tastes it — you don\\'t calculate anything)'],b:['🎯 Budget','50 brews — Melete finds the best recipe without being told it']},
   price:{space:'[{"name":"price","type":"real","min":1,"max":100}]',obj:'price * (100 - price)',budget:30,
-    s:['🎛️ Knobs','one dial: price, $1–100'],t:['🧪 Score','revenue (price × how many people still buy at that price)'],b:['🎯 Budget','30 tries — find the price that earns the most']},
+    s:['🎛️ Knobs','one dial: price, $1–100'],t:['🧪 Score','revenue (price × how many still buy at that price)'],b:['🎯 Budget','30 tries — find the price that earns the most']},
+  pharma:{space:'[{"name":"ph","type":"real","min":3,"max":9},{"name":"temp","type":"real","min":2,"max":40},{"name":"excipient","type":"real","min":0,"max":30}]',obj:'95 - 6*(ph-6.5)**2 - 0.35*(temp-5)**2 - 0.5*(excipient-12)**2',budget:60,
+    s:['🎛️ Variables','drug formulation — pH 3–9 · temperature 2–40°C · excipient 0–30%'],t:['🧪 Score','a simulated stability/potency score (real life: a lab assay measures it)'],b:['🎯 Budget','60 assays — Melete finds the most stable formulation']},
+  gpu:{space:'[{"name":"tile","type":"int","min":8,"max":128},{"name":"unroll","type":"int","min":1,"max":8},{"name":"occupancy","type":"real","min":0.1,"max":1}]',obj:'9000 - 2*(tile-64)**2 - 130*(unroll-4)**2 - 9000*(occupancy-0.75)**2',budget:50,
+    s:['🎛️ Variables','GPU kernel — tile size 8–128 · unroll 1–8 · target occupancy 0.1–1.0'],t:['🧪 Score','a simulated throughput in GFLOP/s (real life: run the kernel + benchmark)'],b:['🎯 Budget','50 benchmark runs — Melete finds the fastest config']},
+  etch:{space:'[{"name":"power","type":"real","min":100,"max":1000},{"name":"pressure","type":"real","min":5,"max":100},{"name":"time","type":"real","min":10,"max":120}]',obj:'98 - 0.00008*(power-650)**2 - 0.012*(pressure-35)**2 - 0.004*(time-70)**2',budget:60,
+    s:['🎛️ Variables','plasma etch — power 100–1000W · pressure 5–100mTorr · time 10–120s'],t:['🧪 Score','a simulated wafer yield % (real life: measure the finished wafer)'],b:['🎯 Budget','60 runs — Melete tunes the process to maximum yield']},
 };
+function tryScenario(k){var sel=document.getElementById('preset');sel.value=k;loadPreset();var t=document.getElementById('try');if(t)t.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(run,650);}
+function setMode(m){var a=document.getElementById('advbox');if(a)a.style.display=(m==='advanced')?'block':'none';var s=document.getElementById('mt-simple'),v=document.getElementById('mt-advanced');if(s)s.className='mt'+(m==='simple'?' on':'');if(v)v.className='mt'+(m==='advanced'?' on':'');}
 function loadPreset(){var p=PRESETS[document.getElementById('preset').value];document.getElementById('space').value=p.space;document.getElementById('obj').value=p.obj;document.getElementById('budget').value=p.budget;
   document.getElementById('scenario').innerHTML=[p.s,p.t,p.b].map(function(r){return '<div class="srow"><b>'+r[0]+'</b><span>'+r[1]+'</span></div>'}).join('');
   document.getElementById('out').textContent='Ready — press ▶ Watch Melete discover.';var m=document.getElementById('map');if(m)m.className='';}
 var ARMCOL={gp:'#6d5cf0',cmaes:'#0ea5b7',"kernel-ucb":'#f97316',"trust-region":'#a855f7',anneal:'#ef4444',maximin:'#22c55e',"basin-hop":'#eab308',random:'#94a3b8',seed:'#cbd5e1'};
 function heat(t){t=Math.max(0,Math.min(1,t));var a=[40,32,84],b=[14,120,170],c=[16,185,160],d=[250,232,80];var seg=t<.33?[a,b,t/.33]:t<.66?[b,c,(t-.33)/.33]:[c,d,(t-.66)/.34];return 'rgb('+seg[0].map(function(v,i){return Math.round(v+(seg[1][i]-v)*seg[2])}).join(',')+')';}
 var MAP={};
+function fmt(v){var r=Math.round(v*100)/100;return ''+r;}
 function drawFrame(k){
   var s=MAP.surface,S=600,cv=document.getElementById('surf'),x=cv.getContext('2d');x.clearRect(0,0,S,S);
-  if(!s){x.fillStyle='#9092a8';x.font='16px system-ui';x.textAlign='center';x.fillText('Discovery map renders for 2-dial problems.',S/2,S/2-10);x.fillText('Convergence + strategy shown on the right →',S/2,S/2+18);return;}
-  var zmin=Math.min.apply(null,s.z),zmax=Math.max.apply(null,s.z),zr=(zmax-zmin)||1,cw=S/s.nx;
-  for(var j=0;j<s.ny;j++)for(var i=0;i<s.nx;i++){x.fillStyle=heat((s.z[j*s.nx+i]-zmin)/zr);x.fillRect(i*cw,S-(j+1)*cw,cw+1.2,cw+1.2);}
-  var p=MAP.path,toX=function(e){return Math.max(9,Math.min(S-9,(e[s.xName]-s.xMin)/((s.xMax-s.xMin)||1)*S));},toY=function(e){return Math.max(9,Math.min(S-9,S-(e[s.yName]-s.yMin)/((s.yMax-s.yMin)||1)*S));};
-  // trail
-  x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=1.3;x.beginPath();for(var t=0;t<=k&&t<p.length;t++){var X=toX(p[t].experiment),Y=toY(p[t].experiment);t?x.lineTo(X,Y):x.moveTo(X,Y);}x.stroke();
-  // dots coloured by strategy
-  for(var t2=0;t2<=k&&t2<p.length;t2++){var P=p[t2],X=toX(P.experiment),Y=toY(P.experiment),cur=(t2===k),r=cur?9:5.5;
-    x.beginPath();x.arc(X,Y,r,0,7);x.fillStyle=ARMCOL[P.arm]||'#94a3b8';x.globalAlpha=cur?1:.85;x.fill();x.globalAlpha=1;x.lineWidth=cur?2.5:1;x.strokeStyle=cur?'#fff':'rgba(255,255,255,.7)';x.stroke();}
-  // best star (once revealed)
-  var bi=MAP.bestIdx;if(k>=bi){var bx=toX(MAP.best.experiment),by=toY(MAP.best.experiment);x.font='30px system-ui';x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fde047';x.strokeStyle='#16172b';x.lineWidth=1.6;x.strokeText('★',bx,by);x.fillText('★',bx,by);}
-  document.getElementById('stepn').textContent='exp '+Math.min(k+1,p.length)+' / '+p.length;
-  document.getElementById('scrub').value=k;
+  var p=MAP.path||[];
+  if(s){
+    var zmin=Math.min.apply(null,s.z),zmax=Math.max.apply(null,s.z),zr=(zmax-zmin)||1,cw=S/s.nx;
+    for(var j=0;j<s.ny;j++)for(var i=0;i<s.nx;i++){x.fillStyle=heat((s.z[j*s.nx+i]-zmin)/zr);x.fillRect(i*cw,S-(j+1)*cw,cw+1.2,cw+1.2);}
+    var toX=function(e){return Math.max(9,Math.min(S-9,(e[s.xName]-s.xMin)/((s.xMax-s.xMin)||1)*S));},toY=function(e){return Math.max(9,Math.min(S-9,S-(e[s.yName]-s.yMin)/((s.yMax-s.yMin)||1)*S));};
+    x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=1.3;x.beginPath();for(var t=0;t<=k&&t<p.length;t++){var X=toX(p[t].experiment),Y=toY(p[t].experiment);t?x.lineTo(X,Y):x.moveTo(X,Y);}x.stroke();
+    for(var t2=0;t2<=k&&t2<p.length;t2++){var P=p[t2],X2=toX(P.experiment),Y2=toY(P.experiment),cur=(t2===k),r=cur?9:5.5;
+      x.beginPath();x.arc(X2,Y2,r,0,7);x.fillStyle=ARMCOL[P.arm]||'#94a3b8';x.globalAlpha=cur?1:.85;x.fill();x.globalAlpha=1;x.lineWidth=cur?2.5:1;x.strokeStyle=cur?'#fff':'rgba(255,255,255,.7)';x.stroke();}
+    var bi=MAP.bestIdx;if(k>=bi){var bx=toX(MAP.best.experiment),by=toY(MAP.best.experiment);x.font='30px system-ui';x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fde047';x.strokeStyle='#16172b';x.lineWidth=1.6;x.strokeText('★',bx,by);x.fillText('★',bx,by);}
+  } else if(MAP.dims && MAP.dims.length>=2){ drawParallel(x,S,k); }
+  else { x.fillStyle='#9092a8';x.font='15px system-ui';x.textAlign='center';x.fillText('Run a scenario to see the discovery map.',S/2,S/2); }
+  var sn=document.getElementById('stepn');if(sn)sn.textContent='exp '+Math.min(k+1,p.length)+' / '+p.length;
+  var sc=document.getElementById('scrub');if(sc)sc.value=k;
+}
+// parallel-coordinates: works for ANY number of variables (3D, 5D, 8D…) — each line is one experiment
+function drawParallel(x,S,k){
+  var dims=MAP.dims,n=dims.length,p=MAP.path,pad=60,W=S-2*pad,H=S-2*pad-18,top=pad;
+  var vals=p.map(function(q){return q.value}),vmin=Math.min.apply(null,vals),vmax=Math.max.apply(null,vals),vr=(vmax-vmin)||1;
+  var ax=function(i){return n>1?pad+i/(n-1)*W:pad+W/2;};
+  var ay=function(i,val){var d=dims[i];return top+H-((val-d.min)/((d.max-d.min)||1))*H;};
+  x.lineWidth=1.5;
+  for(var i=0;i<n;i++){var X=ax(i);x.strokeStyle='#e7e8f0';x.beginPath();x.moveTo(X,top);x.lineTo(X,top+H);x.stroke();
+    x.fillStyle='#5b5d77';x.font='700 12px system-ui';x.textAlign='center';x.fillText(dims[i].name,X,top-16);
+    x.fillStyle='#b3b5c6';x.font='10px ui-monospace';x.fillText(fmt(dims[i].max),X,top-3);x.fillText(fmt(dims[i].min),X,top+H+15);}
+  for(var t=0;t<=k&&t<p.length;t++){var q=p[t];x.beginPath();for(var j=0;j<n;j++){var XX=ax(j),YY=ay(j,+q.experiment[dims[j].name]);j?x.lineTo(XX,YY):x.moveTo(XX,YY);}
+    x.strokeStyle=heat((q.value-vmin)/vr);x.globalAlpha=(t===k)?1:0.45;x.lineWidth=(t===k)?3.2:1.5;x.stroke();x.globalAlpha=1;}
+  var bi=MAP.bestIdx;if(k>=bi){var b=p[bi];x.beginPath();for(var jj=0;jj<n;jj++){var BX=ax(jj),BY=ay(jj,+b.experiment[dims[jj].name]);jj?x.lineTo(BX,BY):x.moveTo(BX,BY);}x.strokeStyle='#f59e0b';x.lineWidth=4.5;x.stroke();
+    for(var j2=0;j2<n;j2++){x.fillStyle='#fbbf24';x.beginPath();x.arc(ax(j2),ay(j2,+b.experiment[dims[j2].name]),5.5,0,7);x.fill();x.strokeStyle='#fff';x.lineWidth=1.6;x.stroke();}}
 }
 var TIMER=null;
 function stopPlay(){if(TIMER){clearInterval(TIMER);TIMER=null;}document.getElementById('play').textContent='▶ Replay';}
@@ -368,7 +421,8 @@ function togglePlay(){if(TIMER){stopPlay();return;}var p=MAP.path;if(!p)return;d
 function scrubTo(v){stopPlay();drawFrame(v);}
 function renderMap(j){
   document.getElementById('map').className='on';
-  MAP={surface:j.surface,path:j.path||[],best:j.best};
+  MAP={surface:j.surface,dims:j.dims,path:j.path||[],best:j.best};
+  var cap=document.getElementById('mapcap');if(cap)cap.innerHTML=j.surface?'Heat = the score it learned · each dot = one experiment, coloured by the <b>strategy</b> that proposed it · ★ = best.':'Each line = one experiment across all '+(j.dims?j.dims.length:'')+' variables · <b>brighter line = higher score</b> · gold = the best found.';
   var bi=0,bv=-Infinity;MAP.path.forEach(function(p,i){if(p.value>bv){bv=p.value;bi=i;}});MAP.bestIdx=bi;
   document.getElementById('scrub').max=Math.max(1,MAP.path.length-1);
   // legend (only arms that appeared)
@@ -403,7 +457,7 @@ async function run(){
  if(!('IntersectionObserver' in window)){ps.forEach(function(p){p.classList.add('in')});return;}
  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:0.3,rootMargin:'0px 0px -8% 0px'});
  ps.forEach(function(p){io.observe(p)});})();
-loadPreset();
+setMode('simple');loadPreset();
 </script>
 </body></html>`;
 }
@@ -457,9 +511,10 @@ export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string
     { name: "LANDING-RENDERS", pass: html.startsWith("<!doctype html>") && html.includes("Melete") && html.length > 4000, detail: "world-class landing page renders with hero + sections" },
     { name: "LIGHT-THEME", pass: html.includes("--bg:#ffffff") && !html.includes("background:#07070c"), detail: "clean light theme (not the old dark background)" },
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
-    { name: "DISCOVERY-MAP", pass: html.includes("Discovery map") && html.includes('id="surf"') && html.includes("renderMap") && html.includes("heat("), detail: "renders an interactive discovery map (learned surface heatmap + experiment path + convergence + strategy)" },
+    { name: "DISCOVERY-MAP", pass: html.includes("Discovery cinema") && html.includes('id="surf"') && html.includes("renderMap") && html.includes("heat(") && html.includes("drawParallel"), detail: "interactive discovery cinema: 2-D learned-surface heatmap OR an any-dimension parallel-coordinates view, animated + convergence + strategy" },
     { name: "WHO-ITS-FOR+STEPS", pass: html.includes("Who it's for") && html.includes("Pharma") && html.includes("AI / ML teams") && html.includes("How it works") && html.includes("Score one try"), detail: "audiences + the 3-step explainer (journalist-style, 1-minute readable)" },
     { name: "MELI-STORYBOOK", pass: html.includes("Meet Meli") && html.includes('class="meli') && html.includes("storybook") && html.includes('data-beat') && html.includes("IntersectionObserver") && html.includes('linearGradient id="mbody"') && html.includes("@keyframes blink"), detail: "original animated mascot (Meli) stars in an interactive scroll-revealed comic storybook with synced effects — geometric art, no third-party/copyright, every browser + mobile" },
+    { name: "MODES+INDUSTRY", pass: html.includes("Simple — pick") && html.includes("Advanced — edit") && html.includes("setMode") && html.includes("Click an industry") && html.includes("Drug formulation") && html.includes("GPU kernel tuning") && html.includes("tryScenario") && html.includes("Contact about Melete"), detail: "Simple/Advanced modes + clickable industry scenarios (pharma / GPU / semiconductor) that run live, + a licensing/acquisition contact CTA" },
     { name: "NO-DATASET", pass: html.includes("No dataset") && html.includes("melete tune"), detail: "explains no dataset is needed + shows the real `melete tune` usage" },
     { name: "AIR-GAPPED", pass: html.toLowerCase().includes("air-gapped") && html.includes("runs fully offline"), detail: "states the air-gapped / on-prem positioning" },
     { name: "PITCH-DECK", pass: pitch.startsWith("<!doctype html>") && pitch.includes("The ask") && pitch.includes("The moat") && html.includes('href="/pitch"'), detail: "HTML pitch deck renders (problem→product→moat→proof→ask) and is linked from the landing page" },

@@ -57,7 +57,8 @@ const server = createServer(async (req, res) => {
       // per-experiment path WITH the strategy (arm) that proposed each — lets the client colour the
       // discovery by strategy and replay it step by step.
       const path = (sig.result.history || []).map((s) => ({ experiment: s.experiment, value: s.value, n: s.n, arm: (String(s.rationale || "").match(/^\[([^\]]+)\]/) || [, "seed"])[1] }));
-      return json(res, 200, { best: sig.result.best, evaluations: sig.result.evaluations, converged: sig.result.converged, engine: sig.engine, goal, armStats: sig.result.armStats ?? null, surface, path, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      const dims = space.dims.map((d) => ({ name: d.name, min: d.min, max: d.max, type: d.type }));
+      return json(res, 200, { best: sig.result.best, evaluations: sig.result.evaluations, converged: sig.result.converged, engine: sig.engine, goal, dims, armStats: sig.result.armStats ?? null, surface, path, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/verify") {
