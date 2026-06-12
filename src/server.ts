@@ -73,6 +73,7 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 .kv{font-size:14px;color:#33344e}.kv b{color:var(--ink)}
 .bar{height:9px;border-radius:6px;background:var(--grad);margin:2px 0 9px}
 .result{margin-top:14px;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:16px;font-size:14.5px;color:#2a2b42;min-height:24px}
+.narrate{margin-top:12px;background:linear-gradient(135deg,#f3f1ff,#eafcf8);border:1.5px solid #ddd9fb;border-radius:14px;padding:16px 18px;font-size:15px;line-height:1.65;color:#26283f}
 .modetabs{display:inline-flex;background:#f1f2f8;border:1px solid var(--line);border-radius:11px;padding:4px;gap:4px;margin-bottom:6px}
 .mt{background:transparent;border:0;border-radius:8px;padding:8px 14px;font-size:13.5px;font-weight:700;color:#6a6c84;cursor:pointer}
 .mt.on{background:#fff;color:var(--ind);box-shadow:0 1px 4px rgba(20,20,50,.08)}
@@ -170,6 +171,14 @@ function meli(cls = ""): string {
   <path d="M84 146 Q100 160 116 146" stroke="#1a1b30" stroke-width="5" fill="none" stroke-linecap="round"/>
   <ellipse cx="62" cy="140" rx="7.5" ry="4.6" fill="#ff8fb1" opacity="0.55"/><ellipse cx="138" cy="140" rx="7.5" ry="4.6" fill="#ff8fb1" opacity="0.55"/>
 </svg>`;
+}
+
+/** The Wave-Particle map projection (shared, exact, with the client). Tested for accuracy in
+ * serverGauntlet: higher score rises, back rows sit higher, everything stays inside the 600×600 canvas. */
+const VZ_C = { mL: 54, plotW: 486, mT: 140, depth: 320, skew: 44, h: 128 };
+export function vizProject(gi: number, gj: number, t: number, nx: number, ny: number): [number, number] {
+  const fx = nx > 1 ? gi / (nx - 1) : 0.5, fz = ny > 1 ? gj / (ny - 1) : 0.5;
+  return [VZ_C.mL + fx * VZ_C.plotW + fz * VZ_C.skew, VZ_C.mT + (1 - fz) * VZ_C.depth - t * VZ_C.h];
 }
 
 export function landingPage(version = "0.4.0"): string {
@@ -286,11 +295,12 @@ export function landingPage(version = "0.4.0"): string {
 </div>
 <button class="btn primary" style="margin-top:16px;width:100%" onclick="run()">▶ Watch Melete discover</button>
 <div class="result" id="out">Pick a scenario, then press Watch — the best settings, a movie of how it searched, and a signed proof appear here.</div>
+<div class="narrate" id="narrate" style="display:none"></div>
 
 <div id="map">
 <div class="mapgrid">
   <div>
-    <div class="caps">Discovery cinema — watch it search, coloured by strategy</div>
+    <div class="caps">Discovery cinema — watch Meli search</div>
     <canvas id="surf" width="600" height="600"></canvas>
     <div class="player">
       <button id="play" class="pbtn" onclick="togglePlay()">▶ Replay</button>
@@ -301,9 +311,9 @@ export function landingPage(version = "0.4.0"): string {
     <div class="muted" id="mapcap" style="font-size:12.5px;margin-top:6px">Heat = the score it learned · each dot = one experiment, coloured by the <b>strategy</b> that proposed it · ★ = best.</div>
   </div>
   <div>
-    <div class="caps">Convergence</div>
+    <div class="caps">How the score climbed (higher = better)</div>
     <canvas id="conv" width="380" height="120" style="height:96px"></canvas>
-    <div class="caps" style="margin-top:16px">Which strategy the bandit chose</div>
+    <div class="caps" style="margin-top:16px">Meli's team — who did the work</div>
     <div id="arms"></div>
     <div class="caps" style="margin-top:16px">Proof</div>
     <div id="proof" class="kv"></div>
@@ -385,24 +395,45 @@ function loadPreset(){var p=PRESETS[document.getElementById('preset').value];doc
   document.getElementById('scenario').innerHTML=[p.s,p.t,p.b].map(function(r){return '<div class="srow"><b>'+r[0]+'</b><span>'+r[1]+'</span></div>'}).join('');
   document.getElementById('out').textContent='Ready — press ▶ Watch Melete discover.';var m=document.getElementById('map');if(m)m.className='';}
 var ARMCOL={gp:'#6d5cf0',cmaes:'#0ea5b7',"kernel-ucb":'#f97316',"trust-region":'#a855f7',anneal:'#ef4444',maximin:'#22c55e',"basin-hop":'#eab308',random:'#94a3b8',seed:'#cbd5e1'};
+var STRAT={gp:['🔮 The Forecaster','predicts which untried setting will score high'],cmaes:['🧬 The Evolver','breeds better tries from the best so far'],"kernel-ucb":['⚖️ The Balancer','weighs the best-known against the unknown'],"trust-region":['🔍 The Zoomer','zooms in carefully around the current best'],anneal:['🌡️ The Wanderer','roams boldly early, then settles down'],maximin:['🛰️ The Scout','checks the most unexplored areas'],"basin-hop":['🦘 The Jumper','leaps to fresh regions to escape dead ends'],random:['🎲 The Wildcard','tries random spots as a sanity check'],seed:['🌱 The Opening','the first spread-out tries to get going']};
+function sName(a){return (STRAT[a]||[a])[0];}
 function heat(t){t=Math.max(0,Math.min(1,t));var a=[40,32,84],b=[14,120,170],c=[16,185,160],d=[250,232,80];var seg=t<.33?[a,b,t/.33]:t<.66?[b,c,(t-.33)/.33]:[c,d,(t-.66)/.34];return 'rgb('+seg[0].map(function(v,i){return Math.round(v+(seg[1][i]-v)*seg[2])}).join(',')+')';}
 var MAP={};
 function fmt(v){var r=Math.round(v*100)/100;return ''+r;}
 function drawFrame(k){
   var s=MAP.surface,S=600,cv=document.getElementById('surf'),x=cv.getContext('2d');x.clearRect(0,0,S,S);
   var p=MAP.path||[];
-  if(s){
-    var zmin=Math.min.apply(null,s.z),zmax=Math.max.apply(null,s.z),zr=(zmax-zmin)||1,cw=S/s.nx;
-    for(var j=0;j<s.ny;j++)for(var i=0;i<s.nx;i++){x.fillStyle=heat((s.z[j*s.nx+i]-zmin)/zr);x.fillRect(i*cw,S-(j+1)*cw,cw+1.2,cw+1.2);}
-    var toX=function(e){return Math.max(9,Math.min(S-9,(e[s.xName]-s.xMin)/((s.xMax-s.xMin)||1)*S));},toY=function(e){return Math.max(9,Math.min(S-9,S-(e[s.yName]-s.yMin)/((s.yMax-s.yMin)||1)*S));};
-    x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=1.3;x.beginPath();for(var t=0;t<=k&&t<p.length;t++){var X=toX(p[t].experiment),Y=toY(p[t].experiment);t?x.lineTo(X,Y):x.moveTo(X,Y);}x.stroke();
-    for(var t2=0;t2<=k&&t2<p.length;t2++){var P=p[t2],X2=toX(P.experiment),Y2=toY(P.experiment),cur=(t2===k),r=cur?9:5.5;
-      x.beginPath();x.arc(X2,Y2,r,0,7);x.fillStyle=ARMCOL[P.arm]||'#94a3b8';x.globalAlpha=cur?1:.85;x.fill();x.globalAlpha=1;x.lineWidth=cur?2.5:1;x.strokeStyle=cur?'#fff':'rgba(255,255,255,.7)';x.stroke();}
-    var bi=MAP.bestIdx;if(k>=bi){var bx=toX(MAP.best.experiment),by=toY(MAP.best.experiment);x.font='30px system-ui';x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fde047';x.strokeStyle='#16172b';x.lineWidth=1.6;x.strokeText('★',bx,by);x.fillText('★',bx,by);}
-  } else if(MAP.dims && MAP.dims.length>=2){ drawParallel(x,S,k); }
+  if(s){ try{ drawWaveParticle(x,S,k); }catch(err){ drawFlat(x,S,k); } }
+  else if(MAP.dims && MAP.dims.length>=2){ drawParallel(x,S,k); }
   else { x.fillStyle='#9092a8';x.font='15px system-ui';x.textAlign='center';x.fillText('Run a scenario to see the discovery map.',S/2,S/2); }
   var sn=document.getElementById('stepn');if(sn)sn.textContent='exp '+Math.min(k+1,p.length)+' / '+p.length;
   var sc=document.getElementById('scrub');if(sc)sc.value=k;
+}
+// flat heat-map fallback (2-D)
+function drawFlat(x,S,k){
+  var s=MAP.surface,p=MAP.path,zmin=Math.min.apply(null,s.z),zmax=Math.max.apply(null,s.z),zr=(zmax-zmin)||1,cw=S/s.nx;
+  for(var j=0;j<s.ny;j++)for(var i=0;i<s.nx;i++){x.fillStyle=heat((s.z[j*s.nx+i]-zmin)/zr);x.fillRect(i*cw,S-(j+1)*cw,cw+1.2,cw+1.2);}
+  var toX=function(e){return (e[s.xName]-s.xMin)/((s.xMax-s.xMin)||1)*S;},toY=function(e){return S-(e[s.yName]-s.yMin)/((s.yMax-s.yMin)||1)*S;};
+  for(var t=0;t<=k&&t<p.length;t++){var P=p[t],cur=(t===k);x.beginPath();x.arc(toX(P.experiment),toY(P.experiment),cur?9:5.5,0,7);x.fillStyle=ARMCOL[P.arm]||'#94a3b8';x.fill();x.lineWidth=1;x.strokeStyle='#fff';x.stroke();}
+}
+// WAVE-PARTICLE map (2-D): the learned score surface as a rippling 2.5-D terrain (the WAVE) + each
+// experiment as a glowing quanta-dot sitting on it (the PARTICLE) + a gold star at the peak.
+var VZ={mL:54,plotW:486,mT:140,depth:320,skew:44,h:128};
+function vproj(gi,gj,t,nx,ny){var fx=nx>1?gi/(nx-1):0.5,fz=ny>1?gj/(ny-1):0.5;return [VZ.mL+fx*VZ.plotW+fz*VZ.skew, VZ.mT+(1-fz)*VZ.depth-t*VZ.h];}
+function drawWaveParticle(x,S,k){
+  var s=MAP.surface,nx=s.nx,ny=s.ny,p=MAP.path,zmin=Math.min.apply(null,s.z),zmax=Math.max.apply(null,s.z),zr=(zmax-zmin)||1;
+  for(var gj=ny-1;gj>=0;gj--){
+    var rmax=0,i;for(i=0;i<nx;i++){var tt=(s.z[gj*nx+i]-zmin)/zr;if(tt>rmax)rmax=tt;}
+    x.beginPath();for(i=0;i<nx;i++){var t=(s.z[gj*nx+i]-zmin)/zr,P=vproj(i,gj,t,nx,ny);i?x.lineTo(P[0],P[1]):x.moveTo(P[0],P[1]);}
+    var br=vproj(nx-1,gj,0,nx,ny),bl=vproj(0,gj,0,nx,ny);x.lineTo(br[0],br[1]);x.lineTo(bl[0],bl[1]);x.closePath();
+    x.fillStyle=heat(rmax*0.9+0.05);x.globalAlpha=0.9;x.fill();x.globalAlpha=1;
+    x.beginPath();for(i=0;i<nx;i++){var t2=(s.z[gj*nx+i]-zmin)/zr,Q=vproj(i,gj,t2,nx,ny);i?x.lineTo(Q[0],Q[1]):x.moveTo(Q[0],Q[1]);}
+    x.strokeStyle='rgba(255,255,255,.45)';x.lineWidth=1;x.stroke();
+  }
+  for(var u=0;u<=k&&u<p.length;u++){var e=p[u].experiment,gi=(e[s.xName]-s.xMin)/((s.xMax-s.xMin)||1)*(nx-1),gjj=(e[s.yName]-s.yMin)/((s.yMax-s.yMin)||1)*(ny-1),tv=(p[u].value-zmin)/zr,Z=vproj(gi,gjj,tv,nx,ny),cur=(u===k);
+    x.save();x.shadowColor='rgba(255,255,255,.9)';x.shadowBlur=cur?16:7;x.beginPath();x.arc(Z[0],Z[1],cur?7:4,0,7);x.fillStyle=heat(tv*0.85+0.15);x.fill();x.lineWidth=1.4;x.strokeStyle='#fff';x.stroke();x.restore();}
+  var bi=MAP.bestIdx;if(k>=bi){var b=MAP.best.experiment,gib=(b[s.xName]-s.xMin)/((s.xMax-s.xMin)||1)*(nx-1),gjb=(b[s.yName]-s.yMin)/((s.yMax-s.yMin)||1)*(ny-1),tb=(MAP.best.value-zmin)/zr,B=vproj(gib,gjb,tb,nx,ny);
+    x.save();x.shadowColor='#fbbf24';x.shadowBlur=22;x.font='32px system-ui';x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fde047';x.fillText('★',B[0],B[1]);x.restore();}
 }
 // parallel-coordinates: works for ANY number of variables (3D, 5D, 8D…) — each line is one experiment
 function drawParallel(x,S,k){
@@ -429,9 +460,9 @@ function renderMap(j){
   var cap=document.getElementById('mapcap');if(cap)cap.innerHTML=j.surface?'Heat = the score it learned · each dot = one experiment, coloured by the <b>strategy</b> that proposed it · ★ = best.':'Each line = one experiment across all '+(j.dims?j.dims.length:'')+' variables · <b>brighter line = higher score</b> · gold = the best found.';
   var bi=0,bv=-Infinity;MAP.path.forEach(function(p,i){if(p.value>bv){bv=p.value;bi=i;}});MAP.bestIdx=bi;
   document.getElementById('scrub').max=Math.max(1,MAP.path.length-1);
-  // legend (only arms that appeared)
+  // legend (only arms that appeared) — friendly names
   var used={};MAP.path.forEach(function(p){used[p.arm]=1;});
-  document.getElementById('legend').innerHTML=Object.keys(used).map(function(a){return '<span class="legdot"><i style="background:'+(ARMCOL[a]||'#94a3b8')+'"></i>'+a+'</span>';}).join('');
+  document.getElementById('legend').innerHTML=Object.keys(used).map(function(a){return '<span class="legdot"><i style="background:'+(ARMCOL[a]||'#94a3b8')+'"></i>'+sName(a)+'</span>';}).join('');
   // convergence
   var cv=document.getElementById('conv'),cc=cv.getContext('2d'),W=cv.width,H=cv.height;cc.clearRect(0,0,W,H);
   var run=[],b=-Infinity;MAP.path.forEach(function(p){b=Math.max(b,p.value);run.push(b);});
@@ -439,9 +470,18 @@ function renderMap(j){
   cc.strokeStyle='#5b53e8';cc.lineWidth=2.5;cc.lineJoin='round';cc.beginPath();run.forEach(function(v,i){var X=i/(run.length-1||1)*W,Y=H-9-(v-lo)/rg*(H-18);i?cc.lineTo(X,Y):cc.moveTo(X,Y);});cc.stroke();
   // arm bars
   var tot=(j.armStats||[]).reduce(function(s,a){return s+a.pulls},0)||1;
-  document.getElementById('arms').innerHTML=(j.armStats||[]).filter(function(a){return a.pulls>0}).sort(function(a,b){return b.pulls-a.pulls}).map(function(a){return '<div class="kv" style="display:flex;justify-content:space-between;font-size:13px;align-items:center"><span><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(ARMCOL[a.name]||'#94a3b8')+';margin-right:6px"></i>'+a.name+'</span><span class="muted">'+a.pulls+'</span></div><div class="bar" style="width:'+Math.round(a.pulls/tot*100)+'%;background:'+(ARMCOL[a.name]||'#94a3b8')+'"></div>'}).join('');
+  document.getElementById('arms').innerHTML=(j.armStats||[]).filter(function(a){return a.pulls>0}).sort(function(a,b){return b.pulls-a.pulls}).map(function(a){var sd=STRAT[a.name]||[a.name,''];return '<div class="kv" style="display:flex;justify-content:space-between;font-size:13px;align-items:center;gap:8px"><span title="'+sd[1]+'"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+(ARMCOL[a.name]||'#94a3b8')+';margin-right:6px"></i>'+sd[0]+' <span class="muted" style="font-size:11px">('+a.name+')</span></span><span class="muted">'+a.pulls+'×</span></div><div class="bar" style="width:'+Math.round(a.pulls/tot*100)+'%;background:'+(ARMCOL[a.name]||'#94a3b8')+'"></div>'}).join('');
   // proof
   document.getElementById('proof').innerHTML='best score <b>'+(+j.best.value).toFixed(4)+'</b> · '+j.evaluations+' experiments<br>📜 '+j.trace.frames.length+' frames · <b style="color:'+(j.verify?'#0e9f6e':'#dc2626')+'">'+(j.verify?'verified ✓':'unverified')+'</b> (Ed25519, offline)';
+  // ── plain-language narration (anyone, any job, understands) ──
+  var top2=(j.armStats||[]).filter(function(a){return a.pulls>0}).sort(function(a,b){return b.pulls-a.pulls}).slice(0,2).map(function(a){return sName(a.name)});
+  var bestStr=Object.keys(j.best.experiment).map(function(kk){var v=j.best.experiment[kk];return '<b>'+kk+'</b> = '+(Math.round(v*1000)/1000)}).join(' · ');
+  var nar=document.getElementById('narrate');
+  nar.style.display='block';
+  nar.innerHTML='<b>📖 In plain words:</b> Melete tried <b>'+j.evaluations+'</b> settings and zeroed in on the best one (score <b>'+(+j.best.value).toFixed(2)+'</b>). '
+    +'It used a <b>team of search helpers</b> and leaned most on '+(top2.join(' and ')||'its helpers')+'. '
+    +'<br>🏆 <b>The winning setup:</b> '+bestStr+'.'
+    +'<br>📜 Every step was cryptographically signed, so the result is <b>independently verifiable</b> — no faking, no guessing.';
   stopPlay();setTimeout(togglePlay,250);   // auto-play the discovery
 }
 async function run(){
@@ -515,7 +555,8 @@ export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string
     { name: "LANDING-RENDERS", pass: html.startsWith("<!doctype html>") && html.includes("Melete") && html.length > 4000, detail: "world-class landing page renders with hero + sections" },
     { name: "LIGHT-THEME", pass: html.includes("--bg:#ffffff") && !html.includes("background:#07070c"), detail: "clean light theme (not the old dark background)" },
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
-    { name: "DISCOVERY-MAP", pass: html.includes("Discovery cinema") && html.includes('id="surf"') && html.includes("renderMap") && html.includes("heat(") && html.includes("drawParallel"), detail: "interactive discovery cinema: 2-D learned-surface heatmap OR an any-dimension parallel-coordinates view, animated + convergence + strategy" },
+    { name: "DISCOVERY-MAP", pass: html.includes("Discovery cinema") && html.includes('id="surf"') && html.includes("renderMap") && html.includes("heat(") && html.includes("drawParallel") && html.includes("drawWaveParticle"), detail: "interactive discovery cinema: 2-D Wave-Particle terrain OR an any-dimension parallel-coordinates view, animated + convergence + strategy" },
+    { name: "VIZ-ACCURACY", pass: (() => { const nx = 44, ny = 44; const rises = vizProject(20, 20, 1, nx, ny)[1] < vizProject(20, 20, 0, nx, ny)[1]; const exactH = Math.abs((vizProject(20, 20, 0, nx, ny)[1] - vizProject(20, 20, 1, nx, ny)[1]) - 128) < 1e-9; const depthOrder = vizProject(0, ny - 1, 0, nx, ny)[1] < vizProject(0, 0, 0, nx, ny)[1]; let inB = true; for (const c of [[0, 0, 0], [nx - 1, ny - 1, 1], [nx - 1, 0, 1], [0, ny - 1, 1], [22, 22, 0.5]] as Array<[number, number, number]>) { const pr = vizProject(c[0], c[1], c[2], nx, ny); if (pr[0] < 0 || pr[0] > 600 || pr[1] < 0 || pr[1] > 600) inB = false; } const det = JSON.stringify(vizProject(7, 9, 0.6, nx, ny)) === JSON.stringify(vizProject(7, 9, 0.6, nx, ny)); return rises && exactH && depthOrder && inB && det; })(), detail: "the Wave-Particle projection is faithful: higher score rises, back rows sit higher, peaks stay inside the canvas, deterministic" },
     { name: "WHO-ITS-FOR+STEPS", pass: html.includes("Who it's for") && html.includes("Pharma") && html.includes("AI / ML teams") && html.includes("How it works") && html.includes("Score one try"), detail: "audiences + the 3-step explainer (journalist-style, 1-minute readable)" },
     { name: "MELI-STORYBOOK", pass: html.includes("Meet Meli") && html.includes('class="meli') && html.includes("storybook") && html.includes('data-beat') && html.includes("IntersectionObserver") && html.includes('linearGradient id="mbody"') && html.includes("@keyframes blink"), detail: "original animated mascot (Meli) stars in an interactive scroll-revealed comic storybook with synced effects — geometric art, no third-party/copyright, every browser + mobile" },
     { name: "MODES+INDUSTRY", pass: html.includes("Simple — pick") && html.includes("Advanced — edit") && html.includes("setMode") && html.includes("Click an industry") && html.includes("Drug formulation") && html.includes("GPU kernel tuning") && html.includes("tryScenario") && html.includes("Contact about Melete"), detail: "Simple/Advanced modes + clickable industry scenarios (pharma / GPU / semiconductor) that run live, + a licensing/acquisition contact CTA" },

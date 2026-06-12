@@ -8,6 +8,7 @@ import {
   armsGauntlet, defaultArms,
   portfolioDiscover, portfolioGauntlet,
   replicate, replicateGauntlet, certifyReplication, extractClaim,
+  vizProject,
   Tracer, verifyTrace,
   multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
@@ -169,6 +170,30 @@ describe("replication attestation (cross-agent trust)", () => {
     expect(extractClaim(t.export()).best.value).toBe(1);
   });
   it("gauntlet is 100", async () => expect((await replicateGauntlet()).score).toBe(100));
+});
+
+describe("wave-particle map projection — accuracy", () => {
+  const nx = 44, ny = 44;
+  it("a higher score projects higher on screen (smaller y)", () => {
+    expect(vizProject(20, 20, 1, nx, ny)[1]).toBeLessThan(vizProject(20, 20, 0, nx, ny)[1]);
+  });
+  it("the height scale is exact + linear in the score", () => {
+    expect(vizProject(20, 20, 0, nx, ny)[1] - vizProject(20, 20, 1, nx, ny)[1]).toBeCloseTo(128, 6);
+    expect(vizProject(20, 20, 0, nx, ny)[1] - vizProject(20, 20, 0.5, nx, ny)[1]).toBeCloseTo(64, 6);
+  });
+  it("back rows sit higher than front rows (depth ordering)", () => {
+    expect(vizProject(0, ny - 1, 0, nx, ny)[1]).toBeLessThan(vizProject(0, 0, 0, nx, ny)[1]);
+  });
+  it("every corner (incl back-row peaks) stays inside the 600×600 canvas", () => {
+    for (const c of [[0, 0, 0], [nx - 1, ny - 1, 1], [nx - 1, 0, 1], [0, ny - 1, 1], [22, 22, 0.5]] as Array<[number, number, number]>) {
+      const [px, py] = vizProject(c[0], c[1], c[2], nx, ny);
+      expect(px).toBeGreaterThanOrEqual(0); expect(px).toBeLessThanOrEqual(600);
+      expect(py).toBeGreaterThanOrEqual(0); expect(py).toBeLessThanOrEqual(600);
+    }
+  });
+  it("is deterministic", () => {
+    expect(vizProject(7, 9, 0.6, nx, ny)).toEqual(vizProject(7, 9, 0.6, nx, ny));
+  });
 });
 
 describe("discoverSigned (end-to-end)", () => {
