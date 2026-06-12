@@ -24,10 +24,10 @@ describe("gauntlets (every module = 100)", () => {
   it("arms", () => expect(armsGauntlet().score).toBe(100));
   it("portfolio", async () => expect((await portfolioGauntlet()).score).toBe(100));
   it("replicate", async () => expect((await replicateGauntlet()).score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 11 modules", async () => {
+  it("aggregate meleteGauntlet = 100 over all 12 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "cortex", "engine", "oracle", "portfolio", "replicate", "resonance", "server", "space", "trace"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["arms", "bench", "cortex", "engine", "interactive", "oracle", "portfolio", "replicate", "resonance", "server", "space", "trace"]);
   });
 });
 

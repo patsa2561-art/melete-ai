@@ -218,13 +218,13 @@ export function landingPage(version = "0.4.0"): string {
 
 <div class="hero">
   <div class="herochar">${meli("hero")}</div>
-  <span class="eyebrow">Self-driving discovery</span>
+  <span class="eyebrow" data-i18n="eyebrow">Self-driving discovery</span>
   <h1 class="brand"><span class="grad">Melete</span></h1>
-  <p class="tag">When every experiment is expensive, Melete finds the <b>best answer in the fewest tries</b> — and proves how it got there.</p>
-  <p class="sub">Mneme remembers; Melete discovers. &nbsp;·&nbsp; v${version}</p>
+  <p class="tag" data-i18n="heroTag">When every experiment is expensive, Melete finds the <b>best answer in the fewest tries</b> — and proves how it got there.</p>
+  <p class="sub" data-i18n="heroSub">Mneme remembers; Melete discovers.</p><p class="sub" style="margin-top:-18px">v${version}</p>
   <div class="cta">
-    <a class="btn primary" href="#try">See it discover (live) →</a>
-    <a class="btn ghost" href="/pitch">The 60-second pitch</a>
+    <a class="btn primary" data-i18n="ctaTry" href="#try">See it discover (live) →</a>
+    <a class="btn ghost" data-i18n="ctaPitch" href="/pitch">The 60-second pitch</a>
   </div>
   <div class="pills">
     <span class="pill">⚛ adaptive ensemble</span>
@@ -236,7 +236,7 @@ export function landingPage(version = "0.4.0"): string {
 
 <div class="wrap">
 
-<section><h2>What it does — one example</h2>
+<section><h2 data-i18n="h_what">What it does — one example</h2>
 <div class="story">
 <p style="font-size:19px;font-weight:600;color:#1a1b30;margin-bottom:14px">You run a coffee shop and want the <b>best espresso</b>. You can change three things — water temperature, grind, and how many grams of coffee. There are thousands of combinations, and testing one means <b>brewing a cup and tasting it</b>. You can't try them all.</p>
 <p style="color:#33344e;margin-bottom:6px">Melete works like a brilliant assistant who suggests the next cup to brew:</p>
@@ -247,7 +247,7 @@ export function landingPage(version = "0.4.0"): string {
 <p style="color:#33344e;margin-top:14px">Swap “coffee” for a <b>training run</b>, a <b>chemical reaction</b>, or a <b>price</b> — it's the same: Melete finds the best settings in the <b>fewest expensive tries</b>, and signs a <b>proof</b> of how it got there. <span class="muted">You bring the thing you can adjust and a way to score one try; it brings the strategy.</span></p>
 </div></section>
 
-<section><h2>Meet Meli — a tiny story</h2>
+<section><h2 data-i18n="h_meli">Meet Meli — a tiny story</h2>
 <div class="storybook">
 
   <div class="panel wish" data-beat>
@@ -283,14 +283,14 @@ export function landingPage(version = "0.4.0"): string {
 
 </div></section>
 
-<section><h2>How it works — 3 steps</h2>
+<section><h2 data-i18n="h_how">How it works — 3 steps</h2>
 <div class="steps">
   <div class="step"><span class="n">1</span><h3>Set the dials</h3><p>List what you can change and its range — temperature 85–96°, learning-rate 0–0.1, price $1–100.</p></div>
   <div class="step"><span class="n">2</span><h3>Score one try</h3><p>Your real process returns one number: brew → taste, train → accuracy, price → revenue. No dataset needed.</p></div>
   <div class="step"><span class="n">3</span><h3>Discover &amp; prove</h3><p>Melete proposes the next experiment, learns, converges to the best — and signs a verifiable trace of how.</p></div>
 </div></section>
 
-<section><h2>Who it's for &amp; what they get</h2>
+<section><h2 data-i18n="h_who">Who it's for &amp; what they get</h2>
 <div class="grid">
   <div class="card"><div class="who">AI / ML teams</div><h3>Hyperparameter &amp; system tuning</h3><p>Tune learning rates, architectures, RAG/serving configs, compiler flags — fewer GPU-hours to the best model, with a provable tuning record.</p></div>
   <div class="card"><div class="who">Pharma · Chemistry · Materials</div><h3>Formulation &amp; reaction discovery</h3><p>Find the reagent mix / conditions that maximise yield or potency in far fewer assays — and a tamper-proof discovery trail for patents &amp; audits.</p></div>
@@ -299,7 +299,7 @@ export function landingPage(version = "0.4.0"): string {
 </div>
 <p class="muted" style="margin-top:16px">Every case: <b>fewer expensive experiments</b> to the best answer + a <b>cryptographic proof</b> of how it was found.</p></section>
 
-<section id="try"><h2>See it discover — just watch</h2>
+<section id="try"><h2 data-i18n="h_see">See it discover — just watch</h2>
 <p class="lead" style="font-size:18px;margin:0 0 4px">Melete tunes <b>knobs</b>. You don't write code or upload data here — <b>pick a scenario and press Watch.</b></p>
 <p class="muted" style="margin:0 0 16px">In this browser demo the "score" is faked by a formula so it runs instantly. For your real work the score comes from your real process — see <a href="#use">how to use it for your work</a> below.</p>
 <div class="card">
@@ -356,7 +356,7 @@ export function landingPage(version = "0.4.0"): string {
 </div></div>
 </div></section>
 
-<section><h2>Click an industry — see Melete work on it</h2>
+<section><h2 data-i18n="h_ind">Click an industry — see Melete work on it</h2>
 <p class="muted" style="margin:0 0 16px">Each card runs the live demo on a realistic, domain-shaped scenario. <b>The browser score is a simulated model</b> of the process — the <b>optimisation is real &amp; reproducible</b>; connect your real assay / benchmark / process for real numbers.</p>
 <div class="grid">
   <div class="card indcard" onclick="tryScenario('pharma')"><div class="who">💊 Pharma · biotech</div><h3>Drug formulation</h3><p>Variables: pH · temperature · excipient %. Goal: stability / potency. Melete finds the most stable formulation in ~60 assays — instead of hundreds.</p><div class="go">▶ Run it now</div></div>
@@ -374,7 +374,7 @@ export function landingPage(version = "0.4.0"): string {
   &nbsp;<a class="btn ghost" href="/pitch">Read the pitch</a>
 </div></section>
 
-<section><h2>Proven, not claimed</h2>
+<section><h2 data-i18n="h_proven">Proven, not claimed</h2>
 <p style="margin:0 0 14px;color:#33344e">No single optimiser wins on every landscape. A bandit spends each experiment on whichever strategy is winning <i>on your problem</i> — one engine, no per-problem tuning.</p>
 <table><tr><th>landscape</th><th>Melete</th><th>single Bayesian</th><th>random</th></tr>
 <tr><td>smooth</td><td class="win">1.000</td><td>0.999</td><td>0.838</td></tr>
@@ -382,7 +382,7 @@ export function landingPage(version = "0.4.0"): string {
 <tr><td>high-dimensional</td><td class="win">0.996</td><td>0.987</td><td>0.555</td></tr></table>
 <p class="muted" style="margin-top:10px">≈ 26 experiments vs ~95 for random to reach 99% of a hidden optimum (3.7×). Reproduce with <code>melete bench --robust</code>.</p></section>
 
-<section id="use"><h2>Use it for your work — answer 3 questions</h2>
+<section id="use"><h2 data-i18n="h_use">Use it for your work — answer 3 questions</h2>
 <p class="lead" style="margin:0 0 18px">No dataset, no formula. Just answer these about <b>your</b> process:</p>
 <div class="steps">
   <div class="step"><span class="n">1</span><h3>What can you adjust?</h3><p>List the knobs + their real limits (your machine's range). <span class="muted">→ that's the SPACE.</span></p></div>
@@ -410,8 +410,8 @@ Honest: the engine is a context-adaptive ensemble — its guarantee is robustnes
 <script>
 var LANG='en';try{var _sl=localStorage.getItem('mlang');if(_sl)LANG=_sl;}catch(e){}
 var T={
- en:{watch:'▶ Watch Melete discover',replay:'▶ Replay',team:"Meli's team — who did the work",teamhint:"Expert detail: the helpers Meli used. You don't need this to use the result.",climb:'How the score climbed (higher = better)',cinema:'Discovery cinema — watch Meli search',scenarioL:'Scenario',knobs:'You adjust',score:'You score',budget:'Tries',ph:'Pick a scenario, then press Watch.',plainHdr:'In plain words',tried:'Melete tried',settings:'settings and zeroed in on the best one',winning:'The winning setup',signed:'Every step is cryptographically signed — the result is independently verifiable. No faking, no guessing.'},
- th:{watch:'▶ ดู Melete ค้นพบ',replay:'▶ เล่นใหม่',team:'ทีมของ Meli — ใครลงมือบ้าง',teamhint:'รายละเอียดผู้เชี่ยวชาญ: ผู้ช่วยที่ Meli ใช้ ไม่จำเป็นต้องรู้ก็ใช้ผลได้',climb:'คะแนนไต่ขึ้นยังไง (สูง = ดี)',cinema:'โรงหนังการค้นพบ — ดู Meli ค้นหา',scenarioL:'เลือกสถานการณ์',knobs:'สิ่งที่ปรับได้',score:'วัดเป็นคะแนน',budget:'จำนวนครั้ง',ph:'เลือกสถานการณ์ แล้วกดดู',plainHdr:'สรุปภาษาคน',tried:'Melete ลอง',settings:'แบบ แล้วล็อกแบบที่ดีที่สุด',winning:'สูตรที่ชนะ',signed:'ทุกขั้นเซ็นด้วยคริปโต — ผลตรวจสอบได้จริง ไม่มีโม้ ไม่มีเดา'}
+ en:{watch:'▶ Watch Melete discover',replay:'▶ Replay',team:"Meli's team — who did the work",teamhint:"Expert detail: the helpers Meli used. You don't need this to use the result.",climb:'How the score climbed (higher = better)',cinema:'Discovery cinema — watch Meli search',scenarioL:'Scenario',knobs:'You adjust',score:'You score',budget:'Tries',ph:'Pick a scenario, then press Watch.',plainHdr:'In plain words',tried:'Melete tried',settings:'settings and zeroed in on the best one',eyebrow:'Self-driving discovery',ctaTry:'See it discover (live) →',ctaPitch:'The 60-second pitch',h_what:'What it does — one example',h_meli:'Meet Meli — a tiny story',h_how:'How it works — 3 steps',h_who:"Who it's for & what they get",h_see:'See it discover — just watch',h_ind:'Click an industry — see Melete work on it',h_proven:'Proven, not claimed',h_use:'Use it for your work — answer 3 questions',heroTag:'When every experiment is expensive, Melete finds the <b>best answer in the fewest tries</b> — and proves how it got there.',heroSub:'Mneme remembers; Melete discovers.',winning:'The winning setup',signed:'Every step is cryptographically signed — the result is independently verifiable. No faking, no guessing.'},
+ th:{watch:'▶ ดู Melete ค้นพบ',replay:'▶ เล่นใหม่',team:'ทีมของ Meli — ใครลงมือบ้าง',teamhint:'รายละเอียดผู้เชี่ยวชาญ: ผู้ช่วยที่ Meli ใช้ ไม่จำเป็นต้องรู้ก็ใช้ผลได้',climb:'คะแนนไต่ขึ้นยังไง (สูง = ดี)',cinema:'โรงหนังการค้นพบ — ดู Meli ค้นหา',scenarioL:'เลือกสถานการณ์',knobs:'สิ่งที่ปรับได้',score:'วัดเป็นคะแนน',budget:'จำนวนครั้ง',ph:'เลือกสถานการณ์ แล้วกดดู',plainHdr:'สรุปภาษาคน',tried:'Melete ลอง',settings:'แบบ แล้วล็อกแบบที่ดีที่สุด',eyebrow:'ระบบค้นพบอัตโนมัติ',ctaTry:'ดูมันค้นพบสด ๆ →',ctaPitch:'พิตช์ 60 วินาที',h_what:'มันทำอะไร — ตัวอย่างเดียวจบ',h_meli:'รู้จัก Meli — นิทานสั้น ๆ',h_how:'ทำงานยังไง — 3 ขั้น',h_who:'ใครใช้ได้ & ได้อะไร',h_see:'ดูมันค้นพบ — แค่กดดู',h_ind:'เลือกอุตสาหกรรม — ดู Melete ทำงานจริง',h_proven:'พิสูจน์ได้ ไม่ใช่แค่พูด',h_use:'ใช้กับงานของคุณ — ตอบ 3 คำถาม',heroTag:'เมื่อการทดลองแต่ละครั้งแพง Melete หา<b>คำตอบที่ดีที่สุดในจำนวนครั้งที่น้อยที่สุด</b> — แล้วพิสูจน์ให้ดูว่าได้มายังไง',heroSub:'Mneme จดจำ; Melete ค้นพบ',winning:'สูตรที่ชนะ',signed:'ทุกขั้นเซ็นด้วยคริปโต — ผลตรวจสอบได้จริง ไม่มีโม้ ไม่มีเดา'}
 };
 function tr(k){var o=T[LANG]||T.en;return o[k]!=null?o[k]:T.en[k];}
 function showContact(){document.getElementById('contactModal').style.display='flex';}
@@ -589,7 +589,7 @@ async function run(){
  if(!('IntersectionObserver' in window)){ps.forEach(function(p){p.classList.add('in')});return;}
  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:0.3,rootMargin:'0px 0px -8% 0px'});
  ps.forEach(function(p){io.observe(p)});})();
-setMode('simple');loadPreset();
+setMode('simple');loadPreset();setLang(LANG);
 </script>
 </body></html>`;
 }
