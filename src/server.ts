@@ -272,6 +272,7 @@ export function landingPage(version = "0.4.0"): string {
   <option value="pharma">💊 Drug formulation — pH · temperature · excipient → stability</option>
   <option value="gpu">⚡ GPU kernel tuning — tile · unroll · occupancy → throughput</option>
   <option value="etch">🔬 Semiconductor etch — power · pressure · time → yield</option>
+  <option value="llm">🧠 LLM serving — batch · KV-cache · quantization → tokens/sec</option>
 </select>
 <div id="scenario" class="scenario"></div>
 <div id="advbox" class="advbox">
@@ -316,6 +317,7 @@ export function landingPage(version = "0.4.0"): string {
   <div class="card indcard" onclick="tryScenario('pharma')"><div class="who">💊 Pharma · biotech</div><h3>Drug formulation</h3><p>Variables: pH · temperature · excipient %. Goal: stability / potency. Melete finds the most stable formulation in ~60 assays — instead of hundreds.</p><div class="go">▶ Run it now</div></div>
   <div class="card indcard" onclick="tryScenario('gpu')"><div class="who">⚡ AI infrastructure · accelerators</div><h3>GPU kernel tuning</h3><p>Variables: tile size · unroll · occupancy. Goal: throughput (GFLOP/s). Find the fastest config in ~50 benchmark runs.</p><div class="go">▶ Run it now</div></div>
   <div class="card indcard" onclick="tryScenario('etch')"><div class="who">🔬 Semiconductor · fab</div><h3>Plasma-etch process</h3><p>Variables: power · pressure · time. Goal: wafer yield %. Tune the recipe to maximum yield — air-gapped, on-prem.</p><div class="go">▶ Run it now</div></div>
+  <div class="card indcard" onclick="tryScenario('llm')"><div class="who">🧠 The AI world itself</div><h3>LLM serving config</h3><p>Variables: batch size · KV-cache · quantization. Goal: tokens/sec at a quality bar. Melete optimises AI infrastructure too — and can tune prompts, agents &amp; routing the same way.</p><div class="go">▶ Run it now</div></div>
   <div class="card indcard" onclick="tryScenario('coffee')"><div class="who">☕ Everyday</div><h3>Best espresso recipe</h3><p>Variables: temp · grind · dose. Goal: taste. The friendliest way to watch the idea click.</p><div class="go">▶ Run it now</div></div>
 </div></section>
 
@@ -374,6 +376,8 @@ var PRESETS={
     s:['🎛️ Variables','GPU kernel — tile size 8–128 · unroll 1–8 · target occupancy 0.1–1.0'],t:['🧪 Score','a simulated throughput in GFLOP/s (real life: run the kernel + benchmark)'],b:['🎯 Budget','50 benchmark runs — Melete finds the fastest config']},
   etch:{space:'[{"name":"power","type":"real","min":100,"max":1000},{"name":"pressure","type":"real","min":5,"max":100},{"name":"time","type":"real","min":10,"max":120}]',obj:'98 - 0.00008*(power-650)**2 - 0.012*(pressure-35)**2 - 0.004*(time-70)**2',budget:60,
     s:['🎛️ Variables','plasma etch — power 100–1000W · pressure 5–100mTorr · time 10–120s'],t:['🧪 Score','a simulated wafer yield % (real life: measure the finished wafer)'],b:['🎯 Budget','60 runs — Melete tunes the process to maximum yield']},
+  llm:{space:'[{"name":"batch","type":"int","min":1,"max":64},{"name":"kv_cache_gb","type":"real","min":1,"max":40},{"name":"quant_bits","type":"int","min":4,"max":16}]',obj:'4200 - 1.5*(batch-32)**2 - 4*(kv_cache_gb-24)**2 - 32*(quant_bits-8)**2',budget:55,
+    s:['🎛️ Variables','LLM serving — batch 1–64 · KV-cache 1–40GB · quantization 4–16 bits'],t:['🧪 Score','a simulated tokens/sec at a quality bar (real life: load-test the server)'],b:['🎯 Budget','55 configs — Melete finds the fastest serving setup']},
 };
 function tryScenario(k){var sel=document.getElementById('preset');sel.value=k;loadPreset();var t=document.getElementById('try');if(t)t.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(run,650);}
 function setMode(m){var a=document.getElementById('advbox');if(a)a.style.display=(m==='advanced')?'block':'none';var s=document.getElementById('mt-simple'),v=document.getElementById('mt-advanced');if(s)s.className='mt'+(m==='simple'?' on':'');if(v)v.className='mt'+(m==='advanced'?' on':'');}
