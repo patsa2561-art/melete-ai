@@ -12,7 +12,7 @@ import {
   Tracer, verifyTrace,
   multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
-  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions, territoryGauntlet, assessTerritory, coverageScore, costAwareGauntlet, proposeNextCostAware, costAwareDiscover, confidenceGauntlet, stopConfidence, driftGauntlet, analyzeDrift, achievabilityGauntlet, assessAchievability, inverseGauntlet, inverseDesign, efficiencyGauntlet, discoveryEfficiency, prescriptionGauntlet, buildPrescription, batchGauntlet, proposeBatch, twinGauntlet, predictAt, constrainedGauntlet, bestFeasible, proposeNextSafe,
+  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions, territoryGauntlet, assessTerritory, coverageScore, costAwareGauntlet, proposeNextCostAware, costAwareDiscover, confidenceGauntlet, stopConfidence, driftGauntlet, analyzeDrift, achievabilityGauntlet, assessAchievability, inverseGauntlet, inverseDesign, efficiencyGauntlet, discoveryEfficiency, prescriptionGauntlet, buildPrescription, batchGauntlet, proposeBatch, twinGauntlet, predictAt, constrainedGauntlet, bestFeasible, proposeNextSafe, lineageGauntlet, buildLineage,
 } from "./index.js";
 
 describe("gauntlets (every module = 100)", () => {
@@ -45,10 +45,11 @@ describe("gauntlets (every module = 100)", () => {
   it("batch planner (k diverse parallel experiments)", () => expect(batchGauntlet().score).toBe(100));
   it("what-if twin (predict a setting with honest confidence)", () => expect(twinGauntlet().score).toBe(100));
   it("safe optimization (constraints + safety margin)", () => expect(constrainedGauntlet().score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 32 modules", async () => {
+  it("discovery brain (improvement-lineage tree)", () => expect(lineageGauntlet().score).toBe(100));
+  it("aggregate meleteGauntlet = 100 over all 33 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["achievability", "arms", "batch", "bench", "certify", "confidence", "constrained", "cortex", "costaware", "drift", "efficiency", "engine", "federated", "frontier", "interaction", "interactive", "inverse", "multiobjective", "noise", "oracle", "poopt", "portfolio", "prescription", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "territory", "trace", "twin"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["achievability", "arms", "batch", "bench", "certify", "confidence", "constrained", "cortex", "costaware", "drift", "efficiency", "engine", "federated", "frontier", "interaction", "interactive", "inverse", "lineage", "multiobjective", "noise", "oracle", "poopt", "portfolio", "prescription", "reliability", "replicate", "resonance", "sensitivity", "server", "space", "territory", "trace", "twin"]);
   });
 });
 
