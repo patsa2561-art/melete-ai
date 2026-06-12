@@ -27,8 +27,9 @@ import { analyzeCliffs } from "./cliff.js";
 import { analyzeDrift } from "./drift.js";
 import { stopConfidence } from "./confidence.js";
 import { analyzeSloppiness } from "./sloppiness.js";
+import { analyzeSurprise } from "./surprise.js";
 
-export type PrimeKind = "safety" | "feasibility" | "trust" | "refine" | "ship" | "more-data" | "unknown";
+export type PrimeKind = "safety" | "feasibility" | "breakthrough" | "trust" | "refine" | "ship" | "more-data" | "unknown";
 export interface PrimeInsight { kind: PrimeKind; severity: number; headline: string }
 export interface PrimeVerdict {
   processIQ: number;          // 0–100: how well-understood, optimized, safe, robust, trustworthy
@@ -53,6 +54,7 @@ export function meletePrime(obs: ReadonlyArray<Observation>, space: Space, goal:
   const drift = safe(() => analyzeDrift(hist, space, goal));
   const conf = safe(() => stopConfidence(hist, goal));
   const slop = safe(() => analyzeSloppiness(hist, space, goal));
+  const surp = safe(() => analyzeSurprise(hist, space, goal));
   const achiev = (typeof opts.target === "number" && Number.isFinite(opts.target)) ? safe(() => assessAchievability(hist, space, opts.target as number, goal)) : null;
 
   // ── insight triage — a senior engineer's priority order ──────────────────────
@@ -60,6 +62,7 @@ export function meletePrime(obs: ReadonlyArray<Observation>, space: Space, goal:
   if (cliffs && cliffs.optimumOnCliff) insights.push({ kind: "safety", severity: 100, headline: "Your best setting sits ON a cliff edge — a tiny drift could collapse the result. Step back to a flatter, safer setting before anything else." });
   if (achiev && achiev.verdict === "unreachable") insights.push({ kind: "feasibility", severity: 90, headline: `Your target is beyond what these variables can reach (ceiling ≈ ${achiev.ceiling}). Add a new lever or relax the target — more tuning won't get there.` });
   if (drift && drift.detected) insights.push({ kind: "trust", severity: 80, headline: "Your results trend with WHEN you measured — a possible time-confound. Re-test the winner fresh before trusting it." });
+  if (surp && surp.breakthrough) insights.push({ kind: "breakthrough", severity: 70, headline: `⭐ A surprising high result appeared (${(+surp.breakthrough.value).toPrecision(4)} where the trend predicted ~${surp.breakthrough.expected}). It may beat your current best — verify it and explore around it.` });
   if (presc && presc.decision === "refine") insights.push({ kind: "refine", severity: 60, headline: `The best found is fragile (robustness ${presc.robustnessPct}%). Explore nearby for a setting that survives real-world wobble.` });
   if (presc && presc.decision === "more-data") insights.push({ kind: "more-data", severity: 40, headline: "Still improving — a few more experiments should help before you lock it in." });
   if (presc && presc.decision === "ship") insights.push({ kind: "ship", severity: 30, headline: `Cleared to ship: use this recipe (${presc.confidencePct}% confident it's the best, robust and not time-confounded).` });

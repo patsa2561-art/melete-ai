@@ -12,7 +12,7 @@ import {
   Tracer, verifyTrace,
   multimodal, rugged, benchSpace, benchmark, benchGauntlet, robustnessBench,
   discoverSigned,
-  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions, territoryGauntlet, assessTerritory, coverageScore, costAwareGauntlet, proposeNextCostAware, costAwareDiscover, confidenceGauntlet, stopConfidence, driftGauntlet, analyzeDrift, achievabilityGauntlet, assessAchievability, inverseGauntlet, inverseDesign, efficiencyGauntlet, discoveryEfficiency, prescriptionGauntlet, buildPrescription, batchGauntlet, proposeBatch, twinGauntlet, predictAt, constrainedGauntlet, bestFeasible, proposeNextSafe, lineageGauntlet, buildLineage, sloppinessGauntlet, analyzeSloppiness, cliffGauntlet, analyzeCliffs, primeGauntlet, meletePrime,
+  frontierGauntlet, stoppingAdvice, reliabilityGauntlet, certifyGauntlet, certifyOptimality, pooptGauntlet, issueProofOfOptimization, verifyProofOfOptimization, federatedGauntlet, contribute, mergePool, verifyPool, multiObjectiveGauntlet, paretoFront, dominates, proposeNextMulti, sensitivityGauntlet, analyzeSensitivity, noiseGauntlet, analyzeNoise, interactionGauntlet, analyzeInteractions, territoryGauntlet, assessTerritory, coverageScore, costAwareGauntlet, proposeNextCostAware, costAwareDiscover, confidenceGauntlet, stopConfidence, driftGauntlet, analyzeDrift, achievabilityGauntlet, assessAchievability, inverseGauntlet, inverseDesign, efficiencyGauntlet, discoveryEfficiency, prescriptionGauntlet, buildPrescription, batchGauntlet, proposeBatch, twinGauntlet, predictAt, constrainedGauntlet, bestFeasible, proposeNextSafe, lineageGauntlet, buildLineage, sloppinessGauntlet, analyzeSloppiness, cliffGauntlet, analyzeCliffs, primeGauntlet, meletePrime, surpriseGauntlet, analyzeSurprise,
 } from "./index.js";
 
 describe("gauntlets (every module = 100)", () => {
@@ -49,10 +49,11 @@ describe("gauntlets (every module = 100)", () => {
   it("sloppiness (effective dimensionality / stiff-sloppy)", () => expect(sloppinessGauntlet().score).toBe(100));
   it("cliff / tipping-point detector", () => expect(cliffGauntlet().score).toBe(100));
   it("◆ MELETE PRIME (the Red Diamond — unified brain)", () => expect(primeGauntlet().score).toBe(100));
-  it("aggregate meleteGauntlet = 100 over all 36 modules", async () => {
+  it("breakthrough radar / surprise detector", () => expect(surpriseGauntlet().score).toBe(100));
+  it("aggregate meleteGauntlet = 100 over all 37 modules", async () => {
     const g = await meleteGauntlet();
     expect(g.score).toBe(100);
-    expect(g.modules.map((m) => m.name).sort()).toEqual(["achievability", "arms", "batch", "bench", "certify", "cliff", "confidence", "constrained", "cortex", "costaware", "drift", "efficiency", "engine", "federated", "frontier", "interaction", "interactive", "inverse", "lineage", "multiobjective", "noise", "oracle", "poopt", "portfolio", "prescription", "prime", "reliability", "replicate", "resonance", "sensitivity", "server", "sloppiness", "space", "territory", "trace", "twin"]);
+    expect(g.modules.map((m) => m.name).sort()).toEqual(["achievability", "arms", "batch", "bench", "certify", "cliff", "confidence", "constrained", "cortex", "costaware", "drift", "efficiency", "engine", "federated", "frontier", "interaction", "interactive", "inverse", "lineage", "multiobjective", "noise", "oracle", "poopt", "portfolio", "prescription", "prime", "reliability", "replicate", "resonance", "sensitivity", "server", "sloppiness", "space", "surprise", "territory", "trace", "twin"]);
   });
 });
 
