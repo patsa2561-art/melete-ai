@@ -23,6 +23,7 @@ export * from "./reliability.js";
 export * from "./certify.js";
 export * from "./poopt.js";
 export * from "./federated.js";
+export * from "./multiobjective.js";
 export * from "./server.js";
 
 import { type DiscoverOpts, type DiscoveryResult, type Step, discover } from "./engine.js";
@@ -69,6 +70,7 @@ import { reliabilityGauntlet } from "./reliability.js";
 import { certifyGauntlet } from "./certify.js";
 import { pooptGauntlet } from "./poopt.js";
 import { federatedGauntlet } from "./federated.js";
+import { multiObjectiveGauntlet } from "./multiobjective.js";
 import { serverGauntlet } from "./server.js";
 
 export interface MeleteGauntlet { score: 0 | 100; modules: Array<{ name: string; score: number; checks: Array<{ name: string; pass: boolean }> }> }
@@ -88,6 +90,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "certify", g: await certifyGauntlet() },
     { name: "poopt", g: pooptGauntlet() },
     { name: "federated", g: federatedGauntlet() },
+    { name: "multiobjective", g: multiObjectiveGauntlet() },
     { name: "trace", g: traceGauntlet() },
     { name: "bench", g: await benchGauntlet() },
     { name: "server", g: serverGauntlet() },

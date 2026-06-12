@@ -116,6 +116,22 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "propose failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/next-multi") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const space = { dims: Array.isArray(body.space) ? body.space : body.space?.dims };
+      if (!space.dims?.length) return json(res, 400, { error: "space must be a non-empty array of {name,type,min,max}" });
+      if (space.dims.length > 12) return json(res, 400, { error: "demo limit: ≤12 dimensions" });
+      const goals = Array.isArray(body.goals) ? body.goals.map((g) => ({ name: g?.name, goal: g?.goal === "minimize" ? "minimize" : "maximize" })) : null;
+      if (!goals || !goals.length) return json(res, 400, { error: "goals must be a non-empty array of {goal:'maximize'|'minimize'} — one per objective" });
+      if (goals.length > 8) return json(res, 400, { error: "demo limit: ≤8 objectives" });
+      const obs = Array.isArray(body.observations) ? body.observations.filter((o) => o && o.experiment && Array.isArray(o.values) && o.values.length === goals.length && o.values.every((v) => Number.isFinite(+v))).map((o) => ({ experiment: o.experiment, values: o.values.map(Number) })) : [];
+      try {
+        const next = M.proposeNextMulti(space, obs, goals, (body.seed | 0) || 1);
+        const pareto = M.paretoFront(obs, goals);
+        return json(res, 200, { next, t: obs.length, goals, paretoFront: pareto, paretoSize: pareto.length });
+      } catch (e) { return json(res, 400, { error: "propose failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/verify") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       const v = M.verifyTrace(body.trace || body); return json(res, 200, v);
