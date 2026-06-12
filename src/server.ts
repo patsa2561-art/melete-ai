@@ -89,7 +89,13 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 .orb{transform-box:fill-box;transform-origin:center;animation:pulse 1.9s ease-in-out infinite}
 @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.24);opacity:.82}}
 .arm{transform-box:fill-box;transform-origin:bottom center;animation:wave 2.6s ease-in-out infinite}
-@keyframes wave{0%,100%{transform:rotate(-32deg)}50%{transform:rotate(-12deg)}}
+@keyframes wave{0%,100%{transform:rotate(-30deg)}50%{transform:rotate(-10deg)}}
+.eyes{transform-box:fill-box;transform-origin:center;animation:blink 5s ease-in-out infinite}
+@keyframes blink{0%,93%,100%{transform:scaleY(1)}96%{transform:scaleY(.12)}}
+.spark{transform-box:fill-box;transform-origin:center}
+.spark.s1{animation:twinkle 1.9s ease-in-out infinite}.spark.s2{animation:twinkle 2.4s ease-in-out .6s infinite}
+@keyframes twinkle{0%,100%{opacity:.25;transform:scale(.6) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(40deg)}}
+@media(prefers-reduced-motion:reduce){.meli,.orb,.arm,.eyes,.spark{animation:none}}
 .guide{display:flex;gap:24px;align-items:center;background:linear-gradient(180deg,#f7f8ff,#fff);border:1px solid var(--line);border-radius:18px;padding:24px 26px}
 .meliwrap{flex:0 0 auto}.meliwrap .meli{width:148px;height:auto}
 .guidebody{flex:1;min-width:0}
@@ -101,27 +107,38 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 @media(max-width:640px){.guide{flex-direction:column;text-align:center}.bubble::before{display:none}.dots{justify-content:center}}
 `;
 
-/** Meli — Melete's original mascot (an antenna-topped discovery sprite). 100% geometric SVG, no third-
- * party art / no copyright. The glowing orb on the antenna = "the next experiment to try". */
+/** Meli — Melete's original mascot: an antenna-topped discovery sprite (the glowing orb = "the next
+ * experiment to try"). 100% geometric SVG — no third-party / copyrighted art. Works in every browser +
+ * mobile (inline SVG + CSS animation, no libraries). */
 function meli(cls = ""): string {
-  return `<svg class="meli ${cls}" viewBox="0 0 140 165" xmlns="http://www.w3.org/2000/svg" aria-label="Meli, the Melete mascot">
+  return `<svg class="meli ${cls}" viewBox="0 0 200 224" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Meli, the Melete mascot">
   <defs>
-    <linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d5cf0"/><stop offset="1" stop-color="#0ea5b7"/></linearGradient>
-    <radialGradient id="orb" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#fff8d8"/><stop offset="0.6" stop-color="#fcd34d"/><stop offset="1" stop-color="#f59e0b"/></radialGradient>
+    <linearGradient id="mbody" x1="0.1" y1="0" x2="0.9" y2="1"><stop offset="0" stop-color="#7d6df6"/><stop offset="0.55" stop-color="#5b53e8"/><stop offset="1" stop-color="#0ea5b7"/></linearGradient>
+    <radialGradient id="mgloss" cx="0.36" cy="0.24" r="0.55"><stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="orbG" cx="0.4" cy="0.34" r="0.72"><stop offset="0" stop-color="#fffdf0"/><stop offset="0.5" stop-color="#fcd34d"/><stop offset="1" stop-color="#f59e0b"/></radialGradient>
+    <filter id="msoft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+    <filter id="mglow" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="5.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
   </defs>
-  <ellipse cx="66" cy="150" rx="40" ry="8" fill="#16172b" opacity="0.07"/>
-  <path class="ant" d="M70 58 C 80 38, 96 38, 100 20" stroke="#0ea5b7" stroke-width="4.5" fill="none" stroke-linecap="round"/>
-  <g class="orb"><circle cx="101" cy="17" r="10" fill="url(#orb)"/><circle cx="97.5" cy="13.5" r="2.6" fill="#fff" opacity="0.85"/></g>
-  <ellipse cx="64" cy="100" rx="47" ry="49" fill="url(#mg)"/>
-  <ellipse cx="60" cy="110" rx="31" ry="30" fill="#ffffff" opacity="0.12"/>
-  <ellipse class="arm" cx="111" cy="86" rx="9" ry="15" fill="url(#mg)" transform="rotate(-32 111 86)"/>
-  <ellipse cx="18" cy="108" rx="9" ry="15" fill="url(#mg)" transform="rotate(24 18 108)"/>
-  <circle cx="50" cy="92" r="10" fill="#fff"/><circle cx="80" cy="92" r="10" fill="#fff"/>
-  <circle class="eye" cx="52.5" cy="94" r="5" fill="#1a1b30"/><circle class="eye" cx="82.5" cy="94" r="5" fill="#1a1b30"/>
-  <circle cx="54.5" cy="92" r="1.7" fill="#fff"/><circle cx="84.5" cy="92" r="1.7" fill="#fff"/>
-  <path d="M55 110 Q66 119 77 110" stroke="#1a1b30" stroke-width="3.6" fill="none" stroke-linecap="round"/>
-  <ellipse cx="40" cy="104" rx="5.5" ry="3.4" fill="#ff8fb1" opacity="0.55"/>
-  <ellipse cx="88" cy="104" rx="5.5" ry="3.4" fill="#ff8fb1" opacity="0.55"/>
+  <ellipse cx="100" cy="210" rx="56" ry="11" fill="#16172b" opacity="0.10"/>
+  <path class="ant" d="M104 70 C 120 44, 142 46, 148 22" stroke="#0ea5b7" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <g class="orb" filter="url(#mglow)"><circle cx="150" cy="18" r="13" fill="url(#orbG)"/><circle cx="145" cy="13" r="3.4" fill="#fff" opacity="0.9"/></g>
+  <path class="spark s1" d="M172 34 l2.2 6.4 6.4 2.2 -6.4 2.2 -2.2 6.4 -2.2 -6.4 -6.4 -2.2 6.4 -2.2 z" fill="#fcd34d"/>
+  <path class="spark s2" d="M128 6 l1.6 4.6 4.6 1.6 -4.6 1.6 -1.6 4.6 -1.6 -4.6 -4.6 -1.6 4.6 -1.6 z" fill="#67e8f9"/>
+  <g filter="url(#msoft)" opacity="0.45"><path d="M100 60 C 148 60, 168 96, 166 130 C 164 170, 134 196, 100 196 C 66 196, 36 170, 34 130 C 32 96, 52 60, 100 60 Z" fill="#4338ca"/></g>
+  <ellipse cx="78" cy="196" rx="16" ry="9" fill="#4f46d6"/><ellipse cx="122" cy="196" rx="16" ry="9" fill="#4f46d6"/>
+  <ellipse class="arm" cx="162" cy="120" rx="11" ry="21" fill="url(#mbody)" transform="rotate(-30 162 120)"/>
+  <ellipse cx="38" cy="142" rx="11" ry="21" fill="url(#mbody)" transform="rotate(26 38 142)"/>
+  <path d="M100 54 C 150 54, 168 92, 166 128 C 164 168, 134 194, 100 194 C 66 194, 36 168, 34 128 C 32 92, 50 54, 100 54 Z" fill="url(#mbody)"/>
+  <ellipse cx="88" cy="116" rx="50" ry="46" fill="url(#mgloss)"/>
+  <ellipse cx="100" cy="152" rx="42" ry="34" fill="#ffffff" opacity="0.10"/>
+  <g class="eyes">
+    <ellipse cx="80" cy="120" rx="14.5" ry="16.5" fill="#fff"/><ellipse cx="120" cy="120" rx="14.5" ry="16.5" fill="#fff"/>
+    <circle cx="83" cy="124" r="7.2" fill="#1a1b30"/><circle cx="123" cy="124" r="7.2" fill="#1a1b30"/>
+    <circle cx="86" cy="120.5" r="2.7" fill="#fff"/><circle cx="126" cy="120.5" r="2.7" fill="#fff"/>
+    <circle cx="80" cy="127" r="1.4" fill="#fff" opacity="0.7"/><circle cx="120" cy="127" r="1.4" fill="#fff" opacity="0.7"/>
+  </g>
+  <path d="M84 146 Q100 160 116 146" stroke="#1a1b30" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="62" cy="140" rx="7.5" ry="4.6" fill="#ff8fb1" opacity="0.55"/><ellipse cx="138" cy="140" rx="7.5" ry="4.6" fill="#ff8fb1" opacity="0.55"/>
 </svg>`;
 }
 
@@ -398,7 +415,7 @@ export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
     { name: "DISCOVERY-MAP", pass: html.includes("Discovery map") && html.includes('id="surf"') && html.includes("renderMap") && html.includes("heat("), detail: "renders an interactive discovery map (learned surface heatmap + experiment path + convergence + strategy)" },
     { name: "WHO-ITS-FOR+STEPS", pass: html.includes("Who it's for") && html.includes("Pharma") && html.includes("AI / ML teams") && html.includes("How it works") && html.includes("Score one try"), detail: "audiences + the 3-step explainer (journalist-style, 1-minute readable)" },
-    { name: "MELI-MASCOT", pass: html.includes("Meet Meli") && html.includes('class="meli') && html.includes("meliCycle") && html.includes('linearGradient id="mg"'), detail: "original animated SVG mascot (Meli) guides the explanation — geometric art, no third-party / copyright" },
+    { name: "MELI-MASCOT", pass: html.includes("Meet Meli") && html.includes('class="meli') && html.includes("meliCycle") && html.includes('linearGradient id="mbody"') && html.includes("@keyframes blink"), detail: "original world-class animated SVG mascot (Meli: gradient body, gloss, glow orb, blink, sparkles) — geometric art, no third-party/copyright, works on every browser + mobile" },
     { name: "NO-DATASET", pass: html.includes("No dataset") && html.includes("melete tune"), detail: "explains no dataset is needed + shows the real `melete tune` usage" },
     { name: "AIR-GAPPED", pass: html.toLowerCase().includes("air-gapped") && html.includes("runs fully offline"), detail: "states the air-gapped / on-prem positioning" },
     { name: "PITCH-DECK", pass: pitch.startsWith("<!doctype html>") && pitch.includes("The ask") && pitch.includes("The moat") && html.includes('href="/pitch"'), detail: "HTML pitch deck renders (problem→product→moat→proof→ask) and is linked from the landing page" },
