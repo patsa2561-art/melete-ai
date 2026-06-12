@@ -96,15 +96,38 @@ canvas{border-radius:12px;border:1px solid var(--line);background:#fff}
 .spark.s1{animation:twinkle 1.9s ease-in-out infinite}.spark.s2{animation:twinkle 2.4s ease-in-out .6s infinite}
 @keyframes twinkle{0%,100%{opacity:.25;transform:scale(.6) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(40deg)}}
 @media(prefers-reduced-motion:reduce){.meli,.orb,.arm,.eyes,.spark{animation:none}}
-.guide{display:flex;gap:24px;align-items:center;background:linear-gradient(180deg,#f7f8ff,#fff);border:1px solid var(--line);border-radius:18px;padding:24px 26px}
-.meliwrap{flex:0 0 auto}.meliwrap .meli{width:148px;height:auto}
-.guidebody{flex:1;min-width:0}
-.bubble{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:15px 18px;font-size:16.5px;color:#1a1b30;min-height:54px;box-shadow:0 2px 12px rgba(20,20,50,.05);transition:opacity .3s}
-.bubble::before{content:"";position:absolute;left:-9px;top:22px;width:16px;height:16px;background:#fff;border-left:1.5px solid var(--line);border-bottom:1.5px solid var(--line);transform:rotate(45deg)}
-.dots{margin-top:13px;display:flex;gap:6px}
-.dots i{width:7px;height:7px;border-radius:50%;background:#d9dbe9;display:inline-block;transition:.3s}
-.dots i.on{background:var(--ind);width:19px;border-radius:4px}
-@media(max-width:640px){.guide{flex-direction:column;text-align:center}.bubble::before{display:none}.dots{justify-content:center}}
+.storybook{display:flex;flex-direction:column;gap:18px}
+.panel{display:flex;align-items:center;gap:26px;border:1.5px solid var(--line);border-radius:22px;padding:24px 28px;opacity:0;transform:translateY(34px);transition:opacity .65s cubic-bezier(.2,.7,.2,1),transform .65s cubic-bezier(.2,.7,.2,1);box-shadow:0 6px 22px rgba(30,28,80,.05)}
+.panel.in{opacity:1;transform:none}
+.panel:nth-child(even){flex-direction:row-reverse}
+.panel-art{flex:0 0 170px;position:relative;display:flex;justify-content:center}
+.panel-art .meli{width:152px;height:auto}
+.panel-text{flex:1;min-width:0}
+.panel-text p{margin:0;font-size:19.5px;line-height:1.55;color:#26283f}
+.beatnum{display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;border-radius:9px;background:var(--grad);color:#fff;font-weight:800;font-size:15px;margin-bottom:11px}
+.panel.wish{background:linear-gradient(180deg,#fff6fb,#fff)}
+.panel.maze{background:linear-gradient(180deg,#f5f6ff,#fff)}
+.panel.think{background:linear-gradient(180deg,#f2f0ff,#fff)}
+.panel.dance{background:linear-gradient(180deg,#edfcf6,#fff)}
+.panel.win{background:linear-gradient(180deg,#fffaef,#fff)}
+.prop{position:absolute;pointer-events:none;opacity:0;transition:opacity .5s .25s}
+.panel.in .prop{opacity:1}
+.prop.hearts{top:-4px;right:24px;font-size:26px;animation:floatup 2.6s ease-in-out infinite}
+.prop.cups{top:4px;left:-2px;font-size:17px;line-height:1.2;opacity:.4 !important;letter-spacing:3px}
+.prop.bubble{top:2px;right:0;background:#fff;border:1.5px solid #ddd9fb;border-radius:13px;padding:7px 12px;font-size:13.5px;color:#4338ca;font-weight:700;box-shadow:0 4px 12px rgba(80,60,220,.14)}
+.panel.in .prop.bubble{animation:pop .5s .35s both}
+.prop.cup{top:2px;right:6px;font-size:36px}
+.prop.cup .score{position:absolute;top:4px;right:46px;font-family:ui-monospace,monospace;font-size:13px;font-weight:700;color:#0e9f6e;background:#e9fbf3;border:1px solid #b7ecd4;border-radius:8px;padding:3px 9px;white-space:nowrap}
+.prop.star{top:-6px;left:52%;margin-left:-15px;font-size:32px}
+.panel.in .prop.star{animation:pop .6s .4s both}
+.prop.seal{bottom:6px;right:2px;font-size:12.5px;font-weight:700;color:#0e9f6e;background:#e9fbf3;border:1px solid #b7ecd4;border-radius:999px;padding:5px 11px}
+.panel.think.in .orb{animation:pulse 1s ease-in-out infinite}
+.panel.win.in .meli{animation:cheer .75s ease 1}
+@keyframes cheer{0%{transform:translateY(0) rotate(0)}30%{transform:translateY(-17px) rotate(-6deg)}60%{transform:translateY(-4px) rotate(5deg)}100%{transform:translateY(0)}}
+@keyframes floatup{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes pop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+@media(max-width:640px){.panel,.panel:nth-child(even){flex-direction:column;text-align:center}.panel-text p{font-size:17.5px}.prop.cup .score{position:static;display:inline-block;margin-top:6px}}
+@media(prefers-reduced-motion:reduce){.panel{transition:none;opacity:1;transform:none}}
 `;
 
 /** Meli — Melete's original mascot: an antenna-topped discovery sprite (the glowing orb = "the next
@@ -177,14 +200,40 @@ export function landingPage(version = "0.4.0"): string {
 <p style="color:#33344e;margin-top:14px">Swap “coffee” for a <b>training run</b>, a <b>chemical reaction</b>, or a <b>price</b> — it's the same: Melete finds the best settings in the <b>fewest expensive tries</b>, and signs a <b>proof</b> of how it got there. <span class="muted">You bring the thing you can adjust and a way to score one try; it brings the strategy.</span></p>
 </div></section>
 
-<section><h2>Meet Meli — your discovery guide</h2>
-<div class="guide">
-  <div class="meliwrap">${meli()}</div>
-  <div class="guidebody">
-    <div class="bubble" id="meliSay">Hi! I'm Meli 👋</div>
-    <div class="dots" id="meliDots"></div>
-    <p class="muted" style="margin-top:12px">Meli proposes the next experiment, you score it, Meli learns — that smart loop is the whole product.</p>
+<section><h2>Meet Meli — a tiny story</h2>
+<div class="storybook">
+
+  <div class="panel wish" data-beat>
+    <div class="panel-art">${meli()}<span class="prop hearts">💛</span></div>
+    <div class="panel-text"><span class="beatnum">1</span>
+      <p>Once upon a time, a little coffee shop wished for the <b>most delicious espresso in the world</b>.</p></div>
   </div>
+
+  <div class="panel maze" data-beat>
+    <div class="panel-art">${meli()}<span class="prop cups">☕☕☕<br>☕☕☕</span></div>
+    <div class="panel-text"><span class="beatnum">2</span>
+      <p>But there were <b>thousands of ways</b> to make it — and every single test meant brewing, and tasting, a whole cup. Trying them all? <b>Impossible.</b></p></div>
+  </div>
+
+  <div class="panel think" data-beat>
+    <div class="panel-art">${meli()}<span class="prop bubble">brew <b>this</b> one →</span></div>
+    <div class="panel-text"><span class="beatnum">3</span>
+      <p>Then came <b>Meli</b> — who never tries everything. Meli looks, thinks, and the little light glows: <i>“brew <b>this</b> one next.”</i></p></div>
+  </div>
+
+  <div class="panel dance" data-beat>
+    <div class="panel-art">${meli()}<span class="prop cup">☕<span class="score">7 → 8.5 → 9.2</span></span></div>
+    <div class="panel-text"><span class="beatnum">4</span>
+      <p>You brew it, you taste it — <b>7 out of 10</b>. Meli smiles, <b>learns</b>, and picks an even smarter cup. 8.5… 9.2…</p></div>
+  </div>
+
+  <div class="panel win" data-beat>
+    <div class="panel-art">${meli()}<span class="prop star">⭐</span><span class="prop seal">📜 verified ✓</span></div>
+    <div class="panel-text"><span class="beatnum">5</span>
+      <p>In about <b>twenty cups</b>, Meli found the <b>perfect recipe</b> — and sealed a magical <b>proof</b> of how, so the whole world could trust it. <b>The end ✨</b></p>
+      <a class="btn primary" href="#try" style="margin-top:14px;display:inline-block">▶ Now watch Meli do it for real</a></div>
+  </div>
+
 </div></section>
 
 <section><h2>How it works — 3 steps</h2>
@@ -349,16 +398,11 @@ async function run(){
     renderMap(j);
   }catch(e){out.textContent='⚠ '+e.message;}
 }
-var SAY=[
- "Hi! I'm Meli 👋 — I help you find the best settings for something that's expensive to test.",
- "Tell me what you can adjust (like coffee temp, grind, dose) and a way to score one try.",
- "I'll suggest the smartest next experiment to run — you try it and tell me the score.",
- "I learn from every score and zero in — finding the best in a few tries, not hundreds.",
- "And I sign a proof of how we got there, so anyone can verify it. ✨"
-];
-var si=0;
-function meliCycle(){var b=document.getElementById('meliSay');if(!b)return;b.style.opacity=0;setTimeout(function(){b.textContent=SAY[si];var ds=document.querySelectorAll('#meliDots i');ds.forEach(function(d,k){d.className=k===si?'on':''});b.style.opacity=1;si=(si+1)%SAY.length;},300);}
-(function(){var dd=document.getElementById('meliDots');if(dd){dd.innerHTML=SAY.map(function(){return '<i></i>'}).join('');meliCycle();setInterval(meliCycle,3200);}})();
+// storybook — reveal each comic panel as it scrolls into view (synced Meli effects via CSS)
+(function(){var ps=[].slice.call(document.querySelectorAll('.panel[data-beat]'));
+ if(!('IntersectionObserver' in window)){ps.forEach(function(p){p.classList.add('in')});return;}
+ var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}})},{threshold:0.3,rootMargin:'0px 0px -8% 0px'});
+ ps.forEach(function(p){io.observe(p)});})();
 loadPreset();
 </script>
 </body></html>`;
@@ -415,7 +459,7 @@ export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
     { name: "DISCOVERY-MAP", pass: html.includes("Discovery map") && html.includes('id="surf"') && html.includes("renderMap") && html.includes("heat("), detail: "renders an interactive discovery map (learned surface heatmap + experiment path + convergence + strategy)" },
     { name: "WHO-ITS-FOR+STEPS", pass: html.includes("Who it's for") && html.includes("Pharma") && html.includes("AI / ML teams") && html.includes("How it works") && html.includes("Score one try"), detail: "audiences + the 3-step explainer (journalist-style, 1-minute readable)" },
-    { name: "MELI-MASCOT", pass: html.includes("Meet Meli") && html.includes('class="meli') && html.includes("meliCycle") && html.includes('linearGradient id="mbody"') && html.includes("@keyframes blink"), detail: "original world-class animated SVG mascot (Meli: gradient body, gloss, glow orb, blink, sparkles) — geometric art, no third-party/copyright, works on every browser + mobile" },
+    { name: "MELI-STORYBOOK", pass: html.includes("Meet Meli") && html.includes('class="meli') && html.includes("storybook") && html.includes('data-beat') && html.includes("IntersectionObserver") && html.includes('linearGradient id="mbody"') && html.includes("@keyframes blink"), detail: "original animated mascot (Meli) stars in an interactive scroll-revealed comic storybook with synced effects — geometric art, no third-party/copyright, every browser + mobile" },
     { name: "NO-DATASET", pass: html.includes("No dataset") && html.includes("melete tune"), detail: "explains no dataset is needed + shows the real `melete tune` usage" },
     { name: "AIR-GAPPED", pass: html.toLowerCase().includes("air-gapped") && html.includes("runs fully offline"), detail: "states the air-gapped / on-prem positioning" },
     { name: "PITCH-DECK", pass: pitch.startsWith("<!doctype html>") && pitch.includes("The ask") && pitch.includes("The moat") && html.includes('href="/pitch"'), detail: "HTML pitch deck renders (problem→product→moat→proof→ask) and is linked from the landing page" },
