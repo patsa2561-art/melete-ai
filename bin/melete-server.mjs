@@ -118,6 +118,25 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "mixed failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 📜 PROVENANCE — demo the O(1) tamper-evident audit trail: build a checkpoint over `count` synthetic
+    // events, sign it, and prove (a) the snapshot is bounded and (b) altering any past event is detected.
+    if (req.method === "POST" && path === "/provenance") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const count = Math.max(1, Math.min(200000, (body.count | 0) || 5000));
+      const windowSize = Math.max(1, Math.min(500, (body.windowSize | 0) || 50));
+      try {
+        const events = []; for (let i = 0; i < count; i++) events.push({ kind: i % 3 === 0 ? "decision" : "experiment", payload: { i, x: (i * 7) % 100 } });
+        const cp = M.signCheckpoint(M.buildCheckpoint(events, windowSize));
+        const sizeBytes = M.checkpointSize(cp);
+        const sigValid = M.verifyCheckpointSignature(cp).ok;
+        const intact = M.verifyAgainst(cp, events).ok;
+        // tamper an old event and show it's caught
+        const tampered = events.slice(); const pos = Math.floor(count / 2); tampered[pos] = { kind: tampered[pos].kind, payload: { i: pos, x: 999999 } };
+        const tamperDetected = !M.verifyAgainst(cp, tampered).ok;
+        return json(res, 200, { count: cp.count, windowSize, sizeBytes, foldedRoot: cp.foldedRoot, signatureValid: sigValid, intactVerifies: intact, tamperDetected, algo: cp.algo });
+      } catch (e) { return json(res, 400, { error: "provenance failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
