@@ -1,42 +1,64 @@
-# Melete — the Self-Driving Discovery Brain
+<div align="center">
 
-**Find the best settings for any expensive-to-test process in the fewest experiments — with a signed proof.**
-Live: **https://melete.mneme-ai.space**
+<img src="assets/meli.svg" alt="Meli — the Melete mascot" width="130" />
 
-When every experiment costs real money or time (a lab assay, a wafer run, a GPU sweep, a fraud model), you can't try everything. Melete proposes the next experiment to run, you measure it, and it converges to the best — then signs a certificate anyone can verify offline.
+# Melete
 
-## Why it's different
-- 🧪 **No formula, no code.** Tell it what you can change (pH, temperature, …); it tells you what to try next. You measure the real result and type the score.
-- 🛑 **Knows when to stop.** It tells you when more experiments won't be worth the cost.
-- 🧬 **Multi-objective.** Optimize potency *and* stability *and* cost at once — get the Pareto front of trade-offs.
-- 🔒 **Air-gapped + signed.** Runs fully offline; every result carries an Ed25519 **Proof of Optimization** anyone verifies without trusting us.
+### The Sovereign Verifiable AI Analyst &amp; Optimizer
 
-## Quick start
-**Web:** open the live site, pick your field (Pharma · Semiconductor · Fintech · AI safety · …), follow the 4-step loop.
+**Find the best — and most *robust* — settings for any system you can measure, in the fewest experiments — then hand over a signed verdict anyone can re-verify offline.**
 
-**CLI:**
+🌐 Live demo → **[melete.mneme-ai.space](https://melete.mneme-ai.space)**
+
+`MIT` · zero runtime dependencies · runs on your machine
+
+</div>
+
+---
+
+## What it is (in one line)
+You have a system you can **measure** — an ML pipeline, a server/DB/network config, a recipe, a simulation. Melete proposes the next setting to try, you measure it (or give a formula), and it converges to the best **stable** answer — then explains *why* in plain language and signs a verdict you (or an auditor) can re-check offline. **Your data never leaves your machine.**
+
+## Use it in 60 seconds — 3 ways
+
+**1) Through the website (no code).** Open the [live demo](https://melete.mneme-ai.space), pick your field (Pharma · Semiconductor · AI/ML · …), press **Watch** to see it discover, or use **guided mode**: it proposes → you measure in real life → you type the score → repeat.
+
+**2) CLI / npm (on your own machine):**
 ```bash
 npm i -g melete-ai
-melete bench         # measured: beats random/grid search
-melete multi         # multi-objective demo → the Pareto front
-melete gauntlet      # every module's correctness check (must be 100)
-melete poopt c.json  # verify a Proof of Optimization offline
+melete bench            # measured: beats random / grid search
+melete gauntlet         # every engine's correctness check (must be 100)
+melete poopt cert.json  # verify a signed certificate offline
 ```
 
-**API (connect your real process):**
+**3) API — connect your real process (air-gapped):**
+```bash
+POST /next             { space, observations }              → the next setting to try
+POST /aegis            { space, objective, budget }         → the best ROBUST setting (survives wobble)
+POST /discover         { space, objective, budget }         → full run + signed Sovereign Verdict + Replay Token
+POST /sovereign/verify { …verdict }                         → re-verify provenance OFFLINE
+POST /replay/verify    { …token }                           → re-derive the decision step-by-step OFFLINE
 ```
-POST /next         { space, observations }         → next experiment to try
-POST /next-multi   { space, goals, observations }  → next + the Pareto front
-POST /poopt/verify { …cert }                       → verify offline, no trust needed
-```
+…or call the library directly: `import { sovereignAnalyze, aegisDiscover, proposeNext } from "melete-ai"`.
 
-## The loop
-1. Tell Melete what you can change (or pick your field)
-2. It proposes the exact next setting to try
-3. You run it for real and type the score you measured
-4. Repeat ~20–40× → best config + a signed, verifiable proof
+## What's inside — 43 engines, 4 layers
+| | layer | what it does |
+|---|---|---|
+| 🔍 | **DISCOVER** | find the best setting in the fewest tries (adaptive ensemble) |
+| ◆ | **DECIDE** | the Φ brain's safety-first verdict + 🛡 AEGIS, the *robust* answer (not the fragile spike) |
+| 🔬 | **DIAGNOSE** | plain-language *why*: which knobs matter, where the cliffs are, the shape, the achievable ceiling |
+| 👑 | **CERTIFY** | an Ed25519 **Sovereign Verdict** + a **Replay Token** — signed, offline-verifiable, step-by-step replayable |
 
-## Honest by design
-Melete is an **optimizer**, not a fortune-teller. Efficiency and Pareto results are exact and reproducible; the optimality bound is conditional (stated on the certificate). Run `melete gauntlet` — every claim is a check you can re-run.
+## The moat
+- 🔒 **Sovereign** — runs air-gapped, on your machine; data never touches a cloud.
+- 👑 **Verifiable** — every verdict is Ed25519-signed; an auditor re-verifies it offline with the embedded public key, no trust in us required.
+- ⏪ **Replayable** — the engine is fully deterministic, so a signed Replay Token re-derives the exact decision, step by step, on any machine, forever.
 
-MIT-licensed · zero runtime dependencies
+## Honest by design (DIAKRISIS)
+Melete is an **optimizer + analyst**, not a fortune-teller. "Verifiable" means **provenance + reproducibility** — proof of *what was tested and the result reached, unaltered and re-derivable* — **not** a proof that your code is bug-free or exploit-free (that is undecidable in general; we don't claim it). Efficiency, robustness, and Pareto results are exact and reproducible. Run `melete gauntlet` — every claim is a check you can re-run.
+
+---
+
+<div align="center">
+<sub>Mneme remembers; Melete discovers. · <a href="https://melete.mneme-ai.space/pitch">pitch</a> · <a href="https://melete.mneme-ai.space/docs">API docs</a></sub>
+</div>
