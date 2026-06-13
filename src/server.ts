@@ -223,9 +223,8 @@ h2{letter-spacing:-.6px}
 .gsec{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--gc);margin-top:2px}
 .gknobs{font-size:12px;color:#6a6c84;margin-top:9px;line-height:1.5}
 .grun{display:inline-block;margin-top:11px;font-size:12.5px;font-weight:800;color:#fff;background:var(--gc);padding:6px 13px;border-radius:9px}
-/* dark-purple glow behind Meli (hero + story panels) */
+/* Meli sits crisp on the panel — no blurred halo (keeps the sharp dark mascot) */
 .herochar,.panel-art{position:relative}
-.herochar::before,.panel-art::before{content:"";position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);width:62%;padding-bottom:62%;height:0;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.55),rgba(91,83,232,.30) 52%,rgba(14,165,183,.12) 72%,transparent 80%);filter:blur(8px);z-index:0;pointer-events:none}
 .herochar>.meli,.panel-art>.meli{position:relative;z-index:1}
 .herostats{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:26px auto 0;max-width:760px}
 .hstat{flex:1;min-width:148px;background:rgba(255,255,255,.7);backdrop-filter:blur(12px) saturate(1.2);border:1px solid #ecebf6;border-radius:16px;padding:15px 14px;box-shadow:0 1px 2px rgba(30,25,80,.04),0 18px 40px -32px rgba(70,55,160,.45);transition:transform .5s cubic-bezier(.22,1,.36,1)}
