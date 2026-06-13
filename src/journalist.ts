@@ -91,7 +91,9 @@ export function narrate(verticalKey: string, r: NarrateInput): { lines: string[]
   const recipe = v.space.dims.map((d) => `${d.name}=${fmt(d.name)}`).join(" · ");
   const score = (+r.best.value).toFixed(1);
   const tok = r.verdictHash ? r.verdictHash.slice(0, 8).toUpperCase() : "—";
-  const gain = (typeof r.vsStartPct === "number" && r.vsStartPct > 0) ? ` (+${r.vsStartPct}% vs baseline)` : "";
+  // only show a "% vs baseline" when it's a believable figure. On a bounded 0–100 score a random first
+  // try is ≈0, so a raw ratio explodes into a meaningless mega-% — never print that (it reads like a fake).
+  const gain = (typeof r.vsStartPct === "number" && r.vsStartPct > 0 && r.vsStartPct <= 500) ? ` (+${r.vsStartPct}% vs baseline)` : "";
   const headline = `${v.emoji} ${v.scoreName} → ${score} ${v.scoreUnit}`;
   const lines = [
     `> MELETE AGENT online · sector: ${v.sector}`,

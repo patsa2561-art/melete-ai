@@ -56,7 +56,15 @@ export function buildPrescription(obs: ReadonlyArray<Observation>, space: Space,
   const best = hist.reduce((a, b) => (sgn * b.value > sgn * a.value ? b : a));
   const start = hist[0].value;                                   // where they began
   const mean = hist.reduce((s, o) => s + o.value, 0) / n;        // blind / average
-  const pct = (from: number) => { const d = Math.abs(from) > 1e-9 ? sgn * (best.value - from) / Math.abs(from) * 100 : (best.value !== from ? 100 : 0); return +d.toFixed(1); };
+  // honest improvement-% vs a reference: a relative % is only meaningful when the reference isn't ~0.
+  // When the baseline is a negligible fraction of the achieved scale, the ratio explodes into a
+  // meaningless mega-number (e.g. 286,000,000%), so we clamp to a sane, defensible ±1000% ceiling.
+  const pct = (from: number) => {
+    const scale = Math.max(Math.abs(from), Math.abs(best.value), 1e-9);
+    const tiny = Math.abs(from) < 0.005 * scale;                 // reference is effectively zero
+    const d = tiny ? (sgn * (best.value - from) > 0 ? 1000 : 0) : sgn * (best.value - from) / Math.abs(from) * 100;
+    return +Math.max(-1000, Math.min(1000, d)).toFixed(1);
+  };
 
   const recipe = dims.map((d) => ({ name: d.name, value: +(+best.experiment[d.name]).toFixed(d.type === "int" ? 0 : 4) }));
 

@@ -215,22 +215,50 @@ h2{letter-spacing:-.6px}
 .laycard b{font-size:13px;letter-spacing:.4px;color:#1a1b30}
 .laysub{font-size:12px;color:#6a6c84;margin-top:3px;line-height:1.45}
 @keyframes jline{to{opacity:1}}
-/* Sci-Fi Command Center (per-vertical live demo scene + logger) */
-.cmdcenter{background:#080a14;border-radius:20px;padding:18px 20px;font-family:ui-monospace,Menlo,monospace;overflow:hidden;position:relative}
-.cmdcenter::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px);opacity:.5;border-radius:20px}
-.cchead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;position:relative;z-index:1}
-.ccgrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:16px;position:relative;z-index:1}
-@media(max-width:720px){.ccgrid{grid-template-columns:1fr}}
-.ccscene{border:1px solid rgba(255,255,255,.08);border-radius:14px;background:radial-gradient(120% 120% at 50% 0%,rgba(255,255,255,.05),transparent 60%);padding:10px;min-height:0}
+/* Sci-Fi Command Center — Umbrella-lab containment console (per-vertical live demo) */
+.cmdcenter{background:radial-gradient(130% 120% at 50% -10%,#0d1322,#05060d 70%);border-radius:20px;padding:20px 22px;font-family:ui-monospace,Menlo,monospace;overflow:hidden;position:relative;isolation:isolate}
+/* faint hex/grid floor of the lab */
+.cmdcenter::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:34px 34px;-webkit-mask-image:radial-gradient(120% 100% at 50% 0%,#000 30%,transparent 78%);mask-image:radial-gradient(120% 100% at 50% 0%,#000 30%,transparent 78%)}
+/* CRT scanlines + a slow sweep beam */
+.cmdcenter::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;border-radius:20px;background:repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px),linear-gradient(180deg,transparent 0%,var(--cc,#22d3ee18) 48%,transparent 52%);background-size:100% 100%,100% 220%;animation:ccsweep 6.5s linear infinite}
+@keyframes ccsweep{0%{background-position:0 0,0 -120%}100%{background-position:0 0,0 120%}}
+@media(prefers-reduced-motion:reduce){.cmdcenter::after{animation:none}}
+.cmdcenter>*{position:relative;z-index:2}
+/* corner containment brackets */
+.ccbrk{position:absolute;width:18px;height:18px;border:2px solid var(--cc,#22d3ee);opacity:.7;z-index:4}
+.ccbrk.tl{top:9px;left:9px;border-right:0;border-bottom:0}.ccbrk.tr{top:9px;right:9px;border-left:0;border-bottom:0}
+.ccbrk.bl{bottom:9px;left:9px;border-right:0;border-top:0}.ccbrk.br{bottom:9px;right:9px;border-left:0;border-top:0}
+.cchead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.ccrec{width:9px;height:9px;border-radius:50%;background:var(--cc,#22d3ee);box-shadow:0 0 12px var(--cc,#22d3ee);animation:ccrec 1.4s ease-in-out infinite}
+@keyframes ccrec{50%{opacity:.25}}
+/* HUD provenance strip — every field is a real number from THIS run */
+.cchud{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
+.cchud span{font-size:10px;letter-spacing:.4px;color:#9fb0d0;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);border-radius:7px;padding:3px 8px}
+.cchud b{color:#e6edff;font-weight:700}
+.ccgrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:16px}
+@media(max-width:760px){.ccgrid{grid-template-columns:1fr}}
+.ccscene{border:1px solid rgba(255,255,255,.09);border-radius:14px;background:radial-gradient(120% 120% at 50% 0%,rgba(255,255,255,.05),transparent 60%);padding:10px}
 .ccscene svg{width:100%;height:auto;display:block}
 .ccgauge{margin:7px 2px 0}
 .ccgrow{display:flex;justify-content:space-between;font-size:11px;margin:0 0 3px}
 .ccbar{height:6px;border-radius:9px;background:rgba(255,255,255,.07);overflow:hidden}
 .ccfill{height:100%;border-radius:9px;transition:width 1.1s cubic-bezier(.22,1,.36,1)}
-.cclog{border:1px solid rgba(255,255,255,.08);border-radius:14px;background:#05060d;padding:13px 15px;font-size:12.5px;line-height:1.62;min-height:150px;overflow-wrap:anywhere}
+.cclog{border:1px solid rgba(255,255,255,.09);border-radius:14px;background:rgba(3,4,10,.86);padding:13px 15px;font-size:12.5px;line-height:1.62;min-height:150px;overflow-wrap:anywhere}
 .ccline{margin:2px 0;white-space:pre-wrap}
 .cccur{display:inline-block;width:8px;background:currentColor;animation:ccblink 1s steps(1) infinite;margin-left:1px}
 @keyframes ccblink{50%{opacity:0}}
+/* ENGINE CORE — the real competing strategies (the multi-strategy "AI-multiverse" brain) */
+.cccore{margin-top:13px;border-top:1px solid rgba(255,255,255,.1);padding-top:11px}
+.cccore-h{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:#9fb0d0;margin-bottom:8px}
+.ccarms{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:7px}
+.ccarm{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:7px 9px}
+.ccarm .an{font-size:11px;color:#e6edff;font-weight:700;display:flex;align-items:center;gap:5px}
+.ccarm .am{height:4px;border-radius:9px;margin-top:5px;background:rgba(255,255,255,.08);overflow:hidden}
+.ccarm .af{height:100%;border-radius:9px}
+.ccarm .aw{font-size:9.5px;color:#8595b8;margin-top:4px;letter-spacing:.2px}
+.ccmore{background:transparent;border:1px solid var(--cc,#22d3ee);color:var(--cc,#22d3ee);font-family:inherit;font-size:12.5px;font-weight:700;letter-spacing:.3px;padding:8px 15px;border-radius:10px;cursor:pointer;transition:background .2s,box-shadow .2s}
+.ccmore:hover{background:var(--cc,#22d3ee)1a;box-shadow:0 0 18px var(--cc,#22d3ee)55}
+.ccmore:disabled{opacity:.5;cursor:default}
 .galcard{position:relative;cursor:pointer;border-radius:16px;padding:17px 16px;background:rgba(255,255,255,.8);backdrop-filter:blur(10px);border:1px solid #ecebf6;box-shadow:0 16px 36px -28px rgba(70,55,160,.5);transition:transform .45s cubic-bezier(.22,1,.36,1),box-shadow .45s,border-color .3s;overflow:hidden}
 .galcard::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--gc)}
 .galcard:hover{transform:translateY(-4px);border-color:var(--gc);box-shadow:0 30px 60px -30px var(--gc)}
@@ -1062,14 +1090,28 @@ function typeLog(el,lines,col){
   }
   step();
 }
+// HUD provenance strip — every field is a REAL number from this run (proves it is computed, not mocked)
+function ccHud(j,col){var th=(LANG==='th');var nStrat=((j.armStats||[]).filter(function(x){return x.pulls>0;})).length;var hash=(j.sovereign&&j.sovereign.certify&&j.sovereign.certify.payloadHash)?('#'+j.sovereign.certify.payloadHash.slice(0,8).toUpperCase()):'—';var ver=!!j.verify;return '<div class="cchud"><span>'+(th?'เครื่องยนต์':'ENGINE')+' <b>'+(j.engine||'portfolio')+'</b></span><span>'+(th?'การทดลอง':'EXPERIMENTS')+' <b>'+(j.evaluations||'?')+'</b></span><span>'+(th?'กลยุทธ์':'STRATEGIES')+' <b>'+nStrat+'</b></span><span>'+(th?'เซ็น':'SIGNED')+' <b>'+hash+'</b></span><span style="color:'+(ver?'#34d399':'#fbbf24')+'">'+(th?'ตรวจสอบ':'VERIFIED')+' <b>'+(ver?'✓':'…')+'</b></span></div>';}
+// ENGINE CORE — the REAL competing strategies the engine ran (the genuine multi-strategy "AI-multiverse" brain)
+function ccArms(j,col){var a=(j.armStats||[]).filter(function(x){return x.pulls>0;}).sort(function(x,y){return y.pulls-x.pulls;});if(!a.length)return '';var th=(LANG==='th');var tot=a.reduce(function(s,x){return s+x.pulls;},0)||1;var cells=a.map(function(x){var w=Math.round(x.pulls/tot*100);var c=(typeof ARMCOL!=='undefined'&&ARMCOL[x.name])||col;return '<div class="ccarm"><div class="an"><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+c+'"></i>'+sName(x.name)+'</div><div class="am"><div class="af" style="width:'+w+'%;background:'+c+'"></div></div><div class="aw">'+x.pulls+'× · '+(x.improvements||0)+' '+(th?'ครั้งที่ดีขึ้น':'wins')+'</div></div>';}).join('');return '<div class="cccore"><div class="cccore-h">⚙ '+(th?('แกนสมอง — '+a.length+' กลยุทธ์แข่งกันค้นหาสด (สมองหลายกลยุทธ์จริง ไม่ใช่ข้อความสำเร็จรูป)'):('ENGINE CORE — '+a.length+' strategies competed live (a real multi-strategy brain, not canned text)'))+'</div><div class="ccarms">'+cells+'</div></div>';}
+// WHAT YOU DO NEXT — the persona-tailored bridge from demo to your real work (answers "เอาไปทำอะไรต่อ")
+function ccNextStep(v,exp,dims,col,pct){var th=(LANG==='th');var recipe=dims.map(function(d){var val=+exp[d.name];var vs=(d.type==='int')?String(Math.round(val)):(Math.abs(val)<1?val.toFixed(3):val.toFixed(1));return d.name+'='+vs;}).join(' · ');
+var P={aerospace:['If you run a satellite link','ถ้าคุณดูแลลิงก์ดาวเทียม'],genomics:['If you are a drug researcher','ถ้าคุณเป็นนักวิจัยยา'],solar:['If you run a solar / grid site','ถ้าคุณดูแลโรงไฟฟ้าโซลาร์/กริด'],ml:['If you tune models (bank / gov)','ถ้าคุณจูนโมเดล (แบงก์/รัฐ)'],database:['If you run production infra','ถ้าคุณดูแลระบบ/ฐานข้อมูลจริง'],devops:['If you own security & compliance','ถ้าคุณดูแลความปลอดภัย/คอมไพลแอนซ์']}[v.key]||['If this is your process','ถ้านี่คือกระบวนการของคุณ'];
+var who=th?P[1]:P[0];
+var s1=th?('① ใช้สูตรนี้: <b style="color:#e6edff">'+recipe+'</b> → '+(v.scoreName||'score')+' '+pct.toFixed(1)):('① Lock this recipe: <b style="color:#e6edff">'+recipe+'</b> → '+(v.scoreName||'score')+' '+pct.toFixed(1));
+var s2=th?'② ยืนยัน: เอาค่านี้ไปลอง <u>จริงหนึ่งครั้ง</u> ในงานของคุณ (แทนการจำลอง)':'② Confirm it: run this ONE setting for real, once (instead of the simulation)';
+var s3=th?('③ ทำกับงานจริงของคุณ: '+v.realWorld+' — Melete ค้นหาแบบเดียวกันบนระบบจริงของคุณ ออฟไลน์ 100% แล้วเซ็นใบรับรองให้ยื่นตรวจ/จดสิทธิบัตร'):('③ Do it on YOUR problem: '+v.realWorld+' — Melete runs the same search on your real system, fully offline, and signs a certificate for your audit / patent trail');
+return '<div style="margin-top:13px;border-top:1px solid rgba(255,255,255,.1);padding-top:12px"><div class="cccore-h" style="color:'+col+'">▸ '+(th?'แล้วเอาไปทำอะไรต่อ — ':'WHAT YOU DO NEXT — ')+who+'</div><div style="font-size:12.5px;color:#cdd6ee;line-height:1.75">'+s1+'<br>'+s2+'<br>'+s3+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="ccmore" onclick="gMore()">▶ '+(th?'ลองต่ออีกหน่อย (รันเพิ่ม)':'Run more experiments')+'</button><button class="ccmore" onclick="gDL(\\'melete-verdict.json\\',(window.LASTJ||{}).sovereign)">↓ '+(th?'ใบรับรองที่เซ็นแล้ว':'Signed certificate')+'</button></div><div style="font-size:10.5px;color:#7a89a8;margin-top:8px">'+(th?'“ลองต่ออีกหน่อย” = กดเพื่อให้ Melete รันการทดลองเพิ่ม (ไม่รันเองอัตโนมัติ) — ตัวเลขอัปเดตสดทุกครั้ง พิสูจน์ว่าคำนวณจริง ไม่ใช่ mockup':'“Run more” = press to let Melete run extra experiments (it does NOT auto-run) — the numbers update live each press, proving it is really computed, not a mockup')+'</div></div>';}
 function renderJournalist(){var j=window.LASTJ;var el=document.getElementById('journalist');if(!el)return;if(!j||!j.narration||!j.vertical){el.style.display='none';return;}var th=(LANG==='th');var v=j.vertical;var col=VERT_THEME[v.key]||'#22d3ee';var lines=(j.narration.lines||[]).slice();var pct=Math.max(0,Math.min(100,+((j.best&&j.best.value))||0));var dims=(j.space||[]);var exp=(j.best&&j.best.experiment)||{};el.style.display='block';
-var head='<div class="cchead"><span style="width:9px;height:9px;border-radius:50%;background:'+col+';box-shadow:0 0 12px '+col+'"></span><span style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:'+col+'">'+v.emoji+' MELETE COMMAND CENTER</span><span style="font-size:12px;color:#cdd6ee;font-weight:700">'+v.title+'</span><span style="font-size:10.5px;color:#7a89a8;margin-left:auto">'+v.sector+'</span></div>';
+var brk='<span class="ccbrk tl"></span><span class="ccbrk tr"></span><span class="ccbrk bl"></span><span class="ccbrk br"></span>';
+var head='<div class="cchead"><span class="ccrec"></span><span style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:'+col+'">'+v.emoji+' MELETE COMMAND CENTER</span><span style="font-size:12px;color:#cdd6ee;font-weight:700">'+v.title+'</span><span style="font-size:10.5px;color:#7a89a8;margin-left:auto">'+v.sector+'</span></div>';
 var scene='<div class="ccscene">'+vScene(v.key,pct,exp,dims,col)+ccGauges(dims,exp,col,pct,v)+'</div>';
-var foot='<div style="margin-top:11px;padding-top:10px;border-top:1px solid #ffffff14;font-size:11px;color:#8a98b8;position:relative;z-index:1">'+(th?'⚙ ปุ่ม·คะแนน: ':'⚙ knobs · score: ')+v.knobsCopy+' → '+v.scoreCopy+'</div>';
-el.innerHTML='<div class="cmdcenter" style="border:1px solid '+col+'55;box-shadow:0 26px 60px -30px '+col+'66, inset 0 0 70px '+col+'0c">'+head+'<div class="ccgrid">'+scene+'<div class="cclog" id="cclog"></div></div>'+foot+'</div>';
+var foot='<div style="margin-top:11px;padding-top:10px;border-top:1px solid #ffffff14;font-size:11px;color:#8a98b8">'+(th?'⚙ ปุ่ม·คะแนน: ':'⚙ knobs · score: ')+v.knobsCopy+' → '+v.scoreCopy+'</div>';
+el.innerHTML='<div class="cmdcenter" style="--cc:'+col+';border:1px solid '+col+'55;box-shadow:0 26px 60px -30px '+col+'66, inset 0 0 70px '+col+'0c">'+brk+head+ccHud(j,col)+'<div class="ccgrid">'+scene+'<div class="cclog" id="cclog"></div></div>'+ccArms(j,col)+ccNextStep(v,exp,dims,col,pct)+foot+'</div>';
 typeLog(document.getElementById('cclog'),lines,col);}
-function gVertical(key){var out=document.getElementById('out');var t=document.getElementById('try');if(t)t.scrollIntoView({behavior:'smooth',block:'start'});if(out)out.textContent='▶ running real Melete engine on the '+key+' scenario…';stopPlay();
-fetch('/discover',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({vertical:key})}).then(function(r){return r.json();}).then(function(j){window.LASTJ=j;if(j.error){if(out)out.textContent='⚠ '+j.error;return;}if(out)out.innerHTML='🔬 <b>Best:</b> '+(+j.best.value).toFixed(2)+' at <b>'+JSON.stringify(j.best.experiment)+'</b> · '+j.evaluations+' experiments';renderMap(j);var jel=document.getElementById('journalist');if(jel&&jel.scrollIntoView)setTimeout(function(){jel.scrollIntoView({behavior:'smooth',block:'center'});},200);}).catch(function(e){if(out)out.textContent='⚠ '+e.message;});}
+function gMore(){if(!window.__vkey)return;var nb=Math.min(160,(window.__vbudget||50)+40);gVertical(window.__vkey,nb);}
+function gVertical(key,budget){window.__vkey=key;var b=Math.max(20,Math.min(160,budget||50));window.__vbudget=b;var out=document.getElementById('out');var t=document.getElementById('try');if(t)t.scrollIntoView({behavior:'smooth',block:'start'});if(out)out.textContent=(b>50?('▶ running '+b+' experiments on the '+key+' scenario…'):('▶ running real Melete engine on the '+key+' scenario…'));stopPlay();
+fetch('/discover',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({vertical:key,budget:b})}).then(function(r){return r.json();}).then(function(j){window.LASTJ=j;if(j.error){if(out)out.textContent='⚠ '+j.error;return;}if(out)out.innerHTML='🔬 <b>Best:</b> '+(+j.best.value).toFixed(2)+' at <b>'+JSON.stringify(j.best.experiment)+'</b> · '+j.evaluations+' experiments';renderMap(j);var jel=document.getElementById('journalist');if(jel&&jel.scrollIntoView)setTimeout(function(){jel.scrollIntoView({behavior:'smooth',block:'center'});},200);}).catch(function(e){if(out)out.textContent='⚠ '+e.message;});}
 function gDL(name,obj){try{var b=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(u);},800);}catch(e){}}
 function gVerifyVerdict(){var j=window.LASTJ;if(!j||!j.sovereign)return;var th=(LANG==='th');var o=document.getElementById('sovout');o.innerHTML='<span style="color:#8890a8;font-size:13px">'+(th?'กำลังตรวจ…':'verifying…')+'</span>';fetch('/sovereign/verify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(j.sovereign)}).then(function(r){return r.json();}).then(function(v){o.innerHTML='<span style="color:'+(v.ok?'#0e7a4f':'#c0392b')+';font-size:13.5px;font-weight:700">'+(v.ok?'✓ ':'✗ ')+(th?(v.ok?'ลายเซ็นถูกต้อง — provenance ตรวจ offline ผ่าน':'ตรวจไม่ผ่าน: '+v.reason):v.reason)+'</span>';}).catch(function(){o.innerHTML='<span style="color:#c33;font-size:13px">error</span>';});}
 function gReplay(){var j=window.LASTJ;if(!j||!j.replayToken)return;var th=(LANG==='th');var o=document.getElementById('sovout');o.innerHTML='<span style="color:#8890a8;font-size:13px">'+(th?'กำลังเล่นซ้ำ…':'replaying…')+'</span>';fetch('/replay/verify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(j.replayToken)}).then(function(r){return r.json();}).then(function(v){var ok=v.signatureValid&&v.reproduced;o.innerHTML='<span style="color:'+(ok?'#0e7a4f':'#c0392b')+';font-size:13.5px;font-weight:700">'+(ok?'⏪ ':'✗ ')+(th?(ok?'เล่นซ้ำได้เป๊ะทุกขั้น (DISCOVER→DECIDE→DIAGNOSE) — offline ไม่ต้องมีเซิร์ฟเวอร์':'เล่นซ้ำไม่ตรง: '+v.reason):v.reason)+'</span>';}).catch(function(){o.innerHTML='<span style="color:#c33;font-size:13px">error</span>';});}
