@@ -154,6 +154,23 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "null-engine failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🧬 CAUSAL ENGINE — the demo that lands: a system with a HIDDEN CONFOUNDER. x0 looks important in the
+    // historical data (it tracked the confounder) but has ZERO causal effect; x1 is the true cause. The engine
+    // intervenes, flags x0 confounded, names x1 causal, recommends x1's optimum, and signs a Proof of Causation.
+    if (req.method === "POST" && path === "/causal") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 1;
+      const space = { dims: [{ name: "x0", type: "real", min: 0, max: 1 }, { name: "x1", type: "real", min: 0, max: 1 }, { name: "x2", type: "real", min: 0, max: 1 }] };
+      try {
+        const causalY = (x1) => 100 * Math.exp(-((x1 - 0.7) ** 2) / 0.05);
+        const r0 = M.lcg((seed >>> 0) || 1); const oracle = (e) => causalY(e.x1 ?? 0) + 60 * r0() + 4 * (r0() - 0.5);
+        const ro = M.lcg(((seed * 13 + 3) >>> 0) || 1); const observations = [];
+        for (let i = 0; i < 220; i++) { const C = ro(); const x0 = Math.max(0, Math.min(1, C + 0.05 * (ro() - 0.5))); const x1 = ro(), x2 = ro(); observations.push({ experiment: { x0, x1, x2 }, value: causalY(x1) + 60 * C }); }
+        const r = M.causalDiscover({ space, oracle, observations, seed, goal: "maximize" });
+        return json(res, 200, { variables: r.variables, best: r.best, causalValue: r.causalValue, causalVars: r.causalVars, confoundedVars: r.confoundedVars, interventions: r.interventions, proofValid: M.verifyProofOfCausation(r.proof).ok, proofHash: r.proof.payloadHash.slice(0, 16) });
+      } catch (e) { return json(res, 400, { error: "causal failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
