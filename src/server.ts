@@ -6,6 +6,23 @@
  * This module owns the landing page + the pitch deck (pure strings) + the endpoint catalogue. The HTTP
  * server + the sandboxed objective evaluation live in bin/melete-server.mjs (node:http + node:vm).
  */
+import { Script } from "node:vm";
+
+/** Extract every inline <script> body from an HTML string (browser-accurate: splits on the first </script>). */
+function inlineScripts(html: string): string[] {
+  const out: string[] = []; const re = /<script>([\s\S]*?)<\/script>/g; let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) out.push(m[1]);
+  return out;
+}
+/** Parse-check every inline script; returns the first syntax error (or null). The gate that catches a broken page. */
+function firstScriptSyntaxError(html: string): string | null {
+  const scripts = inlineScripts(html);
+  for (let i = 0; i < scripts.length; i++) {
+    try { new Script(scripts[i]); } catch (e) { return "script #" + (i + 1) + ": " + (e as Error).message; }
+  }
+  return null;
+}
+
 export const ENDPOINTS = [
   { method: "GET", path: "/health", what: "liveness + version" },
   { method: "GET", path: "/pitch", what: "the investor / acquirer slide deck" },
@@ -930,7 +947,7 @@ function audGo(dk){try{if(typeof gVertical==='function')gVertical(dk);}catch(e){
 function setAud(k){var a=AUD[k];if(!a)return;window.__aud=k;var lang=(typeof LANG!=='undefined'?LANG:'en');var t=a[lang]||a.en;
  ['pharma','chem','gpu','aero','phys','infra'].forEach(function(x){var b=document.getElementById('aud-'+x);if(b)b.className='audchip'+(x===k?' on':'');});
  var go=(lang==='th'?'▶ ดู Melete รันโจทย์ของคุณ':'▶ See Melete run your problem');
- var el=document.getElementById('audpanel');if(el)el.innerHTML='<div class="audcard" style="--ac:'+a.c+'"><h4>'+t.h+'</h4><div class="al">'+t.l+'</div><div class="ak">'+t.k+'</div><button class="ago" onclick="audGo(\''+a.demo+'\')">'+go+'</button></div>';}
+ var el=document.getElementById('audpanel');if(el)el.innerHTML='<div class="audcard" style="--ac:'+a.c+'"><h4>'+t.h+'</h4><div class="al">'+t.l+'</div><div class="ak">'+t.k+'</div><button class="ago" onclick="audGo(\\''+a.demo+'\\')">'+go+'</button></div>';}
 function setLang(l){LANG=l;try{localStorage.setItem('mlang',l);}catch(e){}
  var e1=document.getElementById('lang-en'),e2=document.getElementById('lang-th');if(e1)e1.className='lb'+(l==='en'?' on':'');if(e2)e2.className='lb'+(l==='th'?' on':'');
  var els=document.querySelectorAll('[data-i18n]');for(var i=0;i<els.length;i++){var v=tr(els[i].getAttribute('data-i18n'));if(v!=null)els[i].innerHTML=v;}
@@ -1694,7 +1711,9 @@ document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
 // ── gauntlet ──────────────────────────────────────────────────────────────────
 export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string; pass: boolean; detail: string }> } {
   const html = landingPage("9.9.9"); const pitch = pitchDeck("9.9.9");
+  const landErr = firstScriptSyntaxError(html); const pitchErr = firstScriptSyntaxError(pitch);
   const checks = [
+    { name: "SCRIPTS-PARSE", pass: landErr === null && pitchErr === null, detail: landErr ? ("landing " + landErr) : pitchErr ? ("pitch " + pitchErr) : "every inline <script> on the landing page + pitch parses (no JS syntax error can ship)" },
     { name: "LANDING-RENDERS", pass: html.startsWith("<!doctype html>") && html.includes("Melete") && html.length > 4000, detail: "world-class landing page renders with hero + sections" },
     { name: "LIGHT-THEME", pass: html.includes("--bg:#ffffff") && !html.includes("background:#07070c"), detail: "clean light theme (not the old dark background)" },
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
