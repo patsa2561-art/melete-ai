@@ -78,6 +78,27 @@ const server = createServer(async (req, res) => {
       catch (e) { return json(res, 400, { error: "aegis failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🛰 NOISE-ROBUST — trustworthy optimum under MEASUREMENT noise. Injects deterministic gaussian noise of
+    // the given std onto your objective (a stand-in for a noisy real oracle), replicate-measures, and returns
+    // the optimum you can trust (highest lower-confidence-bound) + the "lucky max" it rejected + a risk band.
+    if (req.method === "POST" && path === "/noise-robust") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const space = { dims: Array.isArray(body.space) ? body.space : body.space?.dims };
+      if (!space.dims?.length) return json(res, 400, { error: "space must be a non-empty array of {name,type,min,max}" });
+      if (space.dims.length > 12) return json(res, 400, { error: "demo limit: ≤12 dimensions" });
+      if (typeof body.objective !== "string" || !body.objective.trim()) return json(res, 400, { error: "objective must be a JS expression string in your dimension names" });
+      const budget = Math.max(12, Math.min(MAX_BUDGET, (body.budget | 0) || 110));
+      const noise = (typeof body.noise === "number" && body.noise >= 0) ? body.noise : 0.3;
+      let base; try { base = makeOracle(space, body.objective); base(Object.fromEntries(space.dims.map((d) => [d.name, (d.min + d.max) / 2]))); } catch (e) { return json(res, 400, { error: "objective failed to evaluate: " + e.message.slice(0, 120) }); }
+      const goal = body.goal === "minimize" ? "minimize" : "maximize";
+      const rng = M.lcg((body.seed | 0) || 1);
+      const noisyOracle = (e) => { const u1 = Math.max(1e-9, rng()), u2 = rng(); const g = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); return base(e) + noise * g; };
+      try {
+        const r = M.noiseRobustDiscover({ space, oracle: noisyOracle, budget, goal, seed: (body.seed | 0) || 1, z: typeof body.z === "number" ? body.z : 1.85, replicates: (body.replicates | 0) || 5 });
+        return json(res, 200, { best: r.best, bestMean: r.bestMean, bestStd: r.bestStd, bestN: r.bestN, bestLcb: r.bestLcb, luckyMax: r.luckyMax, rejectedLucky: r.rejectedLucky, noiseFiltered: r.noiseFiltered, points: r.points.slice(0, 12), evaluations: r.evaluations, goal, noise });
+      } catch (e) { return json(res, 400, { error: "noise-robust failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
