@@ -477,7 +477,7 @@ if(which==='noise'){url='/noise-robust';body={space:[{name:'x',type:'real',min:0
 else if(which==='mixed'){url='/mixed';body={space:[{name:'engine',type:'categorical',choices:['A','B','C']},{name:'x',type:'real',min:0,max:1},{name:'n',type:'int',min:3,max:7},{name:'tune',type:'real',min:0,max:1,activeWhen:{dim:'engine',equals:'B'}}],objective:'(engine===\\'B\\'?1.0:(engine===\\'C\\'?0.71:0.62))*Math.exp(-(((x-0.7)**2)/0.04))*Math.exp(-(((n-5)**2)/6))*(engine===\\'B\\'?Math.exp(-(((tune-0.3)**2)/0.05)):1)*100',budget:500,seed:1};}
 else if(which==='null'){url='/null-engine';body={budget:90,seed:1};}
 else{url='/provenance';body={count:20000,windowSize:50};}
-fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){if(j.error){if(out)out.innerHTML='<div style="color:#c33;font-size:13px">⚠ '+j.error+'</div>';return;}if(which==='noise')flabNoise(j);else if(which==='mixed')flabMixed(j);else if(which==='null')flabNull(j,'flabout');else flabProv(j);}).catch(function(e){if(out)out.innerHTML='<div style="color:#c33;font-size:13px">⚠ '+e.message+'</div>';});}
+fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){if(j.error){if(out)out.innerHTML='<div style="color:#c33;font-size:13px">⚠ '+j.error+'</div>';return;}window.__lastFlab={k:which,j:j};if(which==='noise')flabNoise(j);else if(which==='mixed')flabMixed(j);else if(which==='null')flabNull(j,'flabout');else flabProv(j);}).catch(function(e){if(out)out.innerHTML='<div style="color:#c33;font-size:13px">⚠ '+e.message+'</div>';});}
 function flabNull(j,outId){var th=(LANG==='th');var col='#9aa6c8';
 var vCol=function(v){return v==='REAL'?'#34d399':(v==='WEAK'?'#fbbf24':'#94a3b8');};
 var vLab=function(v){return th?(v==='REAL'?'✓ จริง (REAL)':(v==='WEAK'?'⚠ ก้ำกึ่ง (WEAK)':'⬛ ไม่มีสัญญาณ (NULL)')):(v==='REAL'?'✓ REAL':(v==='WEAK'?'⚠ WEAK':'⬛ NULL'));};
@@ -488,7 +488,7 @@ var body='<div style="font-size:13px;color:#cdd6ee;margin:2px 2px 12px">'+(th?'e
 +panel((th?'ข้อมูลมั่ว (noise ล้วน)':'PURE NOISE (knobs do nothing)'),j.noise,(th?'optimizer อื่นจะยัดสูตรปลอมให้ตรงนี้ — Null Engine ปฏิเสธ':'every other optimizer would hand you a FAKE recipe here — the Null Engine refuses'))
 +'</div>';
 document.getElementById(outId||'flabout').innerHTML=flabShell(col,(th?'NULL ENGINE · กล้าบอกว่าไม่มีอะไรให้หา':'NULL ENGINE · brave enough to say nothing is there'),(th?'ทดสอบ null-hypothesis ของผลตัวเอง':'puts its own answer on trial'),body,(th?'permutation test (300 รอบ) บนข้อมูลของรันเอง · false-positive ≤2.5% พิสูจน์แล้ว · ของจริงจาก /null-engine':'permutation test (300×) on the run\\'s own data · false-positive ≤2.5% proven · live from /null-engine'));}
-function gNullSpot(){var out=document.getElementById('nullout');var th=(LANG==='th');if(out)out.innerHTML='<div class="muted" style="font-size:13px">▶ '+(th?'กำลังพิสูจน์สดๆ…':'proving it live…')+'</div>';fetch('/null-engine',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({budget:90,seed:1})}).then(function(r){return r.json();}).then(function(j){if(j.error){if(out)out.innerHTML='<div style="color:#c33;font-size:13px">⚠ '+j.error+'</div>';return;}flabNull(j,'nullout');}).catch(function(e){if(out)out.innerHTML='<div style="color:#c33;font-size:13px">⚠ '+e.message+'</div>';});}
+function gNullSpot(){var out=document.getElementById('nullout');var th=(LANG==='th');if(out)out.innerHTML='<div class="muted" style="font-size:13px">▶ '+(th?'กำลังพิสูจน์สดๆ…':'proving it live…')+'</div>';fetch('/null-engine',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({budget:90,seed:1})}).then(function(r){return r.json();}).then(function(j){if(j.error){if(out)out.innerHTML='<div style="color:#c33;font-size:13px">⚠ '+j.error+'</div>';return;}window.__lastNull=j;flabNull(j,'nullout');}).catch(function(e){if(out)out.innerHTML='<div style="color:#c33;font-size:13px">⚠ '+e.message+'</div>';});}
 function flabNoise(j){var th=(LANG==='th');var col='#22d3ee';var rec=Object.keys(j.best.experiment).map(function(k){return k+'='+(+j.best.experiment[k]).toFixed(2);}).join(' · ');
 var pts=(j.points||[]).slice(0,5);var mx=1;pts.forEach(function(p){if(Math.abs(p.mean)>mx)mx=Math.abs(p.mean);});
 var bars=pts.map(function(p){var rc=Object.keys(p.experiment).map(function(k){return (+p.experiment[k]).toFixed(2);}).join(',');return flabBar('('+rc+')',Math.abs(p.mean)/mx,col,'μ '+p.mean+' ± '+p.std+' · n'+p.n);}).join('');
@@ -843,6 +843,10 @@ function hideContact(){document.getElementById('contactModal').style.display='no
 function setLang(l){LANG=l;try{localStorage.setItem('mlang',l);}catch(e){}
  var e1=document.getElementById('lang-en'),e2=document.getElementById('lang-th');if(e1)e1.className='lb'+(l==='en'?' on':'');if(e2)e2.className='lb'+(l==='th'?' on':'');
  var els=document.querySelectorAll('[data-i18n]');for(var i=0;i<els.length;i++){var v=tr(els[i].getAttribute('data-i18n'));if(v!=null)els[i].innerHTML=v;}
+ // re-render any open DYNAMIC demo panel in the new language (so the language switch never leaves stale-language content)
+ try{if(window.__lastNull&&typeof flabNull==='function')flabNull(window.__lastNull,'nullout');}catch(e){}
+ try{if(window.__lastFlab&&typeof flabNull==='function'){var f=window.__lastFlab;if(f.k==='noise')flabNoise(f.j);else if(f.k==='mixed')flabMixed(f.j);else if(f.k==='null')flabNull(f.j,'flabout');else flabProv(f.j);}}catch(e){}
+ if(typeof renderJournalist==='function'&&window.LASTJ&&window.LASTJ.vertical)try{renderJournalist();}catch(e){}
  if(typeof loadPreset==='function')loadPreset();
  if(window.LASTJ)renderMap(window.LASTJ);
 }
