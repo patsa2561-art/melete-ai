@@ -215,6 +215,22 @@ h2{letter-spacing:-.6px}
 .laycard b{font-size:13px;letter-spacing:.4px;color:#1a1b30}
 .laysub{font-size:12px;color:#6a6c84;margin-top:3px;line-height:1.45}
 @keyframes jline{to{opacity:1}}
+/* Sci-Fi Command Center (per-vertical live demo scene + logger) */
+.cmdcenter{background:#080a14;border-radius:20px;padding:18px 20px;font-family:ui-monospace,Menlo,monospace;overflow:hidden;position:relative}
+.cmdcenter::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0 1px,transparent 1px 3px);opacity:.5;border-radius:20px}
+.cchead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;position:relative;z-index:1}
+.ccgrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:16px;position:relative;z-index:1}
+@media(max-width:720px){.ccgrid{grid-template-columns:1fr}}
+.ccscene{border:1px solid rgba(255,255,255,.08);border-radius:14px;background:radial-gradient(120% 120% at 50% 0%,rgba(255,255,255,.05),transparent 60%);padding:10px;min-height:0}
+.ccscene svg{width:100%;height:auto;display:block}
+.ccgauge{margin:7px 2px 0}
+.ccgrow{display:flex;justify-content:space-between;font-size:11px;margin:0 0 3px}
+.ccbar{height:6px;border-radius:9px;background:rgba(255,255,255,.07);overflow:hidden}
+.ccfill{height:100%;border-radius:9px;transition:width 1.1s cubic-bezier(.22,1,.36,1)}
+.cclog{border:1px solid rgba(255,255,255,.08);border-radius:14px;background:#05060d;padding:13px 15px;font-size:12.5px;line-height:1.62;min-height:150px;overflow-wrap:anywhere}
+.ccline{margin:2px 0;white-space:pre-wrap}
+.cccur{display:inline-block;width:8px;background:currentColor;animation:ccblink 1s steps(1) infinite;margin-left:1px}
+@keyframes ccblink{50%{opacity:0}}
 .galcard{position:relative;cursor:pointer;border-radius:16px;padding:17px 16px;background:rgba(255,255,255,.8);backdrop-filter:blur(10px);border:1px solid #ecebf6;box-shadow:0 16px 36px -28px rgba(70,55,160,.5);transition:transform .45s cubic-bezier(.22,1,.36,1),box-shadow .45s,border-color .3s;overflow:hidden}
 .galcard::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--gc)}
 .galcard:hover{transform:translateY(-4px);border-color:var(--gc);box-shadow:0 30px 60px -30px var(--gc)}
@@ -966,12 +982,92 @@ function renderRashomon(){var j=window.LASTJ;var el=document.getElementById('ras
 function renderCliff(){var j=window.LASTJ;var el=document.getElementById('cliff');if(!el)return;var c=j&&j.cliffs;if(!c||!c.cliffs||!c.cliffs.length){el.style.display='none';return;}var th=(LANG==='th');var col=c.optimumOnCliff?'#c0392b':'#b45309';var top=c.cliffs.slice(0,3).map(function(cl){return '<div style="font-size:13px;color:#33344e;margin:4px 0">⚠ '+(th?'ใกล้ ':'near ')+'<b>'+cl.variable+' ≈ '+cl.at[cl.variable]+'</b> — '+(th?'ขยับนิดเดียวผลตกลง ':'a small step drops the result by ')+'<b>'+cl.drop+'</b> ('+cl.steepness+(th?'× ชันกว่าปกติ)':'× steeper than normal)')+'</div>';}).join('');el.style.display='block';el.innerHTML='<div style="font-size:13px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:'+col+';margin-bottom:6px">🪨 '+(th?'หน้าผา / จุดพลิก':'Cliffs / tipping points')+'</div>'+(c.optimumOnCliff?'<div style="font-size:14px;color:#c0392b;font-weight:700;margin-bottom:6px">'+(th?'⚠ จุดที่ดีที่สุดของคุณอยู่ริมหน้าผา — เพี้ยนนิดเดียวผลพังได้ ควรถอยมาจุดที่ราบกว่า':'⚠ your best setting sits on a cliff edge — a tiny drift can collapse it; step back to a flatter one')+'</div>':'')+top+'<div class="muted" style="font-size:11.5px;margin-top:8px">'+(th?'จุดที่ "ขยับนิดเดียวแล้วผลตกฮวบ" — อันตรายเรื่องความเสถียรในการผลิตจริง':'where a tiny change makes the result fall off a cliff — a stability risk in real production')+'</div>';}
 function renderSloppy(){var j=window.LASTJ;var el=document.getElementById('sloppy');if(!el)return;var s=j&&j.sloppiness;if(!s||!isFinite(s.effectiveDims)||!s.directions||!s.directions.length){el.style.display='none';return;}var th=(LANG==='th');var combo=function(d){return d.loadings.filter(function(l){return Math.abs(l.weight)>0.25;}).map(function(l){return (l.weight<0?'−':'')+l.name;}).join(' & ')||d.loadings[0].name;};var stiff=s.directions[0];var free=s.effectiveDims<s.totalDims;var bars=s.directions.map(function(d){var w=Math.max(3,Math.round(d.stiffness*100));var c=d.kind==='stiff'?'#6d5cf0':'#c9cde0';return '<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:#33344e">'+combo(d)+(d.kind==='sloppy'?' <span style="color:#0e9f6e;font-weight:700">'+(th?'← อิสระ ตั้งได้ตามใจ':'← free, set it freely')+'</span>':'')+'</span><span style="color:#8890a8;font-variant-numeric:tabular-nums">'+(d.stiffness*100).toFixed(0)+'%</span></div><div style="height:6px;background:#f0eefb;border-radius:9px;overflow:hidden;margin-top:3px"><div style="height:100%;width:'+w+'%;background:'+(d.kind==='stiff'?'linear-gradient(90deg,#6d5cf0,#14b8a6)':c)+';border-radius:9px"></div></div></div>';}).join('');el.style.display='block';el.innerHTML='<div style="font-size:13px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#6d28d9;margin-bottom:6px">🎛 '+(th?'ปุ่มที่สำคัญจริง':'How many knobs really matter')+'</div><div style="font-size:15px;color:#1a1b30;font-weight:700;margin-bottom:9px">'+(th?('สำคัญจริง '+s.effectiveDims+' จาก '+s.totalDims+' ชุดผสม'):(s.effectiveDims+' of '+s.totalDims+' combinations truly matter'))+'</div>'+bars+'<div class="muted" style="font-size:11.5px;margin-top:8px">'+(free?(th?'ทิศ stiff ต้องคุมแน่น · ทิศ sloppy ตั้งให้ถูก/ง่ายสุดได้เลย ไม่กระทบผล (sloppy-model / effective dimensionality)':'hold the stiff combination tight · the sloppy ones you can set however is cheapest — they barely affect the result (sloppy-model analysis)'):(th?'ทุกตัวแปรสำคัญแยกกัน ไม่มีทิศที่ตั้งฟรีได้':'every variable matters independently — no free directions'))+'</div>';}
 var VERT_THEME={aerospace:'#22d3ee',genomics:'#a855f7',solar:'#f59e0b',ml:'#6d5cf0',database:'#10b981',devops:'#ef4444'};
-function renderJournalist(){var j=window.LASTJ;var el=document.getElementById('journalist');if(!el)return;if(!j||!j.narration||!j.vertical){el.style.display='none';return;}var th=(LANG==='th');var v=j.vertical;var col=VERT_THEME[v.key]||'#22d3ee';var lines=j.narration.lines||[];el.style.display='block';
-var rows=lines.map(function(L,i){var c=L.indexOf('✓')>=0||L.indexOf('🔏')>=0?'#34d399':(L.indexOf('⚠')>=0?'#fbbf24':col);return '<div style="opacity:0;animation:jline .35s ease forwards;animation-delay:'+(i*0.42)+'s;color:'+c+';margin:3px 0;white-space:pre-wrap">'+L.replace(/</g,'&lt;')+'</div>';}).join('');
-el.innerHTML='<div style="background:#0a0b16;border:1px solid '+col+'55;border-radius:18px;padding:18px 20px;box-shadow:0 26px 60px -30px '+col+'66, inset 0 0 60px '+col+'10;font-family:ui-monospace,Menlo,monospace">'
-+'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px"><span style="width:9px;height:9px;border-radius:50%;background:'+col+';box-shadow:0 0 10px '+col+'"></span><span style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:'+col+'">'+v.emoji+' MELETE COMMAND · '+v.title+'</span><span style="font-size:10.5px;color:#7a89a8;margin-left:auto">'+v.sector+'</span></div>'
-+'<div style="font-size:13px;line-height:1.6">'+rows+'</div>'
-+'<div style="margin-top:11px;padding-top:10px;border-top:1px solid #ffffff14;font-size:11px;color:#8a98b8">'+(th?'⚙ ปุ่ม·คะแนน: ':'⚙ knobs · score: ')+v.knobsCopy+' → '+v.scoreCopy+'</div></div>';}
+function ccKnobFrac(exp,dims,name){var d=null;for(var i=0;i<dims.length;i++){if(dims[i].name===name)d=dims[i];}if(!d)return 0.5;var mn=+(d.min!=null?d.min:0),mx=+(d.max!=null?d.max:1);var val=+exp[name];return mx>mn?Math.max(0,Math.min(1,(val-mn)/(mx-mn))):0.5;}
+function ccDefs(col){return '<defs><filter id="ccg" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';}
+function ccMix(p){var a=[239,68,68],b=[16,185,129];return 'rgb('+Math.round(a[0]+(b[0]-a[0])*p)+','+Math.round(a[1]+(b[1]-a[1])*p)+','+Math.round(a[2]+(b[2]-a[2])*p)+')';}
+// Per-vertical Sci-Fi command-center scene — every shape is driven by THIS run's real numbers (score + found knobs)
+function vScene(key,pct,exp,dims,col){
+  var p=Math.max(0,Math.min(1,pct/100));var d=ccDefs(col);var s='';
+  if(key==='aerospace'){
+    var spin=(15-9*p).toFixed(1);var beamOp=(0.14+0.78*p).toFixed(2);var bw=(1+2.6*p).toFixed(1);
+    s='<svg viewBox="0 0 320 190">'+d
+      +'<path d="M-20 210 A 250 150 0 0 1 340 210 Z" fill="'+col+'12" stroke="'+col+'3a" stroke-width="1.4"/>'
+      +'<ellipse cx="160" cy="80" rx="136" ry="50" fill="none" stroke="'+col+'40" stroke-width="1.2" stroke-dasharray="3 6"/>'
+      +'<g transform="translate(160 80)"><g><animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="'+spin+'s" repeatCount="indefinite"/><g transform="translate(136 0)"><rect x="-6" y="-3" width="12" height="6" rx="1.5" fill="'+col+'" filter="url(#ccg)"/><rect x="-13" y="-1.4" width="6" height="2.8" fill="'+col+'aa"/><rect x="7" y="-1.4" width="6" height="2.8" fill="'+col+'aa"/></g></g></g>'
+      +'<g transform="translate(160 80)"><g><animateTransform attributeName="transform" type="rotate" from="200 0 0" to="560 0 0" dur="'+(spin*1.7).toFixed(1)+'s" repeatCount="indefinite"/><circle cx="136" cy="0" r="3" fill="#fff"/></g></g>'
+      +'<polygon points="42,170 62,170 52,150" fill="'+col+'" filter="url(#ccg)"/>'
+      +'<line x1="52" y1="150" x2="296" y2="42" stroke="'+col+'" stroke-width="'+bw+'" opacity="'+beamOp+'"><animate attributeName="opacity" values="'+beamOp+';0.16;'+beamOp+'" dur="1.5s" repeatCount="indefinite"/></line>'
+      +'<circle cx="296" cy="42" r="4" fill="#fff" filter="url(#ccg)"/></svg>';
+  }else if(key==='genomics'){
+    var N=11,glow=(0.32+0.66*p).toFixed(2),rung='',sa='M',sb='M';
+    for(var i=0;i<N;i++){var xx=42+i*23.6;var ph=i*0.62;var yA=(95+38*Math.sin(ph)).toFixed(1);var yB=(95-38*Math.sin(ph)).toFixed(1);sa+=(i?' L':'')+xx.toFixed(1)+' '+yA;sb+=(i?' L':'')+xx.toFixed(1)+' '+yB;rung+='<line x1="'+xx.toFixed(1)+'" y1="'+yA+'" x2="'+xx.toFixed(1)+'" y2="'+yB+'" stroke="'+col+'" stroke-width="1.5" opacity="'+(0.22+0.5*Math.abs(Math.sin(ph))).toFixed(2)+'"/><circle cx="'+xx.toFixed(1)+'" cy="'+yA+'" r="3.4" fill="'+col+'"/><circle cx="'+xx.toFixed(1)+'" cy="'+yB+'" r="3.4" fill="#fff" opacity="0.82"/>';}
+    s='<svg viewBox="0 0 320 190">'+d+'<g filter="url(#ccg)" opacity="'+glow+'"><animateTransform attributeName="transform" type="translate" values="0 -4;0 4;0 -4" dur="3.6s" repeatCount="indefinite"/><path d="'+sa+'" fill="none" stroke="'+col+'" stroke-width="2.4"/><path d="'+sb+'" fill="none" stroke="'+col+'88" stroke-width="2.4"/>'+rung+'</g></svg>';
+  }else if(key==='solar'){
+    var tl=ccKnobFrac(exp,dims,'tiltAngle');var ang=(-32+tl*52).toFixed(0);var rays='';
+    for(var i=0;i<12;i++){var a=i*30*Math.PI/180;rays+='<line x1="'+(52+13*Math.cos(a)).toFixed(1)+'" y1="'+(52+13*Math.sin(a)).toFixed(1)+'" x2="'+(52+21*Math.cos(a)).toFixed(1)+'" y2="'+(52+21*Math.sin(a)).toFixed(1)+'" stroke="'+col+'" stroke-width="2"/>';}
+    var cells='';for(var r=0;r<3;r++){for(var c=0;c<4;c++){cells+='<rect x="'+(154+c*23).toFixed(0)+'" y="'+(106+r*13).toFixed(0)+'" width="20" height="11" rx="1.5" fill="'+col+'33" stroke="'+col+'88" stroke-width="0.8"/>';}}
+    var fillH=(30*p).toFixed(1);
+    s='<svg viewBox="0 0 320 190">'+d
+      +'<g><g><animateTransform attributeName="transform" type="rotate" from="0 52 52" to="360 52 52" dur="20s" repeatCount="indefinite"/>'+rays+'</g><circle cx="52" cy="52" r="13" fill="'+col+'" filter="url(#ccg)"/></g>'
+      +'<g transform="rotate('+ang+' 200 124)"><rect x="150" y="102" width="100" height="46" rx="3" fill="'+col+'18" stroke="'+col+'" stroke-width="1.3"/>'+cells+'</g>'
+      +'<line x1="208" y1="150" x2="282" y2="158" stroke="'+col+'55" stroke-width="1.5"/><circle r="2.6" fill="#fff"><animateMotion dur="'+(1.6-0.9*p).toFixed(2)+'s" repeatCount="indefinite" path="M208 150 L282 158"/></circle>'
+      +'<rect x="276" y="150" width="26" height="34" rx="3" fill="none" stroke="'+col+'"/><rect x="279" y="'+(182-(+fillH)).toFixed(1)+'" width="20" height="'+fillH+'" rx="1.5" fill="'+col+'" opacity="0.85"/></svg>';
+  }else if(key==='ml'){
+    var layers=[3,4,4,3],cols=layers.length,nodes='',edges='',pos=[];
+    for(var c=0;c<cols;c++){var xx=46+c*76;var L=layers[c];pos[c]=[];for(var r=0;r<L;r++){var yy=(38+(150-38)*(L>1?r/(L-1):0.5));pos[c].push([xx,yy]);nodes+='<circle cx="'+xx+'" cy="'+yy.toFixed(1)+'" r="5" fill="'+col+'" filter="url(#ccg)"/>';}}
+    for(var c=0;c<cols-1;c++){for(var a=0;a<pos[c].length;a++){for(var b=0;b<pos[c+1].length;b++){edges+='<line x1="'+pos[c][a][0]+'" y1="'+pos[c][a][1].toFixed(1)+'" x2="'+pos[c+1][b][0]+'" y2="'+pos[c+1][b][1].toFixed(1)+'" stroke="'+col+'" stroke-width="0.7" opacity="0.16"/>';}}}
+    var pd='M'+pos[0][0][0]+' '+pos[0][0][1].toFixed(1)+' L'+pos[1][1][0]+' '+pos[1][1][1].toFixed(1)+' L'+pos[2][1][0]+' '+pos[2][1][1].toFixed(1)+' L'+pos[3][0][0]+' '+pos[3][0][1].toFixed(1);
+    var dur=(2.4-1.6*p).toFixed(2);
+    s='<svg viewBox="0 0 320 190">'+d+edges+nodes+'<circle r="3.6" fill="#fff" filter="url(#ccg)"><animateMotion dur="'+dur+'s" repeatCount="indefinite" path="'+pd+'"/></circle><circle r="3" fill="'+col+'"><animateMotion dur="'+dur+'s" begin="'+(+dur/2).toFixed(2)+'s" repeatCount="indefinite" path="'+pd+'"/></circle></svg>';
+  }else if(key==='database'){
+    var pc=ccMix(p),pipes='';
+    for(var i=0;i<5;i++){var yy=42+i*27;pipes+='<rect x="40" y="'+yy+'" width="240" height="11" rx="5.5" fill="rgba(255,255,255,.05)"/><line x1="46" y1="'+(yy+5.5)+'" x2="274" y2="'+(yy+5.5)+'" stroke="'+pc+'" stroke-width="5.5" stroke-dasharray="14 10" stroke-linecap="round" opacity="0.88"><animate attributeName="stroke-dashoffset" values="0;-48" dur="'+(1.5-0.95*p).toFixed(2)+'s" repeatCount="indefinite"/></line>';}
+    s='<svg viewBox="0 0 320 190">'+d+pipes+'<text x="160" y="184" fill="'+pc+'" font-size="11" font-weight="700" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">I/O FLOW '+Math.round(p*100)+'% '+(p>0.66?'· OPTIMAL':(p>0.4?'· EASING':'· BOTTLENECK'))+'</text></svg>';
+  }else if(key==='devops'){
+    var sh='M160 26 L250 54 L250 108 C250 150 210 168 160 182 C110 168 70 150 70 108 L70 54 Z';
+    var fy=(182-(182-26)*p).toFixed(1);var hex='';
+    for(var r=0;r<6;r++){for(var c=0;c<5;c++){hex+='<circle cx="'+(86+c*36).toFixed(0)+'" cy="'+(44+r*26).toFixed(0)+'" r="3" fill="none" stroke="'+col+'" stroke-width="0.7" opacity="0.4"/>';}}
+    s='<svg viewBox="0 0 320 190">'+d+'<clipPath id="ccsh"><path d="'+sh+'"/></clipPath>'
+      +'<g clip-path="url(#ccsh)"><rect x="70" y="26" width="180" height="160" fill="'+col+'10"/><rect x="70" y="'+fy+'" width="180" height="170" fill="'+col+'44"><animate attributeName="opacity" values="0.7;1;0.7" dur="2.2s" repeatCount="indefinite"/></rect>'+hex+'</g>'
+      +'<path d="'+sh+'" fill="none" stroke="'+col+'" stroke-width="2" filter="url(#ccg)"/>'
+      +'<text x="160" y="104" fill="#fff" font-size="13" font-weight="800" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" opacity="'+(p>0.5?'0.96':'0.45')+'">VERIFIED</text>'
+      +'<text x="160" y="126" fill="'+col+'" font-size="16" font-weight="800" text-anchor="middle">'+(p>0.5?'✓':'…')+'</text>'
+      +'<text x="160" y="146" fill="'+col+'" font-size="10" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">'+Math.round(p*100)+'% BLOCKED</text></svg>';
+  }else{
+    s='<svg viewBox="0 0 320 190">'+d+'<circle cx="160" cy="95" r="'+(20+50*p).toFixed(0)+'" fill="none" stroke="'+col+'" stroke-width="2" filter="url(#ccg)"/></svg>';
+  }
+  return s;
+}
+function ccGauges(dims,exp,col,pct,v){
+  var head='<div style="display:flex;align-items:baseline;gap:9px;margin:11px 2px 4px"><span style="font-size:30px;font-weight:800;color:'+col+';text-shadow:0 0 16px '+col+'88">'+pct.toFixed(1)+'</span><span style="font-size:11px;color:#8a98b8">'+((v.scoreName||'score')+(v.scoreUnit?(' · '+v.scoreUnit):''))+'</span></div>';
+  var bars=dims.map(function(dd){var val=+exp[dd.name];var mn=+(dd.min!=null?dd.min:0),mx=+(dd.max!=null?dd.max:1);var fr=mx>mn?Math.max(0,Math.min(1,(val-mn)/(mx-mn))):0.5;var vs=(dd.type==='int')?String(Math.round(val)):(Math.abs(val)<1?val.toFixed(3):val.toFixed(1));return '<div class="ccgauge"><div class="ccgrow"><span style="color:'+col+';font-weight:700">'+dd.name+'</span><span style="color:#cdd6ee;font-variant-numeric:tabular-nums">'+vs+'</span></div><div class="ccbar"><div class="ccfill" style="width:'+(fr*100).toFixed(1)+'%;background:linear-gradient(90deg,'+col+'55,'+col+');box-shadow:0 0 9px '+col+'aa"></div></div></div>';}).join('');
+  return head+bars;
+}
+// true terminal typewriter — types each real narration line char-by-char with a blinking cursor
+function typeLog(el,lines,col){
+  if(!el)return;if(window.__cclogT){clearTimeout(window.__cclogT);window.__cclogT=null;}
+  el.innerHTML='';
+  function colorOf(L){return (L.indexOf('✓')>=0||L.indexOf('🔏')>=0)?'#34d399':(L.indexOf('⚠')>=0?'#fbbf24':col);}
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+  var divs=lines.map(function(L){var dv=document.createElement('div');dv.className='ccline';dv.style.color=colorOf(L);el.appendChild(dv);return dv;});
+  var reduce=(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  if(reduce){for(var i=0;i<lines.length;i++)divs[i].innerHTML=esc(lines[i]);return;}
+  var cur=document.createElement('span');cur.className='cccur';cur.innerHTML='&nbsp;';
+  var li=0,ci=0;
+  function step(){
+    if(li>=lines.length){if(divs.length)divs[divs.length-1].appendChild(cur);window.__cclogT=null;return;}
+    var L=lines[li];ci++;divs[li].innerHTML=esc(L.slice(0,ci));divs[li].appendChild(cur);
+    var nl=(ci>=L.length);if(nl){li++;ci=0;}
+    window.__cclogT=setTimeout(step,nl?170:11);
+  }
+  step();
+}
+function renderJournalist(){var j=window.LASTJ;var el=document.getElementById('journalist');if(!el)return;if(!j||!j.narration||!j.vertical){el.style.display='none';return;}var th=(LANG==='th');var v=j.vertical;var col=VERT_THEME[v.key]||'#22d3ee';var lines=(j.narration.lines||[]).slice();var pct=Math.max(0,Math.min(100,+((j.best&&j.best.value))||0));var dims=(j.space||[]);var exp=(j.best&&j.best.experiment)||{};el.style.display='block';
+var head='<div class="cchead"><span style="width:9px;height:9px;border-radius:50%;background:'+col+';box-shadow:0 0 12px '+col+'"></span><span style="font-size:13px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:'+col+'">'+v.emoji+' MELETE COMMAND CENTER</span><span style="font-size:12px;color:#cdd6ee;font-weight:700">'+v.title+'</span><span style="font-size:10.5px;color:#7a89a8;margin-left:auto">'+v.sector+'</span></div>';
+var scene='<div class="ccscene">'+vScene(v.key,pct,exp,dims,col)+ccGauges(dims,exp,col,pct,v)+'</div>';
+var foot='<div style="margin-top:11px;padding-top:10px;border-top:1px solid #ffffff14;font-size:11px;color:#8a98b8;position:relative;z-index:1">'+(th?'⚙ ปุ่ม·คะแนน: ':'⚙ knobs · score: ')+v.knobsCopy+' → '+v.scoreCopy+'</div>';
+el.innerHTML='<div class="cmdcenter" style="border:1px solid '+col+'55;box-shadow:0 26px 60px -30px '+col+'66, inset 0 0 70px '+col+'0c">'+head+'<div class="ccgrid">'+scene+'<div class="cclog" id="cclog"></div></div>'+foot+'</div>';
+typeLog(document.getElementById('cclog'),lines,col);}
 function gVertical(key){var out=document.getElementById('out');var t=document.getElementById('try');if(t)t.scrollIntoView({behavior:'smooth',block:'start'});if(out)out.textContent='▶ running real Melete engine on the '+key+' scenario…';stopPlay();
 fetch('/discover',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({vertical:key})}).then(function(r){return r.json();}).then(function(j){window.LASTJ=j;if(j.error){if(out)out.textContent='⚠ '+j.error;return;}if(out)out.innerHTML='🔬 <b>Best:</b> '+(+j.best.value).toFixed(2)+' at <b>'+JSON.stringify(j.best.experiment)+'</b> · '+j.evaluations+' experiments';renderMap(j);var jel=document.getElementById('journalist');if(jel&&jel.scrollIntoView)setTimeout(function(){jel.scrollIntoView({behavior:'smooth',block:'center'});},200);}).catch(function(e){if(out)out.textContent='⚠ '+e.message;});}
 function gDL(name,obj){try{var b=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});var u=URL.createObjectURL(b);var a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(function(){URL.revokeObjectURL(u);},800);}catch(e){}}
