@@ -80,6 +80,9 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
+      const vert = (typeof body.vertical === "string" && M.VERTICALS && M.VERTICALS[body.vertical]) ? M.VERTICALS[body.vertical] : null;
+      if (vert) { body.space = vert.space.dims; body.objective = vert.objective; body.goal = vert.goal; if (!body.budget) body.budget = 50; }
       const space = { dims: Array.isArray(body.space) ? body.space : body.space?.dims };
       if (!space.dims?.length) return json(res, 400, { error: "space must be a non-empty array of {name,type,min,max}" });
       if (space.dims.length > 12) return json(res, 400, { error: "demo limit: ≤12 dimensions" });
@@ -173,7 +176,10 @@ const server = createServer(async (req, res) => {
       let aegis = null; try { const a = M.aegisDiscover({ space, oracle, budget: Math.min(60, Math.max(24, totalEvals)), goal, seed: (body.seed | 0) || 1, robustWeight: 0.65 }); aegis = { best: a.best, rawBest: a.rawBest, robustnessOfBest: a.robustnessOfBest, tradedHeight: a.tradedHeight }; } catch { aegis = null; }
       // expose the space + a capped sample of observations so the browser can run the WHAT-IF twin (/predict)
       const obsOut = (frontierObs || []).slice(0, 200).map((o) => ({ experiment: o.experiment, value: o.value }));
-      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, space: space.dims, observations: obsOut, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, efficiency, prescription, lineage, sloppiness, cliffs, surprise, rashomon, shape, aegis, prime, sovereign, replayToken, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      // 📡 AI JOURNALIST — Sci-Fi command-center narration of THIS real run (only real numbers), for the vertical gallery
+      let narration = null; if (vert) { try { narration = M.narrate(body.vertical, { best, evaluations: totalEvals, vsStartPct: prescription ? prescription.vsStartPct : undefined, verdictHash: sovereign ? sovereign.certify.payloadHash : undefined, robust: !!(aegis && aegis.robustnessOfBest > 0.5) }); } catch { narration = null; } }
+      const vertical = vert ? { key: vert.key, emoji: vert.emoji, title: vert.title, sector: vert.sector, knobsCopy: vert.knobsCopy, scoreCopy: vert.scoreCopy, scoreName: vert.scoreName, scoreUnit: vert.scoreUnit, realWorld: vert.realWorld } : null;
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, space: space.dims, observations: obsOut, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, efficiency, prescription, lineage, sloppiness, cliffs, surprise, rashomon, shape, aegis, prime, sovereign, replayToken, vertical, narration, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {

@@ -52,6 +52,7 @@ export * from "./replay.js";
 export * from "./metabrain.js";
 export * from "./ipshield.js";
 export * from "./guardian.js";
+export * from "./journalist.js";
 export * from "./server.js";
 
 import { type DiscoverOpts, type DiscoveryResult, type Step, discover } from "./engine.js";
@@ -127,6 +128,7 @@ import { replayGauntlet } from "./replay.js";
 import { metabrainGauntlet } from "./metabrain.js";
 import { ipShieldGauntlet } from "./ipshield.js";
 import { guardianGauntlet } from "./guardian.js";
+import { journalistGauntlet } from "./journalist.js";
 import { serverGauntlet } from "./server.js";
 
 export interface MeleteGauntlet { score: 0 | 100; modules: Array<{ name: string; score: number; checks: Array<{ name: string; pass: boolean }> }> }
@@ -175,6 +177,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "metabrain", g: metabrainGauntlet() },
     { name: "ipshield", g: ipShieldGauntlet() },
     { name: "guardian", g: guardianGauntlet() },
+    { name: "journalist", g: journalistGauntlet() },
     { name: "trace", g: traceGauntlet() },
     { name: "bench", g: await benchGauntlet() },
     { name: "server", g: serverGauntlet() },
