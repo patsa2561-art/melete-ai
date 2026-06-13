@@ -99,6 +99,25 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "noise-robust failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🧩 MIXED-SPACE — optimize a space with categorical / integer / conditional knobs (not just continuous).
+    // Dims accept {type:"categorical",choices:[...]} and {activeWhen:{dim,equals}}; objective is a JS expr that
+    // may compare categoricals (e.g. engine==='B'?1:0.7). Returns the best full recipe + per-combo leaderboard.
+    if (req.method === "POST" && path === "/mixed") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const dims = Array.isArray(body.space) ? body.space : body.space?.dims;
+      if (!Array.isArray(dims) || !dims.length) return json(res, 400, { error: "space must be a non-empty array of dims" });
+      if (dims.length > 12) return json(res, 400, { error: "demo limit: ≤12 dimensions" });
+      if (dims.some((d) => d.type === "categorical" && (!Array.isArray(d.choices) || !d.choices.length))) return json(res, 400, { error: "each categorical dim needs a non-empty choices[]" });
+      if (typeof body.objective !== "string" || !body.objective.trim()) return json(res, 400, { error: "objective must be a JS expression string in your dimension names" });
+      const budget = Math.max(12, Math.min(600, (body.budget | 0) || 300));   // mixed is combo-heavy → its own cap
+      const goal = body.goal === "minimize" ? "minimize" : "maximize";
+      let oracle; try { oracle = makeOracle({ dims }, body.objective); } catch (e) { return json(res, 400, { error: "objective failed to compile: " + e.message.slice(0, 120) }); }
+      try {
+        const r = M.mixedDiscover({ space: { dims }, oracle, budget, goal, seed: (body.seed | 0) || 1 });
+        return json(res, 200, { best: r.best, bestCombo: r.bestCombo, byCombo: r.byCombo.slice(0, 12), evaluations: r.evaluations, comboCount: r.comboCount, sampledCombos: r.sampledCombos, goal });
+      } catch (e) { return json(res, 400, { error: "mixed failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery

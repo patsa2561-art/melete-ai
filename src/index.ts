@@ -48,6 +48,7 @@ export * from "./shape.js";
 export * from "./transfer.js";
 export * from "./aegis.js";
 export * from "./noiserobust.js";
+export * from "./mixedspace.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
 export * from "./metabrain.js";
@@ -125,6 +126,7 @@ import { shapeGauntlet } from "./shape.js";
 import { transferGauntlet } from "./transfer.js";
 import { aegisGauntlet } from "./aegis.js";
 import { noiseRobustGauntlet } from "./noiserobust.js";
+import { mixedGauntlet } from "./mixedspace.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
 import { metabrainGauntlet } from "./metabrain.js";
@@ -175,6 +177,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "transfer", g: transferGauntlet() },
     { name: "aegis", g: aegisGauntlet() },
     { name: "noiserobust", g: noiseRobustGauntlet() },
+    { name: "mixedspace", g: mixedGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },
     { name: "metabrain", g: metabrainGauntlet() },
