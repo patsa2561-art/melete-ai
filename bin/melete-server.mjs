@@ -44,6 +44,19 @@ const server = createServer(async (req, res) => {
       try { return json(res, 200, M.replayToken(body)); } catch (e) { return json(res, 400, { error: "replay failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🛡 IP SHIELD — re-verify a patent-grade IP audit trail OFFLINE
+    if (req.method === "POST" && path === "/ip-audit/verify") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try { return json(res, 200, M.verifyIpAuditTrail(body)); } catch (e) { return json(res, 400, { error: "verify failed: " + e.message.slice(0, 120) }); }
+    }
+    // 🚨 GUARDIAN — one heartbeat: detect drift/breach in a live metric history + recommend a re-tune
+    if (req.method === "POST" && path === "/guardian/tick") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const history = Array.isArray(body.history) ? body.history.map(Number).filter(Number.isFinite) : [];
+      try { return json(res, 200, M.guardianTick(history, { baseline: body.baseline, lowerIsBetter: !!body.lowerIsBetter, breachFrac: body.breachFrac, degradeFrac: body.degradeFrac, window: body.window })); }
+      catch (e) { return json(res, 400, { error: "guardian failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 👑 SOVEREIGN — re-verify a signed Sovereign Verdict OFFLINE (provenance + reproducibility)
     if (req.method === "POST" && path === "/sovereign/verify") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
