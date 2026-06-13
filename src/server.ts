@@ -1166,58 +1166,71 @@ function renderCliff(){var j=window.LASTJ;var el=document.getElementById('cliff'
 function renderSloppy(){var j=window.LASTJ;var el=document.getElementById('sloppy');if(!el)return;var s=j&&j.sloppiness;if(!s||!isFinite(s.effectiveDims)||!s.directions||!s.directions.length){el.style.display='none';return;}var th=(LANG==='th');var combo=function(d){return d.loadings.filter(function(l){return Math.abs(l.weight)>0.25;}).map(function(l){return (l.weight<0?'−':'')+l.name;}).join(' & ')||d.loadings[0].name;};var stiff=s.directions[0];var free=s.effectiveDims<s.totalDims;var bars=s.directions.map(function(d){var w=Math.max(3,Math.round(d.stiffness*100));var c=d.kind==='stiff'?'#6d5cf0':'#c9cde0';return '<div style="margin:6px 0"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:#33344e">'+combo(d)+(d.kind==='sloppy'?' <span style="color:#0e9f6e;font-weight:700">'+(th?'← อิสระ ตั้งได้ตามใจ':'← free, set it freely')+'</span>':'')+'</span><span style="color:#8890a8;font-variant-numeric:tabular-nums">'+(d.stiffness*100).toFixed(0)+'%</span></div><div style="height:6px;background:#f0eefb;border-radius:9px;overflow:hidden;margin-top:3px"><div style="height:100%;width:'+w+'%;background:'+(d.kind==='stiff'?'linear-gradient(90deg,#6d5cf0,#14b8a6)':c)+';border-radius:9px"></div></div></div>';}).join('');el.style.display='block';el.innerHTML='<div style="font-size:13px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#6d28d9;margin-bottom:6px">🎛 '+(th?'ปุ่มที่สำคัญจริง':'How many knobs really matter')+'</div><div style="font-size:15px;color:#1a1b30;font-weight:700;margin-bottom:9px">'+(th?('สำคัญจริง '+s.effectiveDims+' จาก '+s.totalDims+' ชุดผสม'):(s.effectiveDims+' of '+s.totalDims+' combinations truly matter'))+'</div>'+bars+'<div class="muted" style="font-size:11.5px;margin-top:8px">'+(free?(th?'ทิศ stiff ต้องคุมแน่น · ทิศ sloppy ตั้งให้ถูก/ง่ายสุดได้เลย ไม่กระทบผล (sloppy-model / effective dimensionality)':'hold the stiff combination tight · the sloppy ones you can set however is cheapest — they barely affect the result (sloppy-model analysis)'):(th?'ทุกตัวแปรสำคัญแยกกัน ไม่มีทิศที่ตั้งฟรีได้':'every variable matters independently — no free directions'))+'</div>';}
 var VERT_THEME={aerospace:'#22d3ee',genomics:'#a855f7',solar:'#f59e0b',ml:'#6d5cf0',database:'#10b981',devops:'#ef4444'};
 function ccKnobFrac(exp,dims,name){var d=null;for(var i=0;i<dims.length;i++){if(dims[i].name===name)d=dims[i];}if(!d)return 0.5;var mn=+(d.min!=null?d.min:0),mx=+(d.max!=null?d.max:1);var val=+exp[name];return mx>mn?Math.max(0,Math.min(1,(val-mn)/(mx-mn))):0.5;}
-function ccDefs(col){return '<defs><filter id="ccg" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';}
+function ccDefs(col){return '<defs>'
+  +'<linearGradient id="ccsg" x1="0" y1="0" x2="0.85" y2="1"><stop offset="0" stop-color="'+col+'"/><stop offset="1" stop-color="'+col+'7e"/></linearGradient>'
+  +'<radialGradient id="ccvg" cx="50%" cy="18%" r="88%"><stop offset="0" stop-color="'+col+'24"/><stop offset="0.6" stop-color="'+col+'0a"/><stop offset="1" stop-color="'+col+'00"/></radialGradient>'
+  +'<filter id="ccg" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+  +'<filter id="ccg2" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="4.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+  +'</defs>';}
 function ccMix(p){var a=[239,68,68],b=[16,185,129];return 'rgb('+Math.round(a[0]+(b[0]-a[0])*p)+','+Math.round(a[1]+(b[1]-a[1])*p)+','+Math.round(a[2]+(b[2]-a[2])*p)+')';}
 // Per-vertical Sci-Fi command-center scene — every shape is driven by THIS run's real numbers (score + found knobs)
+// every shape is driven by THIS run's real numbers: fr[] = each found knob's position in its range, p = score.
 function vScene(key,pct,exp,dims,col){
   var p=Math.max(0,Math.min(1,pct/100));var d=ccDefs(col);var s='';
+  var fr=[],nm=[],vl=[];for(var qi=0;qi<dims.length;qi++){var dd=dims[qi];var mn=+(dd.min!=null?dd.min:0),mx=+(dd.max!=null?dd.max:1);var vv=+exp[dd.name];fr.push(mx>mn?Math.max(0,Math.min(1,(vv-mn)/(mx-mn))):0.5);nm.push(dd.name);vl.push((dd.type==='int')?String(Math.round(vv)):(Math.abs(vv)<1?vv.toFixed(3):vv.toFixed(1)));}
+  var f0=fr.length?fr[0]:p,f1=fr.length>1?fr[1]:f0,f2=fr.length>2?fr[2]:f1;
+  var bg='<rect x="0" y="0" width="320" height="190" fill="url(#ccvg)"/>';
+  // honest in-scene readout: the real score + the real knob driving the scene's geometry (no invented units)
+  var k0=nm.length?(nm[0]+' '+vl[0]):'';
+  var rd='<g font-family="ui-monospace,Menlo,monospace"><text x="11" y="18" font-size="9" letter-spacing=".5" fill="#9fb0d0">SCORE</text><text x="11" y="31" font-size="13" font-weight="800" fill="'+col+'">'+pct.toFixed(1)+'</text>'+(k0?'<text x="309" y="18" text-anchor="end" font-size="8.5" fill="#7e8db0">'+k0+'</text>':'')+'</g>';
   if(key==='aerospace'){
-    var spin=(15-9*p).toFixed(1);var beamOp=(0.14+0.78*p).toFixed(2);var bw=(1+2.6*p).toFixed(1);
-    s='<svg viewBox="0 0 320 190">'+d
-      +'<path d="M-20 210 A 250 150 0 0 1 340 210 Z" fill="'+col+'12" stroke="'+col+'3a" stroke-width="1.4"/>'
-      +'<ellipse cx="160" cy="80" rx="136" ry="50" fill="none" stroke="'+col+'40" stroke-width="1.2" stroke-dasharray="3 6"/>'
-      +'<g transform="translate(160 80)"><g><animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="'+spin+'s" repeatCount="indefinite"/><g transform="translate(136 0)"><rect x="-6" y="-3" width="12" height="6" rx="1.5" fill="'+col+'" filter="url(#ccg)"/><rect x="-13" y="-1.4" width="6" height="2.8" fill="'+col+'aa"/><rect x="7" y="-1.4" width="6" height="2.8" fill="'+col+'aa"/></g></g></g>'
-      +'<g transform="translate(160 80)"><g><animateTransform attributeName="transform" type="rotate" from="200 0 0" to="560 0 0" dur="'+(spin*1.7).toFixed(1)+'s" repeatCount="indefinite"/><circle cx="136" cy="0" r="3" fill="#fff"/></g></g>'
-      +'<polygon points="42,170 62,170 52,150" fill="'+col+'" filter="url(#ccg)"/>'
-      +'<line x1="52" y1="150" x2="296" y2="42" stroke="'+col+'" stroke-width="'+bw+'" opacity="'+beamOp+'"><animate attributeName="opacity" values="'+beamOp+';0.16;'+beamOp+'" dur="1.5s" repeatCount="indefinite"/></line>'
-      +'<circle cx="296" cy="42" r="4" fill="#fff" filter="url(#ccg)"/></svg>';
+    var spin=(15-9*p).toFixed(1);var beamOp=(0.16+0.74*p).toFixed(2);var bw=(1.2+3*p).toFixed(1);
+    s='<svg viewBox="0 0 320 190">'+d+bg
+      +'<path d="M-20 214 A 252 152 0 0 1 340 214 Z" fill="'+col+'0e" stroke="'+col+'2e" stroke-width="1.2"/>'
+      +'<ellipse cx="160" cy="82" rx="138" ry="50" fill="none" stroke="'+col+'33" stroke-width="1.1" stroke-dasharray="2 7"/>'
+      +'<g transform="translate(160 82)"><g><animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="'+spin+'s" repeatCount="indefinite"/><g transform="translate(138 0)"><rect x="-7" y="-3.2" width="14" height="6.4" rx="1.6" fill="url(#ccsg)" filter="url(#ccg)"/><rect x="-14.5" y="-1.5" width="6.5" height="3" rx="1" fill="'+col+'aa"/><rect x="8" y="-1.5" width="6.5" height="3" rx="1" fill="'+col+'aa"/></g></g></g>'
+      +'<g transform="translate(160 82)"><g><animateTransform attributeName="transform" type="rotate" from="200 0 0" to="560 0 0" dur="'+(spin*1.7).toFixed(1)+'s" repeatCount="indefinite"/><circle cx="138" cy="0" r="2.4" fill="#fff" opacity="0.7"/></g></g>'
+      +'<polygon points="44,172 64,172 54,151" fill="url(#ccsg)" filter="url(#ccg)"/>'
+      +'<line x1="54" y1="151" x2="294" y2="44" stroke="url(#ccsg)" stroke-width="'+bw+'" opacity="'+beamOp+'" filter="url(#ccg2)" stroke-linecap="round"><animate attributeName="opacity" values="'+beamOp+';0.2;'+beamOp+'" dur="1.7s" repeatCount="indefinite"/></line>'
+      +'<circle cx="294" cy="44" r="4.4" fill="#fff" filter="url(#ccg2)"/>'+rd+'</svg>';
   }else if(key==='genomics'){
-    var N=11,glow=(0.32+0.66*p).toFixed(2),rung='',sa='M',sb='M';
-    for(var i=0;i<N;i++){var xx=42+i*23.6;var ph=i*0.62;var yA=(95+38*Math.sin(ph)).toFixed(1);var yB=(95-38*Math.sin(ph)).toFixed(1);sa+=(i?' L':'')+xx.toFixed(1)+' '+yA;sb+=(i?' L':'')+xx.toFixed(1)+' '+yB;rung+='<line x1="'+xx.toFixed(1)+'" y1="'+yA+'" x2="'+xx.toFixed(1)+'" y2="'+yB+'" stroke="'+col+'" stroke-width="1.5" opacity="'+(0.22+0.5*Math.abs(Math.sin(ph))).toFixed(2)+'"/><circle cx="'+xx.toFixed(1)+'" cy="'+yA+'" r="3.4" fill="'+col+'"/><circle cx="'+xx.toFixed(1)+'" cy="'+yB+'" r="3.4" fill="#fff" opacity="0.82"/>';}
-    s='<svg viewBox="0 0 320 190">'+d+'<g filter="url(#ccg)" opacity="'+glow+'"><animateTransform attributeName="transform" type="translate" values="0 -4;0 4;0 -4" dur="3.6s" repeatCount="indefinite"/><path d="'+sa+'" fill="none" stroke="'+col+'" stroke-width="2.4"/><path d="'+sb+'" fill="none" stroke="'+col+'88" stroke-width="2.4"/>'+rung+'</g></svg>';
+    var N=11,lit=Math.round(N*p),rung='',sa='M',sb='M';
+    for(var i=0;i<N;i++){var xx=44+i*22.8;var ph=i*0.62;var yA=(96+38*Math.sin(ph)).toFixed(1);var yB=(96-38*Math.sin(ph)).toFixed(1);sa+=(i?' L':'')+xx.toFixed(1)+' '+yA;sb+=(i?' L':'')+xx.toFixed(1)+' '+yB;var on=(i<lit);var ro=on?'0.95':'0.2';rung+='<line x1="'+xx.toFixed(1)+'" y1="'+yA+'" x2="'+xx.toFixed(1)+'" y2="'+yB+'" stroke="'+col+'" stroke-width="1.6" opacity="'+ro+'"'+(on?' filter="url(#ccg)"':'')+'/><circle cx="'+xx.toFixed(1)+'" cy="'+yA+'" r="3.6" fill="'+(on?'url(#ccsg)':col+'55')+'"'+(on?' filter="url(#ccg)"':'')+'/><circle cx="'+xx.toFixed(1)+'" cy="'+yB+'" r="3.6" fill="'+(on?'#fff':'#ffffff44')+'"/>';}
+    s='<svg viewBox="0 0 320 190">'+d+bg+'<g><animateTransform attributeName="transform" type="translate" values="0 -4;0 4;0 -4" dur="4s" repeatCount="indefinite"/><path d="'+sa+'" fill="none" stroke="url(#ccsg)" stroke-width="2.6" opacity="0.92"/><path d="'+sb+'" fill="none" stroke="'+col+'7a" stroke-width="2.6"/>'+rung+'</g>'+rd+'</svg>';
   }else if(key==='solar'){
-    var tl=ccKnobFrac(exp,dims,'tiltAngle');var ang=(-32+tl*52).toFixed(0);var rays='';
-    for(var i=0;i<12;i++){var a=i*30*Math.PI/180;rays+='<line x1="'+(52+13*Math.cos(a)).toFixed(1)+'" y1="'+(52+13*Math.sin(a)).toFixed(1)+'" x2="'+(52+21*Math.cos(a)).toFixed(1)+'" y2="'+(52+21*Math.sin(a)).toFixed(1)+'" stroke="'+col+'" stroke-width="2"/>';}
-    var cells='';for(var r=0;r<3;r++){for(var c=0;c<4;c++){cells+='<rect x="'+(154+c*23).toFixed(0)+'" y="'+(106+r*13).toFixed(0)+'" width="20" height="11" rx="1.5" fill="'+col+'33" stroke="'+col+'88" stroke-width="0.8"/>';}}
+    var tl=ccKnobFrac(exp,dims,'tiltAngle');if(tl===0.5&&fr.length)tl=f0;var ang=(-34+tl*56).toFixed(0);var rays='';
+    for(var i=0;i<12;i++){var a=i*30*Math.PI/180;rays+='<line x1="'+(52+13*Math.cos(a)).toFixed(1)+'" y1="'+(52+13*Math.sin(a)).toFixed(1)+'" x2="'+(52+22*Math.cos(a)).toFixed(1)+'" y2="'+(52+22*Math.sin(a)).toFixed(1)+'" stroke="url(#ccsg)" stroke-width="2" stroke-linecap="round"/>';}
+    var cells='';for(var r=0;r<3;r++){for(var c=0;c<4;c++){cells+='<rect x="'+(154+c*23).toFixed(0)+'" y="'+(106+r*13).toFixed(0)+'" width="20" height="11" rx="1.5" fill="'+col+'30" stroke="'+col+'8a" stroke-width="0.8"/>';}}
     var fillH=(30*p).toFixed(1);
-    s='<svg viewBox="0 0 320 190">'+d
-      +'<g><g><animateTransform attributeName="transform" type="rotate" from="0 52 52" to="360 52 52" dur="20s" repeatCount="indefinite"/>'+rays+'</g><circle cx="52" cy="52" r="13" fill="'+col+'" filter="url(#ccg)"/></g>'
-      +'<g transform="rotate('+ang+' 200 124)"><rect x="150" y="102" width="100" height="46" rx="3" fill="'+col+'18" stroke="'+col+'" stroke-width="1.3"/>'+cells+'</g>'
-      +'<line x1="208" y1="150" x2="282" y2="158" stroke="'+col+'55" stroke-width="1.5"/><circle r="2.6" fill="#fff"><animateMotion dur="'+(1.6-0.9*p).toFixed(2)+'s" repeatCount="indefinite" path="M208 150 L282 158"/></circle>'
-      +'<rect x="276" y="150" width="26" height="34" rx="3" fill="none" stroke="'+col+'"/><rect x="279" y="'+(182-(+fillH)).toFixed(1)+'" width="20" height="'+fillH+'" rx="1.5" fill="'+col+'" opacity="0.85"/></svg>';
+    s='<svg viewBox="0 0 320 190">'+d+bg
+      +'<g><g><animateTransform attributeName="transform" type="rotate" from="0 52 52" to="360 52 52" dur="22s" repeatCount="indefinite"/>'+rays+'</g><circle cx="52" cy="52" r="13" fill="url(#ccsg)" filter="url(#ccg2)"/></g>'
+      +'<g transform="rotate('+ang+' 200 124)"><rect x="150" y="102" width="100" height="46" rx="3" fill="'+col+'16" stroke="url(#ccsg)" stroke-width="1.4" filter="url(#ccg)"/>'+cells+'</g>'
+      +'<line x1="208" y1="150" x2="282" y2="158" stroke="'+col+'55" stroke-width="1.5" stroke-dasharray="3 4"/><circle r="2.6" fill="#fff" filter="url(#ccg)"><animateMotion dur="'+(1.7-0.95*p).toFixed(2)+'s" repeatCount="indefinite" path="M208 150 L282 158"/></circle>'
+      +'<rect x="276" y="150" width="26" height="34" rx="3" fill="rgba(255,255,255,.04)" stroke="'+col+'88"/><rect x="279" y="'+(182-(+fillH)).toFixed(1)+'" width="20" height="'+fillH+'" rx="1.5" fill="url(#ccsg)" opacity="0.9"/></svg>'.replace('</svg>',rd+'</svg>');
   }else if(key==='ml'){
-    var layers=[3,4,4,3],cols=layers.length,nodes='',edges='',pos=[];
-    for(var c=0;c<cols;c++){var xx=46+c*76;var L=layers[c];pos[c]=[];for(var r=0;r<L;r++){var yy=(38+(150-38)*(L>1?r/(L-1):0.5));pos[c].push([xx,yy]);nodes+='<circle cx="'+xx+'" cy="'+yy.toFixed(1)+'" r="5" fill="'+col+'" filter="url(#ccg)"/>';}}
-    for(var c=0;c<cols-1;c++){for(var a=0;a<pos[c].length;a++){for(var b=0;b<pos[c+1].length;b++){edges+='<line x1="'+pos[c][a][0]+'" y1="'+pos[c][a][1].toFixed(1)+'" x2="'+pos[c+1][b][0]+'" y2="'+pos[c+1][b][1].toFixed(1)+'" stroke="'+col+'" stroke-width="0.7" opacity="0.16"/>';}}}
-    var pd='M'+pos[0][0][0]+' '+pos[0][0][1].toFixed(1)+' L'+pos[1][1][0]+' '+pos[1][1][1].toFixed(1)+' L'+pos[2][1][0]+' '+pos[2][1][1].toFixed(1)+' L'+pos[3][0][0]+' '+pos[3][0][1].toFixed(1);
-    var dur=(2.4-1.6*p).toFixed(2);
-    s='<svg viewBox="0 0 320 190">'+d+edges+nodes+'<circle r="3.6" fill="#fff" filter="url(#ccg)"><animateMotion dur="'+dur+'s" repeatCount="indefinite" path="'+pd+'"/></circle><circle r="3" fill="'+col+'"><animateMotion dur="'+dur+'s" begin="'+(+dur/2).toFixed(2)+'s" repeatCount="indefinite" path="'+pd+'"/></circle></svg>';
+    var layers=[3,4,4,3],ncol=layers.length,nodes='',edges='',pos=[];
+    var sel=[Math.round(f0*2),Math.round(f1*3),Math.round(f2*3),Math.round(((f0+f1)/2)*2)];
+    for(var c=0;c<ncol;c++){var xx=48+c*75;var L=layers[c];pos[c]=[];for(var r=0;r<L;r++){var yy=(40+(150-40)*(L>1?r/(L-1):0.5));pos[c].push([xx,yy]);var hot=(r===Math.max(0,Math.min(L-1,sel[c])));nodes+='<circle cx="'+xx+'" cy="'+yy.toFixed(1)+'" r="'+(hot?6.5:4.5)+'" fill="'+(hot?'url(#ccsg)':col+'66')+'"'+(hot?' filter="url(#ccg2)"':'')+'/>';}}
+    for(var c=0;c<ncol-1;c++){for(var a=0;a<pos[c].length;a++){for(var b=0;b<pos[c+1].length;b++){edges+='<line x1="'+pos[c][a][0]+'" y1="'+pos[c][a][1].toFixed(1)+'" x2="'+pos[c+1][b][0]+'" y2="'+pos[c+1][b][1].toFixed(1)+'" stroke="'+col+'" stroke-width="0.6" opacity="0.13"/>';}}}
+    var sc=function(c){return Math.max(0,Math.min(layers[c]-1,sel[c]));};
+    var pd='M'+pos[0][sc(0)][0]+' '+pos[0][sc(0)][1].toFixed(1)+' L'+pos[1][sc(1)][0]+' '+pos[1][sc(1)][1].toFixed(1)+' L'+pos[2][sc(2)][0]+' '+pos[2][sc(2)][1].toFixed(1)+' L'+pos[3][sc(3)][0]+' '+pos[3][sc(3)][1].toFixed(1);
+    var dur=(2.5-1.6*p).toFixed(2);
+    s='<svg viewBox="0 0 320 190">'+d+bg+edges+'<path d="'+pd+'" fill="none" stroke="url(#ccsg)" stroke-width="1.6" opacity="0.5"/>'+nodes+'<circle r="3.8" fill="#fff" filter="url(#ccg2)"><animateMotion dur="'+dur+'s" repeatCount="indefinite" path="'+pd+'"/></circle><circle r="3" fill="'+col+'"><animateMotion dur="'+dur+'s" begin="'+(+dur/2).toFixed(2)+'s" repeatCount="indefinite" path="'+pd+'"/></circle>'+rd+'</svg>';
   }else if(key==='database'){
-    var pc=ccMix(p),pipes='';
-    for(var i=0;i<5;i++){var yy=42+i*27;pipes+='<rect x="40" y="'+yy+'" width="240" height="11" rx="5.5" fill="rgba(255,255,255,.05)"/><line x1="46" y1="'+(yy+5.5)+'" x2="274" y2="'+(yy+5.5)+'" stroke="'+pc+'" stroke-width="5.5" stroke-dasharray="14 10" stroke-linecap="round" opacity="0.88"><animate attributeName="stroke-dashoffset" values="0;-48" dur="'+(1.5-0.95*p).toFixed(2)+'s" repeatCount="indefinite"/></line>';}
-    s='<svg viewBox="0 0 320 190">'+d+pipes+'<text x="160" y="184" fill="'+pc+'" font-size="11" font-weight="700" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">I/O FLOW '+Math.round(p*100)+'% '+(p>0.66?'· OPTIMAL':(p>0.4?'· EASING':'· BOTTLENECK'))+'</text></svg>';
+    var pc=ccMix(p),active=Math.round(5*p),pipes='';
+    for(var i=0;i<5;i++){var yy=44+i*26;var on=(i<active);var sp=(1.6-1.0*p).toFixed(2);pipes+='<rect x="40" y="'+yy+'" width="240" height="11" rx="5.5" fill="rgba(255,255,255,.045)"/><line x1="46" y1="'+(yy+5.5)+'" x2="274" y2="'+(yy+5.5)+'" stroke="'+(on?pc:col+'33')+'" stroke-width="5.5" stroke-dasharray="14 10" stroke-linecap="round" opacity="'+(on?'0.92':'0.4')+'"'+(on?' filter="url(#ccg)"':'')+'><animate attributeName="stroke-dashoffset" values="0;-48" dur="'+sp+'s" repeatCount="indefinite"/></line>';}
+    s='<svg viewBox="0 0 320 190">'+d+bg+pipes+'<g font-family="ui-monospace,Menlo,monospace"><text x="11" y="18" font-size="9" letter-spacing=".5" fill="#9fb0d0">SCORE</text><text x="11" y="31" font-size="13" font-weight="800" fill="'+pc+'">'+pct.toFixed(1)+'</text>'+(k0?'<text x="309" y="18" text-anchor="end" font-size="8.5" fill="#7e8db0">'+k0+'</text>':'')+'</g></svg>';
   }else if(key==='devops'){
-    var sh='M160 26 L250 54 L250 108 C250 150 210 168 160 182 C110 168 70 150 70 108 L70 54 Z';
-    var fy=(182-(182-26)*p).toFixed(1);var hex='';
-    for(var r=0;r<6;r++){for(var c=0;c<5;c++){hex+='<circle cx="'+(86+c*36).toFixed(0)+'" cy="'+(44+r*26).toFixed(0)+'" r="3" fill="none" stroke="'+col+'" stroke-width="0.7" opacity="0.4"/>';}}
-    s='<svg viewBox="0 0 320 190">'+d+'<clipPath id="ccsh"><path d="'+sh+'"/></clipPath>'
-      +'<g clip-path="url(#ccsh)"><rect x="70" y="26" width="180" height="160" fill="'+col+'10"/><rect x="70" y="'+fy+'" width="180" height="170" fill="'+col+'44"><animate attributeName="opacity" values="0.7;1;0.7" dur="2.2s" repeatCount="indefinite"/></rect>'+hex+'</g>'
-      +'<path d="'+sh+'" fill="none" stroke="'+col+'" stroke-width="2" filter="url(#ccg)"/>'
-      +'<text x="160" y="104" fill="#fff" font-size="13" font-weight="800" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" opacity="'+(p>0.5?'0.96':'0.45')+'">VERIFIED</text>'
-      +'<text x="160" y="126" fill="'+col+'" font-size="16" font-weight="800" text-anchor="middle">'+(p>0.5?'✓':'…')+'</text>'
-      +'<text x="160" y="146" fill="'+col+'" font-size="10" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">'+Math.round(p*100)+'% BLOCKED</text></svg>';
+    var sh='M160 24 L252 53 L252 108 C252 151 210 170 160 184 C110 170 68 151 68 108 L68 53 Z';
+    var fy=(184-(184-24)*p).toFixed(1);var hex='';
+    for(var r=0;r<6;r++){for(var c=0;c<5;c++){hex+='<circle cx="'+(88+c*36).toFixed(0)+'" cy="'+(46+r*26).toFixed(0)+'" r="3" fill="none" stroke="'+col+'" stroke-width="0.7" opacity="0.32"/>';}}
+    s='<svg viewBox="0 0 320 190">'+d+bg+'<clipPath id="ccsh"><path d="'+sh+'"/></clipPath>'
+      +'<g clip-path="url(#ccsh)"><rect x="68" y="24" width="184" height="160" fill="'+col+'0e"/><rect x="68" y="'+fy+'" width="184" height="170" fill="url(#ccsg)" opacity="0.55"><animate attributeName="opacity" values="0.5;0.72;0.5" dur="2.4s" repeatCount="indefinite"/></rect>'+hex+'</g>'
+      +'<path d="'+sh+'" fill="none" stroke="url(#ccsg)" stroke-width="2.2" filter="url(#ccg2)"/>'
+      +'<text x="160" y="112" fill="#fff" font-size="30" font-weight="800" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">'+pct.toFixed(0)+'</text>'
+      +'<text x="160" y="132" fill="'+col+'" font-size="9.5" letter-spacing="1.5" text-anchor="middle" font-family="-apple-system,system-ui,sans-serif">SCORE</text></svg>';
   }else{
-    s='<svg viewBox="0 0 320 190">'+d+'<circle cx="160" cy="95" r="'+(20+50*p).toFixed(0)+'" fill="none" stroke="'+col+'" stroke-width="2" filter="url(#ccg)"/></svg>';
+    s='<svg viewBox="0 0 320 190">'+d+bg+'<circle cx="160" cy="96" r="'+(20+50*p).toFixed(0)+'" fill="none" stroke="url(#ccsg)" stroke-width="2.2" filter="url(#ccg2)"/>'+rd+'</svg>';
   }
   return s;
 }
