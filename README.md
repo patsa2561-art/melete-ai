@@ -31,7 +31,15 @@ melete gauntlet         # every engine's correctness check (must be 100)
 melete poopt cert.json  # verify a signed certificate offline
 ```
 
-**3) API — connect your real process (air-gapped):**
+**3) API — connect your real process (air-gapped).**
+First, get an endpoint to call — two options:
+```bash
+# A) hosted demo (quick try):        base URL = https://melete.mneme-ai.space
+# B) self-host (sovereign — data never leaves your machine):
+npm i -g melete-ai
+melete-server                         # → serves on http://localhost:8790
+```
+Then POST to that base URL:
 ```bash
 POST /next             { space, observations }              → the next setting to try
 POST /aegis            { space, objective, budget }         → the best ROBUST setting (survives wobble)
@@ -39,7 +47,7 @@ POST /discover         { space, objective, budget }         → full run + signe
 POST /sovereign/verify { …verdict }                         → re-verify provenance OFFLINE
 POST /replay/verify    { …token }                           → re-derive the decision step-by-step OFFLINE
 ```
-…or call the library directly: `import { sovereignAnalyze, aegisDiscover, proposeNext } from "melete-ai"`.
+…or skip HTTP entirely and call the library in-process: `import { sovereignAnalyze, aegisDiscover, proposeNext } from "melete-ai"`.
 
 ## What's inside — 43 engines, 4 layers
 | | layer | what it does |
