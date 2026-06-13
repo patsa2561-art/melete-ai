@@ -216,46 +216,56 @@ h2{letter-spacing:-.6px}
 .laysub{font-size:12px;color:#6a6c84;margin-top:3px;line-height:1.45}
 @keyframes jline{to{opacity:1}}
 /* Sci-Fi Command Center — Umbrella-lab containment console (per-vertical live demo) */
-.cmdcenter{background:radial-gradient(130% 120% at 50% -10%,#0d1322,#05060d 70%);border-radius:20px;padding:20px 22px;font-family:ui-monospace,Menlo,monospace;overflow:hidden;position:relative;isolation:isolate}
-/* faint hex/grid floor of the lab */
-.cmdcenter::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.5;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:34px 34px;-webkit-mask-image:radial-gradient(120% 100% at 50% 0%,#000 30%,transparent 78%);mask-image:radial-gradient(120% 100% at 50% 0%,#000 30%,transparent 78%)}
-/* faint static CRT scanlines only — no moving sweep (kept the panel calm, not busy) */
-.cmdcenter::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;border-radius:20px;background:repeating-linear-gradient(0deg,rgba(255,255,255,.014) 0 1px,transparent 1px 3px)}
+/* ── COMMAND CENTER · instrument-grade surface (deep lacquer, light caught at the top edge) ── */
+.cmdcenter{background:radial-gradient(120% 78% at 16% -10%,rgba(255,255,255,.075),transparent 46%),radial-gradient(150% 125% at 50% -22%,#15203a 0%,#0b1120 46%,#070b16 76%,#04060e 100%);border-radius:22px;padding:24px 26px 22px;font-family:-apple-system,system-ui,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;overflow:hidden;position:relative;isolation:isolate;box-shadow:0 50px 120px -52px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.05) inset,0 2px 0 rgba(255,255,255,.045) inset}
+/* fine instrument floor — calmer, deeper than a game HUD */
+.cmdcenter::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:.4;background-image:linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);background-size:40px 40px;-webkit-mask-image:radial-gradient(125% 100% at 50% 0%,#000 26%,transparent 82%);mask-image:radial-gradient(125% 100% at 50% 0%,#000 26%,transparent 82%)}
+/* a single hairline of light across the very top — the lacquer catching light */
+.cmdcenter::after{content:"";position:absolute;left:7%;right:7%;top:0;height:1px;z-index:4;pointer-events:none;background:linear-gradient(90deg,transparent,var(--cc,#22d3ee),transparent);opacity:.5}
 .cmdcenter>*{position:relative;z-index:2}
-/* corner containment brackets */
-.ccbrk{position:absolute;width:18px;height:18px;border:2px solid var(--cc,#22d3ee);opacity:.7;z-index:4}
-.ccbrk.tl{top:9px;left:9px;border-right:0;border-bottom:0}.ccbrk.tr{top:9px;right:9px;border-left:0;border-bottom:0}
-.ccbrk.bl{bottom:9px;left:9px;border-right:0;border-top:0}.ccbrk.br{bottom:9px;right:9px;border-left:0;border-top:0}
-.cchead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.ccrec{width:9px;height:9px;border-radius:50%;background:var(--cc,#22d3ee);box-shadow:0 0 12px var(--cc,#22d3ee);animation:ccrec 1.4s ease-in-out infinite}
-@keyframes ccrec{50%{opacity:.25}}
+/* corner containment brackets — finer, more precise */
+.ccbrk{position:absolute;width:15px;height:15px;border:1.5px solid var(--cc,#22d3ee);opacity:.5;z-index:5}
+.ccbrk.tl{top:10px;left:10px;border-right:0;border-bottom:0}.ccbrk.tr{top:10px;right:10px;border-left:0;border-bottom:0}
+.ccbrk.bl{bottom:10px;left:10px;border-right:0;border-top:0}.ccbrk.br{bottom:10px;right:10px;border-left:0;border-top:0}
+.cchead{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-bottom:14px}
+.ccrec{width:8px;height:8px;border-radius:50%;background:var(--cc,#22d3ee);box-shadow:0 0 14px var(--cc,#22d3ee);animation:ccrec 2s ease-in-out infinite}
+@keyframes ccrec{50%{opacity:.3}}
 /* HUD provenance strip — every field is a real number from THIS run */
-.cchud{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 12px}
-.cchud span{font-size:10px;letter-spacing:.4px;color:#9fb0d0;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);border-radius:7px;padding:3px 8px}
-.cchud b{color:#e6edff;font-weight:700}
-.ccgrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:16px}
+/* provenance strip — etched-metal tags; labels in refined caps, the VALUES in precision mono */
+.cchud{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.cchud span{font-size:9.5px;letter-spacing:.7px;text-transform:uppercase;color:#aebad6;background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.022));border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:4px 9px;display:inline-flex;gap:6px;align-items:center;box-shadow:0 1px 0 rgba(255,255,255,.05) inset}
+.cchud b{color:#fff;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:0}
+.ccgrid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:18px}
 @media(max-width:760px){.ccgrid{grid-template-columns:1fr}}
-.ccscene{border:1px solid rgba(255,255,255,.09);border-radius:14px;background:radial-gradient(120% 120% at 50% 0%,rgba(255,255,255,.05),transparent 60%);padding:10px}
+.ccscene{border:1px solid rgba(255,255,255,.08);border-radius:16px;background:radial-gradient(130% 130% at 50% 0%,rgba(255,255,255,.055),rgba(255,255,255,.012) 55%,transparent 74%);padding:12px 13px;box-shadow:0 1px 0 rgba(255,255,255,.05) inset}
 .ccscene svg{width:100%;height:auto;display:block}
-.ccgauge{margin:7px 2px 0}
-.ccgrow{display:flex;justify-content:space-between;font-size:11px;margin:0 0 3px}
-.ccbar{height:6px;border-radius:9px;background:rgba(255,255,255,.07);overflow:hidden}
-.ccfill{height:100%;border-radius:9px;transition:width 1.1s cubic-bezier(.22,1,.36,1)}
-.cclog{border:1px solid rgba(255,255,255,.09);border-radius:14px;background:rgba(3,4,10,.86);padding:13px 15px;font-size:12.5px;line-height:1.62;min-height:150px;overflow-wrap:anywhere}
+/* instrument readout — precision dial + the hero score */
+.ccreadout{display:flex;align-items:center;gap:15px;margin:13px 2px 7px}
+.ccdialsvg{width:98px;height:98px;flex:0 0 98px}
+.ccreadout-meta{min-width:0}
+.ccreadout-meta .lbl{font-size:10px;letter-spacing:.9px;text-transform:uppercase;color:#9fb0d0;font-weight:600}
+.ccreadout-meta .sub{font-size:11.5px;color:#8a98b8;margin-top:4px;line-height:1.5}
+.ccgauge{margin:9px 2px 0}
+.ccgrow{display:flex;justify-content:space-between;font-size:11px;margin:0 0 4px;align-items:baseline}
+.ccgrow .nm{color:#cdd6ee;font-weight:600;letter-spacing:.2px}
+.ccgrow .vl{color:#fff;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+.ccbar{height:6px;border-radius:9px;background:rgba(255,255,255,.06);overflow:hidden;box-shadow:0 1px 1px rgba(0,0,0,.45) inset;position:relative}
+.ccfill{height:100%;border-radius:9px;transition:width 1.2s cubic-bezier(.22,1,.36,1)}
+.cclog{border:1px solid rgba(255,255,255,.08);border-radius:16px;background:linear-gradient(180deg,rgba(4,6,13,.92),rgba(3,4,10,.97));padding:14px 16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.65;min-height:160px;overflow-wrap:anywhere;box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
 .ccline{margin:2px 0;white-space:pre-wrap}
-.cccur{display:inline-block;width:8px;background:currentColor;animation:ccblink 1s steps(1) infinite;margin-left:1px}
+.cccur{display:inline-block;width:7px;background:currentColor;animation:ccblink 1.1s steps(1) infinite;margin-left:1px}
 @keyframes ccblink{50%{opacity:0}}
 /* ENGINE CORE — the real competing strategies (the multi-strategy "AI-multiverse" brain) */
-.cccore{margin-top:13px;border-top:1px solid rgba(255,255,255,.1);padding-top:11px}
-.cccore-h{font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;color:#9fb0d0;margin-bottom:8px}
-.ccarms{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:7px}
-.ccarm{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:9px;padding:7px 9px}
-.ccarm .an{font-size:11px;color:#e6edff;font-weight:700;display:flex;align-items:center;gap:5px}
-.ccarm .am{height:4px;border-radius:9px;margin-top:5px;background:rgba(255,255,255,.08);overflow:hidden}
-.ccarm .af{height:100%;border-radius:9px}
-.ccarm .aw{font-size:9.5px;color:#8595b8;margin-top:4px;letter-spacing:.2px}
-.ccmore{background:transparent;border:1px solid var(--cc,#22d3ee);color:var(--cc,#22d3ee);font-family:inherit;font-size:12.5px;font-weight:700;letter-spacing:.3px;padding:8px 15px;border-radius:10px;cursor:pointer;transition:background .2s,box-shadow .2s}
-.ccmore:hover{background:var(--cc,#22d3ee)1a;box-shadow:0 0 18px var(--cc,#22d3ee)55}
+.cccore{margin-top:16px;border-top:1px solid rgba(255,255,255,.09);padding-top:13px}
+.cccore-h{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#9fb0d0;margin-bottom:10px;font-weight:600}
+.ccarms{display:grid;grid-template-columns:repeat(auto-fit,minmax(116px,1fr));gap:8px}
+.ccarm{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.018));border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:9px 10px;box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
+.ccarm .an{font-size:11px;color:#eaf0ff;font-weight:600;display:flex;align-items:center;gap:6px}
+.ccarm .am{height:4px;border-radius:9px;margin-top:6px;background:rgba(255,255,255,.07);overflow:hidden}
+.ccarm .af{height:100%;border-radius:9px;transition:width 1s cubic-bezier(.22,1,.36,1)}
+.ccarm .aw{font-size:9.5px;color:#8595b8;margin-top:5px;letter-spacing:.2px;font-family:ui-monospace,Menlo,monospace}
+.ccmore{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid var(--cc,#22d3ee);color:var(--cc,#22d3ee);font-family:inherit;font-size:12.5px;font-weight:700;letter-spacing:.3px;padding:9px 16px;border-radius:11px;cursor:pointer;transition:transform .2s,background .2s,box-shadow .2s}
+.ccmore:hover{transform:translateY(-1px);background:var(--cc,#22d3ee)1f;box-shadow:0 10px 24px -12px var(--cc,#22d3ee),0 0 0 1px var(--cc,#22d3ee)55 inset}
 .ccmore:disabled{opacity:.5;cursor:default}
 .galcard{position:relative;cursor:pointer;border-radius:16px;padding:17px 16px;background:rgba(255,255,255,.8);backdrop-filter:blur(10px);border:1px solid #ecebf6;box-shadow:0 16px 36px -28px rgba(70,55,160,.5);transition:transform .45s cubic-bezier(.22,1,.36,1),box-shadow .45s,border-color .3s;overflow:hidden}
 .galcard::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--gc)}
@@ -1211,9 +1221,26 @@ function vScene(key,pct,exp,dims,col){
   }
   return s;
 }
-function ccGauges(dims,exp,col,pct,v){
-  var head='<div style="display:flex;align-items:baseline;gap:9px;margin:11px 2px 4px"><span style="font-size:30px;font-weight:800;color:'+col+';text-shadow:0 0 16px '+col+'88">'+pct.toFixed(1)+'</span><span style="font-size:11px;color:#8a98b8">'+((v.scoreName||'score')+(v.scoreUnit?(' · '+v.scoreUnit):''))+'</span></div>';
-  var bars=dims.map(function(dd){var val=+exp[dd.name];var mn=+(dd.min!=null?dd.min:0),mx=+(dd.max!=null?dd.max:1);var fr=mx>mn?Math.max(0,Math.min(1,(val-mn)/(mx-mn))):0.5;var vs=(dd.type==='int')?String(Math.round(val)):(Math.abs(val)<1?val.toFixed(3):val.toFixed(1));return '<div class="ccgauge"><div class="ccgrow"><span style="color:'+col+';font-weight:700">'+dd.name+'</span><span style="color:#cdd6ee;font-variant-numeric:tabular-nums">'+vs+'</span></div><div class="ccbar"><div class="ccfill" style="width:'+(fr*100).toFixed(1)+'%;background:linear-gradient(90deg,'+col+'55,'+col+');box-shadow:0 0 9px '+col+'aa"></div></div></div>';}).join('');
+// a precision instrument dial — a 270° gauge filled to the REAL score (animated sweep), the readout in its core
+function ccDial(pct,col,v){
+  var p=Math.max(0,Math.min(1,pct/100));var C=263.89,track=197.92,val=(track*p).toFixed(2);
+  var ticks='';for(var i=0;i<=10;i++){var a=(135+i*27)*Math.PI/180;ticks+='<line x1="'+(50+38*Math.cos(a)).toFixed(1)+'" y1="'+(50+38*Math.sin(a)).toFixed(1)+'" x2="'+(50+44*Math.cos(a)).toFixed(1)+'" y2="'+(50+44*Math.sin(a)).toFixed(1)+'" stroke="rgba(255,255,255,.16)" stroke-width="'+(i%5===0?'1.6':'.8')+'"/>';}
+  var ta=(135+270*p)*Math.PI/180;var tx=(50+42*Math.cos(ta)).toFixed(1),ty=(50+42*Math.sin(ta)).toFixed(1);
+  var unit=(v.scoreUnit||'score').toUpperCase();
+  return '<svg class="ccdialsvg" viewBox="0 0 100 100">'
+    +'<defs><linearGradient id="ccdg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+col+'7a"/><stop offset="1" stop-color="'+col+'"/></linearGradient>'
+    +'<filter id="ccdgl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'
+    +ticks
+    +'<g transform="rotate(135 50 50)"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7" stroke-linecap="round" stroke-dasharray="197.92 263.89"/>'
+    +'<circle cx="50" cy="50" r="42" fill="none" stroke="url(#ccdg)" stroke-width="7" stroke-linecap="round" stroke-dasharray="'+val+' '+C+'" filter="url(#ccdgl)"><animate attributeName="stroke-dasharray" from="0 '+C+'" to="'+val+' '+C+'" dur="1.15s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines="0.22 1 0.36 1"/></circle></g>'
+    +(p>0.02?'<circle cx="'+tx+'" cy="'+ty+'" r="3" fill="#fff" filter="url(#ccdgl)" opacity="0"><animate attributeName="opacity" from="0" to="1" begin="0.85s" dur="0.35s" fill="freeze"/></circle>':'')
+    +'<text x="50" y="53" text-anchor="middle" font-size="22" font-weight="800" fill="'+col+'" font-family="ui-monospace,Menlo,monospace">'+pct.toFixed(1)+'</text>'
+    +'<text x="50" y="66" text-anchor="middle" font-size="7" letter-spacing="1.3" fill="#8a98b8" font-family="-apple-system,system-ui,sans-serif">'+unit+'</text>'
+    +'</svg>';
+}
+function ccGauges(dims,exp,col,pct,v){var th=(LANG==='th');
+  var head='<div class="ccreadout">'+ccDial(pct,col,v)+'<div class="ccreadout-meta"><div class="lbl">'+(v.scoreName||'score')+'</div><div class="sub">'+(th?'สดจากการรันนี้ · ทุกตัวเลขคำนวณจริง ตรวจสอบได้':'live from this run · every number computed, verifiable')+'</div></div></div>';
+  var bars=dims.map(function(dd){var val=+exp[dd.name];var mn=+(dd.min!=null?dd.min:0),mx=+(dd.max!=null?dd.max:1);var fr=mx>mn?Math.max(0,Math.min(1,(val-mn)/(mx-mn))):0.5;var vs=(dd.type==='int')?String(Math.round(val)):(Math.abs(val)<1?val.toFixed(3):val.toFixed(1));return '<div class="ccgauge"><div class="ccgrow"><span class="nm" style="color:'+col+'">'+dd.name+'</span><span class="vl">'+vs+'</span></div><div class="ccbar"><div class="ccfill" style="width:'+(fr*100).toFixed(1)+'%;background:linear-gradient(90deg,'+col+'4d,'+col+');box-shadow:0 0 10px '+col+'aa"></div></div></div>';}).join('');
   return head+bars;
 }
 // true terminal typewriter — types each real narration line char-by-char with a blinking cursor
