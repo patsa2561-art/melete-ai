@@ -38,6 +38,12 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && path === "/docs") { const html = M.docsPage(VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
     if (req.method === "GET" && path === "/health") return json(res, 200, { ok: true, version: VERSION, service: "melete" });
 
+    // ⏪ REPLAY — re-run a Replay Token OFFLINE: verify signature + deterministically reproduce step-by-step
+    if (req.method === "POST" && path === "/replay/verify") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try { return json(res, 200, M.replayToken(body)); } catch (e) { return json(res, 400, { error: "replay failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 👑 SOVEREIGN — re-verify a signed Sovereign Verdict OFFLINE (provenance + reproducibility)
     if (req.method === "POST" && path === "/sovereign/verify") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
@@ -148,11 +154,13 @@ const server = createServer(async (req, res) => {
       let prime = null; try { prime = M.meletePrime(frontierObs, space, goal); } catch { prime = null; }
       // 👑 SOVEREIGN — the ecosystem verdict: 4 layers + an Ed25519 PROVENANCE certificate, offline-verifiable
       let sovereign = null; try { sovereign = M.sovereignAnalyze(frontierObs, space, goal, { issuedAtMs: 0 }); } catch { sovereign = null; }
+      // ⏪ REPLAY TOKEN — deterministic, signed, offline step-by-step replay of this analysis (audit/compliance)
+      let replayToken = null; try { replayToken = M.issueReplayToken(frontierObs, space, goal, { issuedAtMs: 0 }); } catch { replayToken = null; }
       // 🛡 AEGIS — the self-aware engine: the best ROBUST optimum (survives wobble) vs the raw peak
       let aegis = null; try { const a = M.aegisDiscover({ space, oracle, budget: Math.min(60, Math.max(24, totalEvals)), goal, seed: (body.seed | 0) || 1, robustWeight: 0.65 }); aegis = { best: a.best, rawBest: a.rawBest, robustnessOfBest: a.robustnessOfBest, tradedHeight: a.tradedHeight }; } catch { aegis = null; }
       // expose the space + a capped sample of observations so the browser can run the WHAT-IF twin (/predict)
       const obsOut = (frontierObs || []).slice(0, 200).map((o) => ({ experiment: o.experiment, value: o.value }));
-      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, space: space.dims, observations: obsOut, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, efficiency, prescription, lineage, sloppiness, cliffs, surprise, rashomon, shape, aegis, prime, sovereign, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
+      return json(res, 200, { best, evaluations: totalEvals, converged: sig.result.converged, engine: sig.engine, reliable, goal, dims, space: space.dims, observations: obsOut, armStats: sig.result.armStats ?? null, surface, path, frontier, certificate, baseline, poopt, sensitivity, noise, interactions, coverage, drift, efficiency, prescription, lineage, sloppiness, cliffs, surprise, rashomon, shape, aegis, prime, sovereign, replayToken, trace: sig.trace, verify: M.verifyTrace(sig.trace).ok });
     }
 
     if (req.method === "POST" && path === "/next") {
