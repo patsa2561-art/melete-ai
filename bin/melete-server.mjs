@@ -35,6 +35,7 @@ const server = createServer(async (req, res) => {
     if (req.method === "OPTIONS") return json(res, 204, {});
     if (req.method === "GET" && path === "/") { const html = M.landingPage(VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
     if (req.method === "GET" && path === "/pitch") { const html = M.pitchDeck(VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
+    if (req.method === "GET" && path.startsWith("/for/")) { const k = path.slice(5).replace(/\/+$/, ""); const html = M.audiencePage(k, VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
     if (req.method === "GET" && path === "/docs") { const html = M.docsPage(VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
     if (req.method === "GET" && path === "/health") return json(res, 200, { ok: true, version: VERSION, service: "melete" });
 

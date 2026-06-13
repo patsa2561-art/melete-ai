@@ -307,6 +307,8 @@ h2{letter-spacing:-.6px}
 .audcard .ak{font-size:12px;color:#5a5c76;margin-top:9px;font-family:ui-monospace,Menlo,monospace;background:#f5f4fd;border:1px solid #ecebf6;border-radius:9px;padding:7px 11px;display:inline-block}
 .audcard .ago{margin-top:14px;display:inline-block;font-size:13.5px;font-weight:700;color:#fff;background:var(--ac,#6d5cf0);border:0;border-radius:11px;padding:10px 17px;cursor:pointer;font-family:inherit;transition:transform .2s,box-shadow .2s}
 .audcard .ago:hover{transform:translateY(-1px);box-shadow:0 13px 28px -12px var(--ac,#6d5cf0)}
+.audcard .audpage{display:inline-block;margin-left:10px;font-size:13.5px;font-weight:700;color:var(--ac,#6d5cf0);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .2s}
+.audcard .audpage:hover{border-bottom-color:var(--ac,#6d5cf0)}
 /* Meli sits crisp on the panel — no blurred halo (keeps the sharp dark mascot) */
 .herochar,.panel-art{position:relative}
 .herochar>.meli,.panel-art>.meli{position:relative;z-index:1}
@@ -947,7 +949,8 @@ function audGo(dk){try{if(typeof gVertical==='function')gVertical(dk);}catch(e){
 function setAud(k){var a=AUD[k];if(!a)return;window.__aud=k;var lang=(typeof LANG!=='undefined'?LANG:'en');var t=a[lang]||a.en;
  ['pharma','chem','gpu','aero','phys','infra'].forEach(function(x){var b=document.getElementById('aud-'+x);if(b)b.className='audchip'+(x===k?' on':'');});
  var go=(lang==='th'?'▶ ดู Melete รันโจทย์ของคุณ':'▶ See Melete run your problem');
- var el=document.getElementById('audpanel');if(el)el.innerHTML='<div class="audcard" style="--ac:'+a.c+'"><h4>'+t.h+'</h4><div class="al">'+t.l+'</div><div class="ak">'+t.k+'</div><button class="ago" onclick="audGo(\\''+a.demo+'\\')">'+go+'</button></div>';}
+ var pg=(lang==='th'?'เปิดหน้าเต็มของสายนี้ →':'Open the full page →');
+ var el=document.getElementById('audpanel');if(el)el.innerHTML='<div class="audcard" style="--ac:'+a.c+'"><h4>'+t.h+'</h4><div class="al">'+t.l+'</div><div class="ak">'+t.k+'</div><button class="ago" onclick="audGo(\\''+a.demo+'\\')">'+go+'</button> <a class="audpage" href="/for/'+k+'">'+pg+'</a></div>';}
 function setLang(l){LANG=l;try{localStorage.setItem('mlang',l);}catch(e){}
  var e1=document.getElementById('lang-en'),e2=document.getElementById('lang-th');if(e1)e1.className='lb'+(l==='en'?' on':'');if(e2)e2.className='lb'+(l==='th'?' on':'');
  var els=document.querySelectorAll('[data-i18n]');for(var i=0;i<els.length;i++){var v=tr(els[i].getAttribute('data-i18n'));if(v!=null)els[i].innerHTML=v;}
@@ -1513,6 +1516,10 @@ async function run(){
  ps.forEach(function(p){io.observe(p)});})();
 setMode('simple');loadPreset();setLang(LANG);
 </script>
+<script>
+/* deep-link from a per-profession page: /?demo=<vertical> auto-runs that live demo */
+(function(){try{var dk=new URLSearchParams(location.search).get('demo');if(dk&&typeof gVertical==='function'){gVertical(dk);var t=document.getElementById('journalist')||document.getElementById('gallery');if(t&&t.scrollIntoView)setTimeout(function(){t.scrollIntoView({behavior:'smooth',block:'start'});},320);}}catch(e){}})();
+</script>
 </body></html>`;
 }
 
@@ -1716,12 +1723,130 @@ document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
 </script></body></html>`;
 }
 
+// ── per-profession landing variants (shareable, SEO-able; deep-link back to the live demo) ──────────────
+export const AUDIENCE_KEYS = ["pharma", "chem", "gpu", "aero", "phys", "infra"] as const;
+type AudCopy = { name: string; h: string; sub: string; s1: string; s2: string; s3: string; knobs: string; b1: string; b2: string; b3: string };
+const AUDIENCE: Record<string, { e: string; col: string; demo: string; en: AudCopy; th: AudCopy }> = {
+  pharma: { e: "💊", col: "#a855f7", demo: "genomics",
+    en: { name: "Pharma & Formulation", h: "Find the formulation that works — in the fewest assays.", sub: "Tell Melete your knobs and what “good” means; it proposes the next experiment to run at the bench, you measure, and it converges on the best robust recipe — then signs the result for your filing.", s1: "List your levers — pH, incubation time, excipient ratio, genome target — and their real ranges.", s2: "Melete proposes the next assay to run. You measure bioavailability − toxicity and feed it back.", s3: "In ~tens of assays you get the best robust recipe + an Ed25519 verdict an auditor re-verifies offline.", knobs: "pH · incubation · excipient · target  →  bioavailability − toxicity", b1: "Fewer expensive assays to the answer — no historical dataset required.", b2: "Runs on your machine, air-gapped — patient and IP data never leave.", b3: "A tamper-evident discovery trail for patents and regulatory review." },
+    th: { name: "ยา & การตั้งสูตร", h: "หาสูตรที่ได้ผล — ในจำนวนการทดลองที่น้อยที่สุด", sub: "บอก Melete ว่าปรับอะไรได้และ “ดี” คืออะไร มันเสนอการทดลองถัดไปให้ลองที่แล็บ คุณวัด แล้วมันลู่เข้าสูตรที่ดีและทนทานที่สุด พร้อมเซ็นผลให้ไว้ยื่นเอกสาร", s1: "ระบุตัวแปรที่ปรับได้ — pH, เวลาบ่ม, สัดส่วน excipient, เป้า genome — พร้อมช่วงจริง", s2: "Melete เสนอ assay ถัดไป คุณวัด (ออกฤทธิ์ − พิษ) แล้วป้อนกลับ", s3: "ในไม่กี่สิบ assay ได้สูตรที่ดีและทนทานที่สุด + ใบรับรอง Ed25519 ที่ตรวจ offline ได้", knobs: "pH · เวลาบ่ม · excipient · เป้า  →  ออกฤทธิ์ − พิษ", b1: "ใช้ assay แพงๆ น้อยลงจนถึงคำตอบ — ไม่ต้องมีชุดข้อมูลเดิม", b2: "รันบนเครื่องคุณ air-gapped — ข้อมูลคนไข้/ทรัพย์สินทางปัญญาไม่ออกไปไหน", b3: "ร่องรอยการค้นพบที่แก้ไม่ได้ ไว้ยื่นสิทธิบัตร/ตรวจสอบ" } },
+  chem: { e: "⚗️", col: "#a855f7", demo: "genomics",
+    en: { name: "Chemistry", h: "Find the reaction conditions that maximise yield — without burning runs.", sub: "Give Melete your levers and the score you measure; it picks the next condition to try, you run it, and it homes in on the best robust set — every step signed and replayable.", s1: "Define temperature, pH, catalyst loading, time and their real ranges.", s2: "Melete proposes the next condition. You run it and report yield − cost.", s3: "It converges on the best robust conditions + a signed, replayable record.", knobs: "temp · pH · catalyst · time  →  yield − cost", b1: "Reach the best conditions in far fewer runs than a grid sweep.", b2: "Fully on-prem — your process data never leaves the lab.", b3: "A reproducible, signed trail of exactly how you got there." },
+    th: { name: "เคมี", h: "หาเงื่อนไขปฏิกิริยาที่ให้ yield สูงสุด — โดยไม่เปลืองรอบทดลอง", sub: "ใส่ตัวแปรที่คุมได้และคะแนนที่คุณวัด Melete เลือกเงื่อนไขถัดไปให้ลอง คุณรัน แล้วมันลู่เข้าชุดที่ดีและทนทานที่สุด ทุกขั้นเซ็นและเล่นซ้ำได้", s1: "กำหนดอุณหภูมิ, pH, ปริมาณตัวเร่ง, เวลา พร้อมช่วงจริง", s2: "Melete เสนอเงื่อนไขถัดไป คุณรันแล้วรายงาน yield − ต้นทุน", s3: "ลู่เข้าเงื่อนไขที่ดีและทนทานที่สุด + บันทึกที่เซ็นและเล่นซ้ำได้", knobs: "อุณหภูมิ · pH · ตัวเร่ง · เวลา  →  yield − ต้นทุน", b1: "ถึงเงื่อนไขที่ดีที่สุดด้วยรอบที่น้อยกว่าการกวาด grid มาก", b2: "รันบนเครื่องทั้งหมด — ข้อมูลกระบวนการไม่ออกจากแล็บ", b3: "ร่องรอยที่ทำซ้ำได้และเซ็นไว้ ว่าได้คำตอบมายังไง" } },
+  gpu: { e: "🧠", col: "#6d5cf0", demo: "ml",
+    en: { name: "GPU & ML", h: "Tune the model for more tokens/s and safety — at less GPU cost.", sub: "Hand Melete the knobs and the score; it runs the search and returns the best robust configuration with a signed, offline-verifiable trace — fully on your air-gapped box.", s1: "List learning-rate, quantization, RAG chunk, batch size and their ranges.", s2: "Each step Melete proposes a config; your harness reports tokens/s + safety − GPU $.", s3: "You get the best robust config + a signed trace, no historical data needed.", knobs: "lr · quantization · chunk · batch  →  tok/s + safety − GPU $", b1: "Fewer GPU-hours to the best model — starts from scratch, no dataset.", b2: "Air-gapped — weights and prompts never leave your cluster.", b3: "A provable tuning record for review boards and reproducibility." },
+    th: { name: "GPU & ML", h: "จูนโมเดลให้ได้ tokens/s และความปลอดภัยมากขึ้น — ด้วยต้นทุน GPU ที่น้อยลง", sub: "ส่งปุ่มและคะแนนให้ Melete มันค้นหาแล้วคืนคอนฟิกที่ดีและทนทานที่สุด พร้อม trace ที่เซ็นและตรวจ offline ได้ — บนเครื่อง air-gapped ของคุณ", s1: "ระบุ learning-rate, quantization, RAG chunk, batch พร้อมช่วง", s2: "แต่ละขั้น Melete เสนอคอนฟิก ระบบคุณรายงาน tok/s + ปลอดภัย − ค่า GPU", s3: "ได้คอนฟิกที่ดีและทนทานที่สุด + trace ที่เซ็นไว้ ไม่ต้องมีข้อมูลเดิม", knobs: "lr · quantization · chunk · batch  →  tok/s + ปลอดภัย − ค่า GPU", b1: "ใช้ GPU-hour น้อยลงจนได้โมเดลดีที่สุด — เริ่มจากศูนย์ ไม่ต้องมีชุดข้อมูล", b2: "Air-gapped — weights และ prompt ไม่ออกจาก cluster", b3: "บันทึกการจูนที่พิสูจน์ได้ ไว้ให้คณะกรรมการตรวจ/ทำซ้ำ" } },
+  aero: { e: "🛰️", col: "#22d3ee", demo: "aerospace",
+    en: { name: "Aerospace", h: "Hold the link through a solar storm — across the whole parameter space.", sub: "Define the knobs and the score; Melete sweeps the space in the fewest evaluations, finds the most robust operating point, and signs the verdict for your review board.", s1: "List carrier frequency, phased-array phase, packet depth and their ranges.", s2: "Melete proposes the next setting; your sim/bench reports throughput under noise.", s3: "It returns the most robust operating point + a signed, replayable verdict.", knobs: "freq · phase-array · packet depth  →  throughput under noise", b1: "The most robust point, not a fragile peak that fails in the field.", b2: "Runs on-prem — mission parameters never touch a cloud.", b3: "A signed verdict your review board can re-verify independently." },
+    th: { name: "อวกาศ / การบิน", h: "รักษาลิงก์ให้รอดพายุสุริยะ — ทั่วทั้งพื้นที่พารามิเตอร์", sub: "กำหนดปุ่มและคะแนน Melete กวาดพื้นที่ด้วยจำนวนประเมินที่น้อยสุด หาจุดทำงานที่ทนทานที่สุด แล้วเซ็นคำตัดสินให้คณะกรรมการตรวจ", s1: "ระบุความถี่พาหะ, เฟส phased-array, ความลึกแพ็กเก็ต พร้อมช่วง", s2: "Melete เสนอค่าถัดไป sim/bench คุณรายงาน throughput ภายใต้ noise", s3: "คืนจุดทำงานที่ทนทานที่สุด + คำตัดสินที่เซ็นและเล่นซ้ำได้", knobs: "ความถี่ · phase-array · packet  →  throughput ภายใต้ noise", b1: "จุดที่ทนทานที่สุด ไม่ใช่ยอดเปราะที่พังในสนามจริง", b2: "รันบนเครื่อง — พารามิเตอร์ภารกิจไม่แตะคลาวด์", b3: "คำตัดสินที่เซ็นไว้ คณะกรรมการตรวจซ้ำเองได้" } },
+  phys: { e: "⚛️", col: "#22d3ee", demo: "aerospace",
+    en: { name: "Physics & Simulation", h: "Optimise a simulated physical system — in the fewest evaluations.", sub: "Point Melete at any simulation you can score — a field, an orbit, an instrument. Give it the parameters and the objective; it finds the robust optimum and hands you a signed, replayable record — no gradient required.", s1: "Expose your simulation’s parameters and their ranges.", s2: "Melete proposes the next point to evaluate; your sim returns the objective.", s3: "It converges on the robust optimum + a signed record — derivative-free.", knobs: "parameters  →  objective (maximise / minimise)", b1: "Derivative-free — works on black-box and noisy simulators.", b2: "Robust optima that survive measurement noise, not lucky spikes.", b3: "A signed, reproducible trace of the search." },
+    th: { name: "ฟิสิกส์ & การจำลอง", h: "หาค่าที่ดีที่สุดของระบบฟิสิกส์จำลอง — ด้วยการประเมินน้อยครั้งที่สุด", sub: "ชี้ Melete ไปที่ simulation ที่ให้คะแนนได้ — สนาม, วงโคจร, เครื่องมือ ใส่พารามิเตอร์และเป้าหมาย มันหา optimum ที่ทนทานแล้วคืนบันทึกที่เซ็นและเล่นซ้ำได้ — ไม่ต้องใช้ gradient", s1: "เปิดพารามิเตอร์ของ simulation พร้อมช่วง", s2: "Melete เสนอจุดถัดไปให้ประเมิน sim คุณคืนค่าเป้าหมาย", s3: "ลู่เข้า optimum ที่ทนทาน + บันทึกที่เซ็นไว้ — ไม่ใช้อนุพันธ์", knobs: "พารามิเตอร์  →  เป้าหมาย (มาก/น้อยสุด)", b1: "ไม่ใช้อนุพันธ์ — ใช้ได้กับ simulator แบบ black-box และมี noise", b2: "optimum ที่ทนต่อ noise การวัด ไม่ใช่ค่าฟลุค", b3: "trace ที่เซ็นและทำซ้ำได้ของการค้นหา" } },
+  infra: { e: "📊", col: "#10b981", demo: "database",
+    en: { name: "Infra & Analytics", h: "Cut latency and cloud spend — without a config war-room.", sub: "List the knobs and the score; Melete finds the best robust setting in a handful of runs and signs it — so the change is auditable, not a guess.", s1: "List TCP buffer, thread affinity, shared buffers, cache and their ranges.", s2: "Melete proposes a setting; you benchmark −latency, −cloud $ and report it.", s3: "You get the best robust config in a handful of runs + a signed verdict.", knobs: "tcp buffer · affinity · shared buffers  →  −latency, −cloud $", b1: "An auditable tuning decision — not a guess in a war-room.", b2: "Runs on your own infra — nothing leaves the network.", b3: "A signed before/after a finance or platform team can verify." },
+    th: { name: "ระบบ & การวิเคราะห์", h: "ลด latency และค่าคลาวด์ — โดยไม่ต้องตั้งวอร์รูมจูนคอนฟิก", sub: "ระบุปุ่มและคะแนน Melete หาค่าที่ดีและทนทานที่สุดในไม่กี่รอบแล้วเซ็นไว้ — การเปลี่ยนตรวจสอบได้ ไม่ใช่การเดา", s1: "ระบุ TCP buffer, thread affinity, shared buffers, cache พร้อมช่วง", s2: "Melete เสนอค่า คุณ benchmark −latency, −ค่าคลาวด์ แล้วรายงาน", s3: "ได้คอนฟิกที่ดีและทนทานที่สุดในไม่กี่รอบ + คำตัดสินที่เซ็นไว้", knobs: "tcp buffer · affinity · shared buffers  →  −latency, −ค่าคลาวด์", b1: "การจูนที่ตรวจสอบได้ — ไม่ใช่การเดาในวอร์รูม", b2: "รันบน infra ของคุณเอง — ไม่มีอะไรออกจากเครือข่าย", b3: "before/after ที่เซ็นไว้ ทีมการเงิน/แพลตฟอร์มตรวจได้" } },
+};
+export function audiencePage(key: string, version = "0.4.0"): string {
+  const f = AUDIENCE[key] || AUDIENCE.pharma; const c = f.col;
+  const en = f.en, th = f.th;
+  const shared = {
+    en: { lbl_loop: "Your loop", lbl_loop2: "Propose → measure → repeat → a signed verdict", moatp: "Not just a “best recipe” — one Ed25519-signed verdict you verify offline, fusing three proofs and naming the gate that fails.", lbl_why: "Why " + en.name + " teams choose it", lbl_why2: "Built for an expensive, auditable process", st1: "of the true optimum, every benchmark", st2: "verified modules · 100/100 each", st3: "tests · 0 failed", st4: "on your machine · signed" },
+    th: { lbl_loop: "ลูปการทำงาน", lbl_loop2: "เสนอ → วัด → วนซ้ำ → คำตัดสินที่เซ็นไว้", moatp: "ไม่ใช่แค่ “สูตรที่ดีที่สุด” — เป็นคำตัดสินที่เซ็น Ed25519 ตรวจ offline ได้ หลอมสามหลักฐานและบอกว่าด่านไหนพัง", lbl_why: "ทำไมทีม" + th.name + "เลือกใช้", lbl_why2: "สร้างมาเพื่อกระบวนการที่แพงและต้องตรวจสอบได้", st1: "ของ optimum จริง ทุก benchmark", st2: "โมดูลผ่านการพิสูจน์ · 100/100 ทุกตัว", st3: "เทสต์ · ล้มเหลว 0", st4: "บนเครื่องคุณ · เซ็นแล้ว" },
+  };
+  const dict = JSON.stringify({ en: Object.assign({}, en, shared.en), th: Object.assign({}, th, shared.th) }).split("</").join("<\\/");
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Melete for ${en.name} — the sovereign discovery brain</title>
+<meta name="description" content="${en.h}">
+<style>:root{color-scheme:light}*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:#fafaff;color:#14152a;font:17px/1.65 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:-20% -10%;z-index:-2;pointer-events:none;background:radial-gradient(34% 32% at 84% 4%,${c}26,transparent 62%),radial-gradient(40% 40% at 4% 12%,rgba(109,92,240,.14),transparent 60%),radial-gradient(34% 36% at 94% 92%,${c}1e,transparent 60%);filter:blur(26px)}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;background-image:radial-gradient(circle at 1px 1px,rgba(80,70,160,.055) 1px,transparent 0);background-size:32px 32px}
+.top{position:fixed;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:13px 24px;backdrop-filter:blur(12px);background:rgba(250,250,255,.72);border-bottom:1px solid rgba(80,70,160,.07)}
+.top a{text-decoration:none}.wm{display:flex;align-items:center;gap:10px;font-weight:800;color:#14152a;font-size:17px}.wm .g{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,${c},#0ea5b7);transform:rotate(45deg)}
+.langsw{display:flex;background:#fff;border:1px solid #e7e8f0;border-radius:999px;padding:3px;gap:2px}.lb{border:0;background:transparent;border-radius:999px;padding:6px 13px;font-size:13px;font-weight:700;color:#6a6c84;cursor:pointer}.lb.on{background:linear-gradient(96deg,${c},#0ea5b7);color:#fff}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+section{padding:70px 0;border-bottom:1px solid rgba(80,70,160,.06)}section:first-of-type{border:0}
+.eye{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:${c};font-weight:800;margin-bottom:14px}
+h1{font-size:clamp(38px,6.4vw,68px);line-height:1.05;margin:0 0 18px;font-weight:850;letter-spacing:-2px;color:#14152a}
+.lead{font-size:clamp(17px,2.3vw,21px);color:#3b3d57;max-width:740px;line-height:1.5}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+.btn{display:inline-block;text-decoration:none;font-weight:800;font-size:16px;padding:14px 25px;border-radius:13px;transition:transform .2s,box-shadow .2s}
+.btn.pri{background:linear-gradient(95deg,${c},#0ea5b7);color:#fff;box-shadow:0 18px 40px -16px ${c}}.btn.pri:hover{transform:translateY(-2px)}
+.btn.gho{background:rgba(255,255,255,.7);color:#3a3c54;border:1px solid #e4e3f2}.btn.gho:hover{transform:translateY(-2px)}
+.knob{display:inline-block;margin-top:22px;font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#41435c;background:#fff;border:1px solid #ecebf6;border-left:4px solid ${c};border-radius:10px;padding:11px 15px}
+h2{font-size:clamp(24px,3.6vw,36px);margin:0 0 22px;font-weight:850;letter-spacing:-1px;color:#14152a}
+.grid{display:grid;gap:15px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.card{background:rgba(255,255,255,.84);border:1px solid #ecebf6;border-radius:18px;padding:22px 22px;box-shadow:0 24px 54px -36px rgba(70,55,160,.5)}
+.card .n{font-size:13px;font-weight:800;color:${c};margin-bottom:8px}.card p{margin:0;font-size:14.5px;color:#56586f;line-height:1.6}
+.moat{background:radial-gradient(130% 120% at 50% -10%,#141d31,#0a0f1d 64%,#06080f);border-radius:22px;padding:38px 34px;color:#e8eefc;position:relative;overflow:hidden}
+.moat::after{content:"";position:absolute;left:8%;right:8%;top:0;height:1px;background:linear-gradient(90deg,transparent,#34d399,transparent);opacity:.5}
+.moat h3{color:#fff;font-size:22px;margin:0 0 10px;font-weight:850}.moat p{color:#c5cee6;max-width:720px;margin:0}
+.gates{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:13px;margin-top:22px}
+.gate{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:15px}.gate .q{font-size:18px;font-weight:850;color:#34d399}.gate .d{font-size:12.5px;color:#aebad6;margin-top:6px;line-height:1.5}
+.stats{display:flex;flex-wrap:wrap;gap:14px;margin-top:6px}.stat{flex:1;min-width:140px;background:rgba(255,255,255,.74);border:1px solid #ecebf6;border-radius:14px;padding:16px}.stat b{display:block;font-size:27px;font-weight:850;letter-spacing:-1px;background:linear-gradient(135deg,${c},#0ea5b7);-webkit-background-clip:text;background-clip:text;color:transparent}.stat span{font-size:12px;color:#6a6c84}
+.foot{padding:36px 0 56px;text-align:center;color:#8890a8;font-size:13.5px}.foot a{color:#5b53e8;text-decoration:none;font-weight:700}
+@media(prefers-reduced-motion:reduce){.btn:hover{transform:none}}
+</style></head><body>
+<div class="top"><a href="/"><span class="wm"><span class="g"></span>Melete</span></a><div class="langsw"><button class="lb on" id="lbEN" onclick="setLang('en')">EN</button><button class="lb" id="lbTH" onclick="setLang('th')">ไทย</button></div></div>
+<div class="wrap">
+<section style="padding-top:120px">
+  <div class="eye">${f.e} Melete for <span data-i18n="name">${en.name}</span></div>
+  <h1 data-i18n="h">${en.h}</h1>
+  <p class="lead" data-i18n="sub">${en.sub}</p>
+  <div class="cta">
+    <a class="btn pri" href="/?demo=${f.demo}#try">See it discover — live ↗</a>
+    <a class="btn gho" href="mailto:patsa2561@gmail.com?subject=Melete%20for%20${encodeURIComponent(en.name)}">Talk to us</a>
+  </div>
+  <div class="knob" data-i18n="knobs">${en.knobs}</div>
+</section>
+<section>
+  <div class="eye" data-i18n="lbl_loop">Your loop</div>
+  <h2 data-i18n="lbl_loop2">Propose → measure → repeat → a signed verdict</h2>
+  <div class="grid">
+    <div class="card"><div class="n">①</div><p data-i18n="s1">${en.s1}</p></div>
+    <div class="card"><div class="n">②</div><p data-i18n="s2">${en.s2}</p></div>
+    <div class="card"><div class="n">③</div><p data-i18n="s3">${en.s3}</p></div>
+  </div>
+</section>
+<section><div class="moat">
+  <div class="eye" style="color:#34d399">The moat · one signed verdict</div>
+  <h3>🏅 Every result carries a Trustworthy Discovery Certificate</h3>
+  <p data-i18n="moatp">Not just a “best recipe” — one Ed25519-signed verdict you verify offline, fusing three proofs and naming the gate that fails.</p>
+  <div class="gates"><div class="gate"><div class="q">REAL?</div><div class="d">a real effect, not luck</div></div><div class="gate"><div class="q">CAUSAL?</div><div class="d">it causes the outcome, not confounded</div></div><div class="gate"><div class="q">ROBUST?</div><div class="d">survives real-world wobble</div></div></div>
+</div></section>
+<section>
+  <div class="eye" data-i18n="lbl_why">Why ${en.name} teams choose it</div>
+  <h2 data-i18n="lbl_why2">Built for an expensive, auditable process</h2>
+  <div class="grid">
+    <div class="card"><p data-i18n="b1">${en.b1}</p></div>
+    <div class="card"><p data-i18n="b2">${en.b2}</p></div>
+    <div class="card"><p data-i18n="b3">${en.b3}</p></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>≥99%</b><span data-i18n="st1">of the true optimum, every benchmark</span></div>
+    <div class="stat"><b>53</b><span data-i18n="st2">verified modules · 100/100 each</span></div>
+    <div class="stat"><b>86</b><span data-i18n="st3">tests · 0 failed</span></div>
+    <div class="stat"><b>100%</b><span data-i18n="st4">on your machine · signed</span></div>
+  </div>
+  <div class="cta"><a class="btn pri" href="/?demo=${f.demo}#try">See it discover — live ↗</a><a class="btn gho" href="/pitch">The full pitch →</a></div>
+</section>
+</div>
+<div class="foot">Melete v${version} · MIT · <a href="/">← home</a> · <a href="/pitch">pitch</a> · <a href="/docs">API</a></div>
+<script>
+var D=${dict};
+function setLang(l){if(l!=='th')l='en';try{localStorage.setItem('mlang',l)}catch(e){}var en=document.getElementById('lbEN'),th=document.getElementById('lbTH');if(en)en.className='lb'+(l==='en'?' on':'');if(th)th.className='lb'+(l==='th'?' on':'');document.documentElement.lang=l;var n=document.querySelectorAll('[data-i18n]');for(var i=0;i<n.length;i++){var k=n[i].getAttribute('data-i18n');if(D[l]&&D[l][k]!=null)n[i].textContent=D[l][k];}}
+var _l='en';try{_l=localStorage.getItem('mlang')||'en'}catch(e){}setLang(_l);
+</script></body></html>`;
+}
+
 // ── gauntlet ──────────────────────────────────────────────────────────────────
 export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string; pass: boolean; detail: string }> } {
   const html = landingPage("9.9.9"); const pitch = pitchDeck("9.9.9");
   const landErr = firstScriptSyntaxError(html); const pitchErr = firstScriptSyntaxError(pitch);
+  const audErr = (() => { for (const k of AUDIENCE_KEYS) { const pg = audiencePage(k, "9.9.9"); if (!pg.startsWith("<!doctype html>") || !pg.includes("Melete for") || !pg.includes("Trustworthy Discovery Certificate") || !pg.includes('href="/?demo=')) return k + ": did not render"; const e = firstScriptSyntaxError(pg); if (e) return k + " " + e; } return null; })();
   const checks = [
     { name: "SCRIPTS-PARSE", pass: landErr === null && pitchErr === null, detail: landErr ? ("landing " + landErr) : pitchErr ? ("pitch " + pitchErr) : "every inline <script> on the landing page + pitch parses (no JS syntax error can ship)" },
+    { name: "AUDIENCE-PAGES", pass: audErr === null, detail: audErr ? ("broken " + audErr) : "all 6 per-profession landing pages render, deep-link to the demo, carry the moat, and their scripts parse" },
     { name: "LANDING-RENDERS", pass: html.startsWith("<!doctype html>") && html.includes("Melete") && html.length > 4000, detail: "world-class landing page renders with hero + sections" },
     { name: "LIGHT-THEME", pass: html.includes("--bg:#ffffff") && !html.includes("background:#07070c"), detail: "clean light theme (not the old dark background)" },
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
