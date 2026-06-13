@@ -52,6 +52,7 @@ export * from "./mixedspace.js";
 export * from "./provenance.js";
 export * from "./nullengine.js";
 export * from "./causal.js";
+export * from "./trustcert.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
 export * from "./metabrain.js";
@@ -133,6 +134,7 @@ import { mixedGauntlet } from "./mixedspace.js";
 import { provenanceGauntlet } from "./provenance.js";
 import { nullEngineGauntlet } from "./nullengine.js";
 import { causalGauntlet } from "./causal.js";
+import { trustCertGauntlet } from "./trustcert.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
 import { metabrainGauntlet } from "./metabrain.js";
@@ -187,6 +189,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "provenance", g: provenanceGauntlet() },
     { name: "nullengine", g: nullEngineGauntlet() },
     { name: "causal", g: causalGauntlet() },
+    { name: "trustcert", g: trustCertGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },
     { name: "metabrain", g: metabrainGauntlet() },

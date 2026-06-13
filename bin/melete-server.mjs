@@ -171,6 +171,26 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "causal failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🏅 TRUST CERTIFICATE — fuse SIGNAL + CAUSAL + ROBUST into ONE signed verdict. Pick a scenario and watch
+    // Melete either stamp it TRUSTWORTHY or refuse it, naming the gate that failed. (The moat, in one call.)
+    if (req.method === "POST" && path === "/trust-certificate") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 1; const scenario = String(body.scenario || "good");
+      const space = { dims: [{ name: "x0", type: "real", min: 0, max: 1 }, { name: "x1", type: "real", min: 0, max: 1 }] };
+      try {
+        let oracle, observations;
+        const goodF = (e) => 100 * Math.exp(-((((e.x0 ?? 0) - 0.4) ** 2) + (((e.x1 ?? 0) - 0.6) ** 2)) / 0.7);
+        const causalY = (x1) => 100 * Math.exp(-((x1 - 0.6) ** 2) / 0.7);
+        const mkObs = (s, f) => { const r = M.lcg((s >>> 0) || 1); const o = []; for (let i = 0; i < 80; i++) { const x0 = r(), x1 = r(); o.push({ experiment: { x0, x1 }, value: f({ x0, x1 }) }); } return o; };
+        if (scenario === "noise") { const r = M.lcg(((seed * 7 + 1) >>> 0) || 1); oracle = () => r() * 100; observations = mkObs(seed * 3 + 1, goodF); }
+        else if (scenario === "fragile") { oracle = (e) => 100 * Math.exp(-((((e.x0 ?? 0) - 0.4) ** 2) + (((e.x1 ?? 0) - 0.6) ** 2)) / 0.0008); observations = mkObs(seed * 5 + 1, oracle); }
+        else if (scenario === "confounded") { oracle = (e) => causalY(e.x1 ?? 0); const ro = M.lcg(((seed * 13 + 1) >>> 0) || 1); observations = []; for (let i = 0; i < 240; i++) { const C = ro(); const x0 = Math.max(0, Math.min(1, C + 0.05 * (ro() - 0.5))); const x1 = ro(); observations.push({ experiment: { x0, x1 }, value: causalY(x1) + 100 * C }); } }
+        else { oracle = goodF; observations = mkObs(seed * 3 + 1, goodF); }
+        const c = M.issueTrustCertificate({ space, oracle, observations, seed, goal: "maximize" });
+        return json(res, 200, { scenario, verdict: c.verdict, gates: c.gates, failedGates: c.failedGates, best: c.best, payloadHash: c.payloadHash.slice(0, 16), signatureValid: M.verifyTrustCertificate(c).ok });
+      } catch (e) { return json(res, 400, { error: "trust-certificate failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
