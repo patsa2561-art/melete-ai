@@ -137,6 +137,23 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "provenance failed: " + e.message.slice(0, 120) }); }
     }
 
+    // ⬛ NULL ENGINE — the demo that lands: run the SAME engine on a REAL problem and on PURE NOISE. It calls the
+    // real one REAL and the noise one NULL (refusing to invent an optimum) — where every other optimizer lies.
+    if (req.method === "POST" && path === "/null-engine") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const budget = Math.max(40, Math.min(160, (body.budget | 0) || 90));
+      const seed = (body.seed | 0) || 1;
+      const space = { dims: [{ name: "x", type: "real", min: 0, max: 1 }, { name: "y", type: "real", min: 0, max: 1 }] };
+      try {
+        const realF = (e) => 100 * Math.exp(-((((e.x ?? 0) - 0.6) ** 2) + (((e.y ?? 0) - 0.4) ** 2)) / 0.06);
+        const rng = M.lcg((seed >>> 0) || 1); const noiseF = () => rng() * 100;   // knobs ignored → genuinely null
+        const real = M.nullEngineDiscover({ space, oracle: realF, budget, goal: "maximize", seed });
+        const noise = M.nullEngineDiscover({ space, oracle: noiseF, budget, goal: "maximize", seed });
+        const pick = (r) => ({ verdict: r.verdict, pValue: r.pValue, signalStrength: r.signalStrength, best: r.best, attempts: r.attempts, nullRate: r.nullRate });
+        return json(res, 200, { real: pick(real), noise: pick(noise), budget });
+      } catch (e) { return json(res, 400, { error: "null-engine failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
