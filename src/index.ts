@@ -55,6 +55,7 @@ export * from "./causal.js";
 export * from "./trustcert.js";
 export * from "./summit.js";
 export * from "./honestsearch.js";
+export * from "./tolerance.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
 export * from "./metabrain.js";
@@ -139,6 +140,7 @@ import { causalGauntlet } from "./causal.js";
 import { trustCertGauntlet } from "./trustcert.js";
 import { stabilityGauntlet } from "./summit.js";
 import { honestSearchGauntlet } from "./honestsearch.js";
+import { toleranceGauntlet } from "./tolerance.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
 import { metabrainGauntlet } from "./metabrain.js";
@@ -196,6 +198,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "trustcert", g: trustCertGauntlet() },
     { name: "summit", g: await stabilityGauntlet() },
     { name: "honestsearch", g: await honestSearchGauntlet() },
+    { name: "tolerance", g: toleranceGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },
     { name: "metabrain", g: metabrainGauntlet() },

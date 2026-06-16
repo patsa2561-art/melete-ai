@@ -233,6 +233,21 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "honest-search failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🛡 TOLERANCE CERTIFICATE — the certified ±radius around the optimum that still keeps ≥90% (Lipschitz-
+    // guaranteed). "broad" earns a big tolerance; "narrow" a small one. Re-verified offline.
+    if (req.method === "POST" && path === "/tolerance") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const scenario = String(body.scenario || "broad");
+      const space = { dims: [{ name: "x", type: "real", min: 0, max: 10 }, { name: "y", type: "real", min: 0, max: 10 }] };
+      try {
+        const f = scenario === "narrow" ? ((e) => Math.exp(-(((e.x ?? 0) - 5) ** 2 + ((e.y ?? 0) - 5) ** 2) / 1.2)) : ((e) => Math.exp(-(((e.x ?? 0) - 5) ** 2 + ((e.y ?? 0) - 5) ** 2) / 18));
+        const best = { experiment: { x: 5, y: 5 }, value: f({ x: 5, y: 5 }) };
+        const c = M.toleranceCertificate({ space, oracle: f, best, floorFraction: 0.9, goal: "maximize" });
+        const v = M.verifyToleranceCertificate(c, { space, oracle: f, goal: "maximize" });
+        return json(res, 200, { scenario, radiusPctOfRange: +(c.radius * 100).toFixed(1), floorFraction: c.floorFraction, floor: +c.floor.toFixed(4), best: c.best, payloadHash: c.payloadHash.slice(0, 16), verified: v.ok });
+      } catch (e) { return json(res, 400, { error: "tolerance failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
