@@ -28,6 +28,7 @@ export interface DiscoveryResult { best: Observation; history: Step[]; evaluatio
 export interface DiscoverOpts {
   space: Space; oracle: (e: Experiment) => number | Promise<number>; budget: number;
   goal?: Goal; seed?: number; target?: number; candidatePool?: number; kappa0?: number; bandwidth?: number;
+  haltonOffset?: number;   // shift the low-discrepancy seed design → independent diverse starts (used by Summit)
   onStep?: (s: Step) => void | Promise<void>;
 }
 
@@ -37,9 +38,9 @@ const key = (e: Experiment) => JSON.stringify(e);
 // coarse grid for the same point count, so the surrogate sees the surface's shape from fewer seed points.
 const HALTON_PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
 function haltonValue(i: number, base: number): number { let f = 1, r = 0, n = i; while (n > 0) { f /= base; r += f * (n % base); n = Math.floor(n / base); } return r; }
-function haltonDesign(space: Space, n: number): Experiment[] {
+function haltonDesign(space: Space, n: number, offset = 0): Experiment[] {
   const out: Experiment[] = [];
-  for (let i = 1; i <= n; i++) {
+  for (let i = 1 + offset; i <= n + offset; i++) {
     const e: Experiment = {};
     space.dims.forEach((d, j) => {
       const mn = +(d.min ?? 0), mx = +(d.max ?? 1); const u = haltonValue(i, HALTON_PRIMES[j % HALTON_PRIMES.length]);
@@ -71,7 +72,7 @@ export async function discover(opts: DiscoverOpts): Promise<DiscoveryResult> {
   // cold start: a Halton low-discrepancy design of experiments (even global coverage from few seed points,
   // beating a coarse grid that can miss the optimum's region entirely) before any modelling.
   const seedN = Math.max(1, Math.min(budget, space.dims.length <= 2 ? 9 : 8));
-  for (const e of haltonDesign(space, seedN)) {
+  for (const e of haltonDesign(space, seedN, Math.max(0, (opts.haltonOffset ?? 0) | 0))) {
     if (obs.length >= budget) break; if (seen.has(key(e))) continue;
     await record(e, 0, kappa0, "seed: Halton low-discrepancy design point");
   }

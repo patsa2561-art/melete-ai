@@ -202,6 +202,21 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "trust-certificate failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🏔 STABILITY CERTIFICATE — is the optimum reproducible across independent searches? Pick a scenario:
+    //   "easy" (one peak → STABLE) or "split" (twin near-equal peaks at low budget → UNSTABLE).
+    if (req.method === "POST" && path === "/stability") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 1; const scenario = String(body.scenario || "easy");
+      const space = { dims: [{ name: "x", type: "real", min: 0, max: 10 }, { name: "y", type: "real", min: 0, max: 10 }] };
+      try {
+        let oracle, budget;
+        if (scenario === "split") { oracle = (e) => 1.0 * Math.exp(-(((e.x ?? 0) - 2) ** 2 + ((e.y ?? 0) - 2) ** 2) / 6) + 0.98 * Math.exp(-(((e.x ?? 0) - 8) ** 2 + ((e.y ?? 0) - 8) ** 2) / 6); budget = 12; }
+        else { oracle = (e) => Math.exp(-(((e.x ?? 0) - 7.2) ** 2 + ((e.y ?? 0) - 3.4) ** 2) / 4); budget = 26; }
+        const c = await M.stabilityCertificate({ space, oracle, budget, goal: "maximize", seed, replicas: 5 });
+        return json(res, 200, { scenario, verdict: c.verdict, consensus: c.consensus, replicas: c.replicas, best: c.best, payloadHash: c.payloadHash.slice(0, 16), signatureValid: M.verifyStabilityCertificate(c).ok });
+      } catch (e) { return json(res, 400, { error: "stability failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
