@@ -50,7 +50,7 @@ POST /replay/verify    { …token }                           → re-derive the 
 …or skip HTTP entirely and call the library in-process: `import { sovereignAnalyze, aegisDiscover, proposeNext } from "melete-ai"`.
 
 ## ✦ What's inside — by category
-> **56 independently-verified modules.** Every claim below is a check you can re-run: `npx melete-ai gauntlet`.
+> **57 independently-verified modules.** Every claim below is a check you can re-run: `npx melete-ai gauntlet`.
 
 ### 🔍 Optimize — the best setting in the fewest experiments
 | capability | what it does |
@@ -75,7 +75,8 @@ Hosted, no install: `POST https://melete.mneme-ai.space/next`
 | 🏅 **Trustworthy Discovery** | is it **REAL** (not noise) · **CAUSAL** (not confounded) · **ROBUST** (survives wobble)? |
 | 🏔 **Stability** | is the optimum **reproducible**, or a lucky one-off? *(STABLE ⇒ reproduced ≥97.5%, measured)* |
 | 💎 **Honest-Search Proof** | is this a **GENUINE** search or a **FAKED** one? Re-derive the trace offline (no oracle) — a forgery is rejected. *(360/360 forgeries caught; something an LLM cannot do)* |
-| 🛡 **Tolerance Certificate** *(new)* | the certified **±tolerance** that still keeps ≥90% of the optimum — a worst-case **Lipschitz guarantee**, not an average. *(8400/8400 off-grid adversarial samples held the floor)* |
+| 🛡 **Tolerance Certificate** | the certified **±tolerance** that still keeps ≥90% of the optimum — a worst-case **Lipschitz guarantee**, not an average. *(8400/8400 off-grid adversarial samples held the floor)* |
+| 📜 **Proof of Improvement** *(new)* | switching from setting A to recipe B is a **proven gain of ≥Δ** — noise-aware 97.5% lower bound; refuses within noise. *(certified Δ valid ≥97.5%, false-cert ≤2.5%)* |
 | ⬛ **Null Engine** | brave enough to say *"there's nothing to find"* on pure noise |
 | 👑 **Sovereign Verdict + ⏪ Replay** | Ed25519-signed, deterministic, re-derivable on any machine, forever |
 
@@ -86,6 +87,7 @@ curl -X POST https://melete.mneme-ai.space/trust-certificate -d '{"scenario":"go
 curl -X POST https://melete.mneme-ai.space/stability         -d '{"scenario":"easy"}'
 curl -X POST https://melete.mneme-ai.space/honest-search     -d '{"seed":3}'   # genuine VERIFIES, a fake is REJECTED
 curl -X POST https://melete.mneme-ai.space/tolerance         -d '{"scenario":"broad"}'   # certified ±tolerance
+curl -X POST https://melete.mneme-ai.space/improvement       -d '{"scenario":"real"}'   # certified gain A→B (or INCONCLUSIVE)
 npx melete-ai poopt proof-of-optimization.json   # verify any signed certificate offline
 ```
 </details>
@@ -97,7 +99,7 @@ npx melete-ai poopt proof-of-optimization.json   # verify any signed certificate
 | **Ceiling · drift** | the achievable best, and whether results drift over time |
 
 ### 🔌 Integrate
-`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/verify`
+`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/improvement` `/verify`
 
 ## The moat
 - 🔒 **Sovereign** — runs air-gapped, on your machine; data never touches a cloud.

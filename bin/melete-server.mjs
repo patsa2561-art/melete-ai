@@ -248,6 +248,22 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "tolerance failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 📜 PROOF OF IMPROVEMENT — certify (with noise) that recipe B beats current setting A by ≥Δ.
+    //   scenario "real" (B genuinely better) → IMPROVEMENT; "same" (A≡B) → INCONCLUSIVE.
+    if (req.method === "POST" && path === "/improvement") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 7; const scenario = String(body.scenario || "real");
+      try {
+        const bBase = scenario === "same" ? 5.0 : 5.7;
+        const ga = M.lcg(seed * 13 + 1), gb = M.lcg(seed * 13 + 7);
+        const gauss = (g) => { const u1 = Math.max(1e-9, g()), u2 = g(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+        const oracle = (e) => ((e.sel ?? 0) === 0 ? 5.0 + gauss(ga) : bBase + gauss(gb));
+        const c = M.improvementCertificate({ oracle, a: { sel: 0 }, b: { sel: 1 }, replicates: 40, seed });
+        const v = M.verifyImprovementCertificate(c);
+        return json(res, 200, { scenario, verdict: c.verdict, observedGain: +c.observedGain.toFixed(3), certifiedGain: +c.gainLowerBound.toFixed(3), confidence: c.confidence, n: c.a.n, payloadHash: c.payloadHash.slice(0, 16), verified: v.ok });
+      } catch (e) { return json(res, 400, { error: "improvement failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
