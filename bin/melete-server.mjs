@@ -11,7 +11,7 @@
  */
 import { createServer } from "node:http";
 import { createContext, runInContext } from "node:vm";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import * as M from "../dist/index.js";
@@ -20,6 +20,9 @@ import { createHash } from "node:crypto";
 const VERSION = (() => { try { return JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8")).version; } catch { return "0.2.0"; } })();
 const PORT = +(process.env.PORT || 8790); const HOST = process.env.HOST || "127.0.0.1";
 const MAX_BUDGET = +(process.env.MELETE_MAX_BUDGET || 120);
+const PUB = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
+// serve a pre-rendered PNG social card; if it isn't on disk, fall back to the live SVG (never 404s)
+function serveCard(res, pngFile, svg) { if (existsSync(pngFile)) { const b = readFileSync(pngFile); res.writeHead(200, { "content-type": "image/png", "cache-control": "public, max-age=3600", "content-length": b.length }); return res.end(b); } res.writeHead(200, { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=3600" }); return res.end(svg); }
 
 const json = (res, code, obj) => { const b = JSON.stringify(obj); res.writeHead(code, { "content-type": "application/json", "access-control-allow-origin": "*", "content-length": Buffer.byteLength(b) }); res.end(b); };
 const readBody = (req) => new Promise((resolve) => { let d = ""; req.on("data", (c) => { d += c; if (d.length > 1e6) req.destroy(); }); req.on("end", () => { try { resolve(d ? JSON.parse(d) : {}); } catch { resolve(null); } }); });
@@ -36,6 +39,8 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && path === "/") { const html = M.landingPage(VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
     if (req.method === "GET" && path === "/pitch") { const html = M.pitchDeck(VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
     if (req.method === "GET" && path.startsWith("/for/")) { const k = path.slice(5).replace(/\/+$/, ""); const html = M.audiencePage(k, VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
+    if (req.method === "GET" && path === "/og.png") return serveCard(res, join(PUB, "og.png"), M.socialCard());
+    if (req.method === "GET" && path.startsWith("/og/") && path.endsWith(".png")) { const k = path.slice(4, -4); return serveCard(res, join(PUB, "og", k + ".png"), M.socialCard(k)); }
     if (req.method === "GET" && path === "/og.svg") { res.writeHead(200, { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=3600" }); return res.end(M.socialCard()); }
     if (req.method === "GET" && path.startsWith("/og/") && path.endsWith(".svg")) { const k = path.slice(4, -4); res.writeHead(200, { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=3600" }); return res.end(M.socialCard(k)); }
     if (req.method === "GET" && path === "/sitemap.xml") { res.writeHead(200, { "content-type": "application/xml; charset=utf-8" }); return res.end(M.sitemapXml()); }

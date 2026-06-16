@@ -1,6 +1,6 @@
 {
   "name": "melete-ai",
-  "version": "0.99.0",
+  "version": "0.100.0",
   "description": "Melete — the Self-Driving Discovery Brain. A closed-loop active-experiment engine with a pluggable oracle and a signed, offline-verifiable discovery trace. Mneme remembers; Melete discovers.",
   "type": "module",
   "bin": {
@@ -20,14 +20,16 @@
     "bin",
     "README.md",
     "LICENSE",
-    "examples"
+    "examples",
+    "public"
   ],
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run",
     "gauntlet": "node dist/cli/gauntlet.js",
     "bench": "node bin/melete.mjs bench",
-    "prepublishOnly": "npm run build && npm run test"
+    "prepublishOnly": "npm run build && npm run test",
+    "gen:og": "node scripts/gen-og.mjs"
   },
   "keywords": [
     "self-driving-lab",
@@ -49,6 +51,7 @@
     "node": ">=18"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"

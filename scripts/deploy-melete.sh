@@ -26,7 +26,7 @@ if [ "$DOWN" = "1" ]; then
 fi
 
 echo "▸ shipping prebuilt artifact to /opt/melete …"
-tar czf - dist bin package.json README.md LICENSE | $SSH "mkdir -p /opt/melete && tar xzf - -C /opt/melete"
+tar czf - dist bin public package.json README.md LICENSE | $SSH "mkdir -p /opt/melete && tar xzf - -C /opt/melete"
 
 echo "▸ systemd unit on 127.0.0.1:$PORT …"
 $SSH "cat > /etc/systemd/system/mneme-melete.service <<UNIT
