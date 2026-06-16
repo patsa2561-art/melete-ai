@@ -55,7 +55,7 @@ POST /replay/verify    { …token }                           → re-derive the 
 ### 🔍 Optimize — the best setting in the fewest experiments
 | capability | what it does |
 |---|---|
-| **Adaptive discovery** | a portfolio of search strategies reaches **99% of the optimum in ≈13 experiments — ≈7× fewer than random** *(measured: `melete bench`)* |
+| **Adaptive discovery** | a portfolio of search strategies reaches **99% of the optimum in ≈12 experiments — ≈8× fewer than random** *(measured over 300 seeds: avg 12.2, 300/300 reached; `melete bench`)* |
 | **Mixed spaces** | real · integer · categorical · conditional knobs, not just dials |
 | **Multi-objective** | the Pareto front of best trade-offs (yield **and** cost) |
 | **Noise-robust** | the value you can trust under measurement noise, not a lucky spike |

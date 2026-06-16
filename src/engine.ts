@@ -29,6 +29,7 @@ export interface DiscoverOpts {
   space: Space; oracle: (e: Experiment) => number | Promise<number>; budget: number;
   goal?: Goal; seed?: number; target?: number; candidatePool?: number; kappa0?: number; bandwidth?: number;
   haltonOffset?: number;   // shift the low-discrepancy seed design → independent diverse starts (used by Summit)
+  coldStart?: number;      // # of Halton seed points before the active loop (override the default)
   onStep?: (s: Step) => void | Promise<void>;
 }
 
@@ -71,7 +72,7 @@ export async function discover(opts: DiscoverOpts): Promise<DiscoveryResult> {
 
   // cold start: a Halton low-discrepancy design of experiments (even global coverage from few seed points,
   // beating a coarse grid that can miss the optimum's region entirely) before any modelling.
-  const seedN = Math.max(1, Math.min(budget, space.dims.length <= 2 ? 9 : 8));
+  const seedN = Math.max(1, Math.min(budget, opts.coldStart ?? (space.dims.length <= 2 ? 8 : 8)));
   for (const e of haltonDesign(space, seedN, Math.max(0, (opts.haltonOffset ?? 0) | 0))) {
     if (obs.length >= budget) break; if (seen.has(key(e))) continue;
     await record(e, 0, kappa0, "seed: Halton low-discrepancy design point");
