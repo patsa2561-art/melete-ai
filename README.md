@@ -49,13 +49,51 @@ POST /replay/verify    { …token }                           → re-derive the 
 ```
 …or skip HTTP entirely and call the library in-process: `import { sovereignAnalyze, aegisDiscover, proposeNext } from "melete-ai"`.
 
-## What's inside — 43 engines, 4 layers
-| | layer | what it does |
-|---|---|---|
-| 🔍 | **DISCOVER** | find the best setting in the fewest tries (adaptive ensemble) |
-| ◆ | **DECIDE** | the Φ brain's safety-first verdict + 🛡 AEGIS, the *robust* answer (not the fragile spike) |
-| 🔬 | **DIAGNOSE** | plain-language *why*: which knobs matter, where the cliffs are, the shape, the achievable ceiling |
-| 👑 | **CERTIFY** | an Ed25519 **Sovereign Verdict** + a **Replay Token** — signed, offline-verifiable, step-by-step replayable |
+## ✦ What's inside — by category
+> **54 independently-verified modules.** Every claim below is a check you can re-run: `npx melete-ai gauntlet`.
+
+### 🔍 Optimize — the best setting in the fewest experiments
+| capability | what it does |
+|---|---|
+| **Adaptive discovery** | a portfolio of search strategies reaches **99% of the optimum in ≈13 experiments — ≈7× fewer than random** *(measured: `melete bench`)* |
+| **Mixed spaces** | real · integer · categorical · conditional knobs, not just dials |
+| **Multi-objective** | the Pareto front of best trade-offs (yield **and** cost) |
+| **Noise-robust** | the value you can trust under measurement noise, not a lucky spike |
+
+<details><summary><b>How to use →</b></summary>
+
+```js
+import { proposeNext } from "melete-ai";          // loop: propose → you measure → repeat
+const { next } = proposeNext({ space:[{name:"pH",type:"real",min:3,max:9}], observations:obs, goal:"maximize" });
+```
+Hosted, no install: `POST https://melete.mneme-ai.space/next`
+</details>
+
+### 🛡 Trust & verify — the honesty stack *(no other optimizer ships this)*
+| certificate | the question it answers — **signed, offline-verifiable** |
+|---|---|
+| 🏅 **Trustworthy Discovery** | is it **REAL** (not noise) · **CAUSAL** (not confounded) · **ROBUST** (survives wobble)? |
+| 🏔 **Stability** *(new)* | is the optimum **reproducible**, or a lucky one-off? *(STABLE ⇒ reproduced ≥97.5%, measured)* |
+| ⬛ **Null Engine** | brave enough to say *"there's nothing to find"* on pure noise |
+| 👑 **Sovereign Verdict + ⏪ Replay** | Ed25519-signed, deterministic, re-derivable on any machine, forever |
+
+<details><summary><b>How to use →</b></summary>
+
+```bash
+curl -X POST https://melete.mneme-ai.space/trust-certificate -d '{"scenario":"good"}'
+curl -X POST https://melete.mneme-ai.space/stability         -d '{"scenario":"easy"}'
+npx melete-ai poopt proof-of-optimization.json   # verify any signed certificate offline
+```
+</details>
+
+### 🔬 Diagnose — plain-language *why*
+| lens | tells you |
+|---|---|
+| **Sensitivity · cliffs · shape** | which knobs matter, where it breaks, the response shape |
+| **Ceiling · drift** | the achievable best, and whether results drift over time |
+
+### 🔌 Integrate
+`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/verify`
 
 ## The moat
 - 🔒 **Sovereign** — runs air-gapped, on your machine; data never touches a cloud.

@@ -55,7 +55,7 @@ function haltonDesign(space: Space, n: number, offset = 0): Experiment[] {
 export async function discover(opts: DiscoverOpts): Promise<DiscoveryResult> {
   const space = opts.space; const goal: Goal = opts.goal ?? "maximize"; const budget = Math.max(1, opts.budget | 0);
   const seed = opts.seed ?? 1; const rnd = lcg(seed);
-  const pool = Math.max(64, opts.candidatePool ?? 2500); const kappa0 = opts.kappa0 ?? 1.0; const bw = opts.bandwidth ?? 0.025;
+  const pool = Math.max(64, opts.candidatePool ?? 2500); const kappa0 = opts.kappa0 ?? 0.6; const bw = opts.bandwidth ?? 0.025;
   const better = (a: number, b: number) => goal === "maximize" ? a > b : a < b;
   const sign = goal === "maximize" ? 1 : -1;                         // acquisition always "wants" larger; flip for minimize
 

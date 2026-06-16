@@ -956,7 +956,7 @@ try{moRenderSetup();}catch(e){}
 <tr><td data-i18n="tl_smooth">smooth</td><td class="win">1.000</td><td>0.999</td><td>0.838</td></tr>
 <tr><td data-i18n="tl_rug">rugged (many traps)</td><td class="win" data-i18n="tl_best">best 🏆 beats every single algorithm</td><td data-i18n="tl_far">far behind</td><td data-i18n="tl_far">far behind</td></tr>
 <tr><td data-i18n="tl_hd">high-dimensional</td><td class="win">0.996</td><td>0.987</td><td>0.555</td></tr></table>
-<p class="muted" style="margin-top:10px">≈ 15 experiments vs ~95 for random to reach 99% of a hidden optimum (≈6×). Reproduce with <code>melete bench</code>.</p></section>
+<p class="muted" style="margin-top:10px">≈ 13 experiments vs ~95 for random to reach 99% of a hidden optimum (≈7×). Reproduce with <code>melete bench</code>.</p></section>
 
 <section id="guide" style="margin-top:38px">
 <h2 data-i18n="g_h">Use it on your real process — you measure</h2>
