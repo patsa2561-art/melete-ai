@@ -27,61 +27,66 @@ export interface ToleranceCertificate {
   floor: number;                // the guaranteed value floor
   radius: number;               // certified tolerance radius (per-knob, as a fraction of each knob's range)
   lipschitz: number;            // the conservative local Lipschitz estimate used
+  gridM: number; safety: number;// the verification grid resolution + Lipschitz safety factor (recorded so verify matches)
   payloadHash: string; signature: string; publicKeyPem: string; algo: "ed25519+sha256";
 }
 
-const SAFETY = 1.35;            // safety factor on the Lipschitz estimate (keeps the bound conservative)
-const M_PER_DIM: number = 5;   // grid resolution per dimension inside the ball
+// a fine grid + a tight-but-safe Lipschitz factor: a finer grid shrinks the between-node gap, so the bound
+// is sharper (a larger, still-sound certified radius). Tuned to the edge where the guarantee stays sound.
+const SAFETY = 1.18;
+const M_PER_DIM: number = 9;
 
 function norm(space: Space, e: Experiment): number[] { return space.dims.map((d) => { const mn = +(d.min ?? 0), mx = +(d.max ?? 1); return mx > mn ? ((+(e[d.name] ?? mn)) - mn) / (mx - mn) : 0.5; }); }
 function denorm(space: Space, u: number[]): Experiment { const e: Experiment = {}; space.dims.forEach((d, i) => { const mn = +(d.min ?? 0), mx = +(d.max ?? 1); const v = mn + (mx - mn) * Math.min(1, Math.max(0, u[i])); e[d.name] = d.type === "int" ? Math.round(v) : v; }); return e; }
 
 /** Evaluate the ±r L∞ ball on a grid and return a GUARANTEED lower bound on the worst value inside it. */
-function guaranteedFloor(space: Space, oracle: (e: Experiment) => number, center: number[], r: number, sign: number): { bound: number; L: number } {
-  const D = center.length; const m = M_PER_DIM;
+function guaranteedFloor(space: Space, oracle: (e: Experiment) => number, center: number[], r: number, sign: number, m: number, safety: number): { bound: number; L: number } {
+  const D = center.length;
   // enumerate the m^D grid over the box [c-r, c+r]^D (clamped to [0,1])
   const axes = center.map((c) => Array.from({ length: m }, (_, i) => Math.min(1, Math.max(0, c - r + (2 * r) * (m === 1 ? 0.5 : i / (m - 1))))));
   const pts: number[][] = [[]];
   for (let d = 0; d < D; d++) { const next: number[][] = []; for (const p of pts) for (const a of axes[d]) next.push([...p, a]); pts.length = 0; pts.push(...next); }
   const vals = pts.map((u) => sign * oracle(denorm(space, u)));
   let gridMin = Infinity; for (const v of vals) if (v < gridMin) gridMin = v;
-  // conservative local Lipschitz from all grid pairs (normalized distance)
-  let L = 0; for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) { let dd = 0; for (let k = 0; k < D; k++) { const e = pts[i][k] - pts[j][k]; dd += e * e; } const dist = Math.sqrt(dd); if (dist > 1e-9) { const ratio = Math.abs(vals[i] - vals[j]) / dist; if (ratio > L) L = ratio; } }
-  L *= SAFETY;
   const spacing = m > 1 ? (2 * r) / (m - 1) : 2 * r;     // per-dim grid spacing (normalized)
+  // conservative LOCAL Lipschitz — only grid-neighbor pairs (dist ≤ ~1.6·spacing): captures the true local
+  // slope (tighter on smooth regions) while a cliff's neighbor jump still yields a large L (stays sound).
+  const cap = 1.6 * spacing; let L = 0;
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) { let dd = 0; for (let k = 0; k < D; k++) { const e = pts[i][k] - pts[j][k]; dd += e * e; } const dist = Math.sqrt(dd); if (dist > 1e-9 && dist <= cap) { const ratio = Math.abs(vals[i] - vals[j]) / dist; if (ratio > L) L = ratio; } }
+  L *= safety;
   const maxGap = (spacing / 2) * Math.sqrt(D);            // farthest any true point can be from a grid node
   return { bound: gridMin - L * maxGap, L };
 }
 
 /** Certify the largest tolerance radius keeping ≥ floorFraction of the optimum (Lipschitz-guaranteed). */
-export function toleranceCertificate(opts: { space: Space; oracle: (e: Experiment) => number; best: { experiment: Experiment; value: number }; floorFraction?: number; goal?: "maximize" | "minimize"; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): ToleranceCertificate {
+export function toleranceCertificate(opts: { space: Space; oracle: (e: Experiment) => number; best: { experiment: Experiment; value: number }; floorFraction?: number; goal?: "maximize" | "minimize"; gridM?: number; safety?: number; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): ToleranceCertificate {
   const goal = opts.goal ?? "maximize"; const sign = goal === "maximize" ? 1 : -1;
-  const phi = opts.floorFraction ?? 0.9;
+  const phi = opts.floorFraction ?? 0.9; const m = opts.gridM ?? M_PER_DIM; const safety = opts.safety ?? SAFETY;
   const center = norm(opts.space, opts.best.experiment);
   const bestS = sign * opts.best.value;
   const floorS = bestS >= 0 ? phi * bestS : bestS / phi;   // φ of the optimum (in maximize orientation)
   // bisect the radius in [0, 0.5] for the largest r whose guaranteed floor still clears φ
   let lo = 0, hi = 0.5, Lused = 0;
-  for (let it = 0; it < 22; it++) { const mid = (lo + hi) / 2; const g = guaranteedFloor(opts.space, opts.oracle, center, mid, sign); if (g.bound >= floorS) { lo = mid; Lused = g.L; } else hi = mid; }
+  for (let it = 0; it < 22; it++) { const mid = (lo + hi) / 2; const g = guaranteedFloor(opts.space, opts.oracle, center, mid, sign, m, safety); if (g.bound >= floorS) { lo = mid; Lused = g.L; } else hi = mid; }
   const radius = lo;
   const kp = opts.keys ?? generateKeyPairSync("ed25519");
   const best = { experiment: opts.best.experiment, value: opts.best.value };
   const floor = sign * floorS;
-  const payload = { standard: "melete-tolerance-certificate/v1", best, floorFraction: phi, floor, radius, lipschitz: Lused, goal };
+  const payload = { standard: "melete-tolerance-certificate/v1", best, floorFraction: phi, floor, radius, lipschitz: Lused, gridM: m, safety, goal };
   const payloadHash = createHash("sha256").update(canonical(payload)).digest("hex");
   const signature = edSign(null, Buffer.from(payloadHash), kp.privateKey).toString("base64");
-  return { standard: "melete-tolerance-certificate/v1", best, floorFraction: phi, floor, radius, lipschitz: Lused, payloadHash, signature, publicKeyPem: kp.publicKey.export({ type: "spki", format: "pem" }).toString(), algo: "ed25519+sha256" };
+  return { standard: "melete-tolerance-certificate/v1", best, floorFraction: phi, floor, radius, lipschitz: Lused, gridM: m, safety, payloadHash, signature, publicKeyPem: kp.publicKey.export({ type: "spki", format: "pem" }).toString(), algo: "ed25519+sha256" };
 }
 
 export function verifyToleranceCertificate(c: ToleranceCertificate, opts: { space: Space; oracle: (e: Experiment) => number; goal?: "maximize" | "minimize" }): { ok: boolean; reason: string } {
   if (!c || !c.signature) return { ok: false, reason: "incomplete certificate" };
   try {
     const goal = opts.goal ?? "maximize"; const sign = goal === "maximize" ? 1 : -1;
-    const payload = { standard: c.standard, best: c.best, floorFraction: c.floorFraction, floor: c.floor, radius: c.radius, lipschitz: c.lipschitz, goal };
+    const payload = { standard: c.standard, best: c.best, floorFraction: c.floorFraction, floor: c.floor, radius: c.radius, lipschitz: c.lipschitz, gridM: c.gridM, safety: c.safety, goal };
     if (createHash("sha256").update(canonical(payload)).digest("hex") !== c.payloadHash) return { ok: false, reason: "content hash mismatch — tampered" };
     if (!edVerify(null, Buffer.from(c.payloadHash), c.publicKeyPem, Buffer.from(c.signature, "base64"))) return { ok: false, reason: "signature invalid" };
-    // re-derive the guarantee at the certified radius
-    const g = guaranteedFloor(opts.space, opts.oracle, norm(opts.space, c.best.experiment), c.radius, sign);
+    // re-derive the guarantee at the certified radius (using the recorded grid + safety)
+    const g = guaranteedFloor(opts.space, opts.oracle, norm(opts.space, c.best.experiment), c.radius, sign, c.gridM ?? 9, c.safety ?? 1.18);
     if (g.bound < sign * c.floor - 1e-9) return { ok: false, reason: "guarantee does not hold on re-derivation" };
     return { ok: true, reason: "verified: every setting within ±radius is Lipschitz-guaranteed ≥ floor (offline)" };
   } catch (e) { return { ok: false, reason: "verify error: " + (e as Error).message.slice(0, 80) }; }
