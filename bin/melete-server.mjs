@@ -319,6 +319,9 @@ const server = createServer(async (req, res) => {
         for (let i = 0; i < n; i++) { const m = 5.0 + 0.25 * gz(g); mu.push(m); y.push(m + sigma * gz(g)); }
         let bi = 0; for (let i = 1; i < n; i++) if (y[i] > y[bi]) bi = i;
         const c = M.selectionCertificate({ values: y, sigma });
+        // studentized leg: σ UNKNOWN, estimated from r replicates per candidate (the realistic case)
+        const r = 3; const reps = mu.map((m) => { const row = []; for (let k = 0; k < r; k++) row.push(m + sigma * gz(g)); return row; });
+        const cs = M.selectionCertificate({ replicates: reps });
         return json(res, 200, {
           searched: n,
           naiveBest: +c.naiveBest.toFixed(2),                  // what every other tool reports
@@ -328,6 +331,11 @@ const server = createServer(async (req, res) => {
           naiveOverstatedBy: +(c.naiveBest - mu[bi]).toFixed(2),
           boundIsValid: c.correctedLowerBound <= mu[bi] + 1e-9, // the de-biased bound sits at/below the truth
           confidence: c.confidence, verified: M.verifySelectionCertificate(c).ok,
+          estimatedSigma: {                                    // σ UNKNOWN → estimated from r replicates, studentized
+            replicatesPerCandidate: r, sigmaEstimate: +cs.sigma.toFixed(2), df: cs.df,
+            naiveBest: +cs.naiveBest.toFixed(2), correctedLowerBound: +cs.correctedLowerBound.toFixed(2),
+            selectionPenalty: +cs.selectionPenalty.toFixed(2), studentized: !cs.sigmaKnown, verified: M.verifySelectionCertificate(cs).ok,
+          },
         });
       } catch (e) { return json(res, 400, { error: "selection failed: " + e.message.slice(0, 120) }); }
     }

@@ -41,6 +41,9 @@ function maxQuantile(n: number, confidence: number): number {
   const level = confidence + (1 - confidence) * 0.6;   // small safety margin → realized coverage ≥ confidence (measured)
   return normInv(Math.pow(level, 1 / Math.max(1, n)));
 }
+// Student-t inflation of a normal quantile z0 by degrees of freedom (Cornish-Fisher 2-term). When σ is
+// ESTIMATED from finite replicates, the selection quantile must be studentized (df → ∞ recovers the normal).
+function tMult(df: number, z0: number): number { if (df < 1) return Math.max(6, z0 + 4); const z = z0, z3 = z * z * z, z5 = z3 * z * z; return z + (z3 + z) / (4 * df) + (5 * z5 + 16 * z3 + 3 * z) / (96 * df * df); }
 function mean(xs: number[]): number { return xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : 0; }
 
 export interface SelectionCertificate {
@@ -50,26 +53,43 @@ export interface SelectionCertificate {
   naiveBest: number;               // the optimistic reported max (what every other tool gives you)
   correctedLowerBound: number;     // a valid lower bound on the SELECTED setting's TRUE mean, after selection
   selectionPenalty: number;        // naiveBest − correctedLowerBound = the winner's-curse discount (grows with N)
-  sigma: number;                   // the measurement-noise sd used for the correction
+  sigma: number;                   // the measurement-noise sd used (supplied, or estimated from replicates)
+  sigmaKnown: boolean;             // true ⇒ σ supplied (normal quantile); false ⇒ σ ESTIMATED ⇒ studentized
+  df: number;                      // degrees of freedom of the σ estimate (0 ⇒ known σ / ∞)
+  se: number;                      // the standard error of the winner's reported value used in the penalty
   confidence: number;              // the lower bound holds with at least this probability
-  values: number[];                // the full set of evaluated candidate values (the evidence)
+  values: number[];                // the per-candidate values (single observations, or means of replicates)
+  replicates: number[][];          // per-candidate replicate measurements (the evidence) when σ is estimated; else []
   payloadHash: string;
   signature: string;
   publicKeyPem: string;
   algo: "ed25519+sha256";
 }
 
-export function selectionCertificate(opts: { values?: number[]; oracle?: (e: Experiment) => number; candidates?: Experiment[]; sigma: number; confidence?: number; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): SelectionCertificate {
-  const values = opts.values ?? (opts.oracle && opts.candidates ? opts.candidates.map((c) => opts.oracle!(c)) : []);
+export function selectionCertificate(opts: { values?: number[]; replicates?: number[][]; oracle?: (e: Experiment) => number; candidates?: Experiment[]; sigma?: number; confidence?: number; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): SelectionCertificate {
   const confidence = opts.confidence ?? 0.975;
+  let values: number[], replicates: number[][], sigma: number, sigmaKnown: boolean, df: number, se: number;
+  if (opts.replicates && opts.replicates.length) {
+    // ── ESTIMATED σ (studentized): each candidate has r replicates; pool the within-candidate variance ──
+    replicates = opts.replicates; values = replicates.map(mean);
+    let ssq = 0, dof = 0;
+    for (const reps of replicates) { const m = mean(reps); if (reps.length >= 2) { for (const v of reps) ssq += (v - m) * (v - m); dof += reps.length - 1; } }
+    sigma = dof > 0 ? Math.sqrt(ssq / dof) : 0; sigmaKnown = false; df = dof;
+    const n = values.length; let bi = 0; for (let i = 1; i < n; i++) if (values[i] > values[bi]) bi = i;
+    se = sigma / Math.sqrt(Math.max(1, replicates[bi]?.length ?? 1));
+  } else {
+    // ── KNOWN σ: one observation per candidate, σ supplied (the R13 mode) ──
+    values = opts.values ?? (opts.oracle && opts.candidates ? opts.candidates.map((c) => opts.oracle!(c)) : []);
+    replicates = []; sigma = Math.max(0, opts.sigma ?? 0); sigmaKnown = true; df = 0; se = sigma;
+  }
   const n = values.length;
   const naiveBest = n ? Math.max(...values) : 0;
-  const sigma = Math.max(0, opts.sigma);
-  const q = maxQuantile(n, confidence);
-  const selectionPenalty = q * sigma;
+  const z = maxQuantile(n, confidence);                              // the max-of-N selection quantile (normal)
+  const q = sigmaKnown ? z : tMult(df, z);                           // studentize when σ is estimated
+  const selectionPenalty = q * se;
   const correctedLowerBound = naiveBest - selectionPenalty;
   const kp = opts.keys ?? generateKeyPairSync("ed25519");
-  const cert = { standard: "melete-selection-certificate/v1" as const, verdict: "DE-BIASED" as const, n, naiveBest, correctedLowerBound, selectionPenalty, sigma, confidence, values };
+  const cert = { standard: "melete-selection-certificate/v1" as const, verdict: "DE-BIASED" as const, n, naiveBest, correctedLowerBound, selectionPenalty, sigma, sigmaKnown, df, se, confidence, values, replicates };
   const payloadHash = createHash("sha256").update(canonical(cert)).digest("hex");
   const signature = edSign(null, Buffer.from(payloadHash), kp.privateKey).toString("base64");
   return { ...cert, payloadHash, signature, publicKeyPem: kp.publicKey.export({ type: "spki", format: "pem" }).toString(), algo: "ed25519+sha256" };
@@ -79,12 +99,24 @@ export function verifySelectionCertificate(c: SelectionCertificate): { ok: boole
   try {
     if (c.standard !== "melete-selection-certificate/v1") return { ok: false, reason: "unknown standard" };
     if (c.values.length !== c.n) return { ok: false, reason: "value count does not match n" };
+    let se = c.se, sigma = c.sigma, df = c.df;
+    if (!c.sigmaKnown) {
+      // re-derive the means + pooled σ + df from the replicate evidence — a forged σ/df is caught here
+      if (c.replicates.length !== c.n) return { ok: false, reason: "replicate count does not match n" };
+      const means = c.replicates.map(mean);
+      for (let i = 0; i < c.n; i++) if (Math.abs(means[i] - c.values[i]) > 1e-9) return { ok: false, reason: "recorded candidate value ≠ mean of its replicates — tampered" };
+      let ssq = 0, dof = 0; for (const reps of c.replicates) { const m = mean(reps); if (reps.length >= 2) { for (const v of reps) ssq += (v - m) * (v - m); dof += reps.length - 1; } }
+      sigma = dof > 0 ? Math.sqrt(ssq / dof) : 0; df = dof;
+      let bi = 0; for (let i = 1; i < c.n; i++) if (means[i] > means[bi]) bi = i;
+      se = sigma / Math.sqrt(Math.max(1, c.replicates[bi]?.length ?? 1));
+      if (Math.abs(sigma - c.sigma) > 1e-9 || df !== c.df || Math.abs(se - c.se) > 1e-9) return { ok: false, reason: "recomputed σ̂ / df / se differ from the certificate — the estimate was misstated" };
+    } else if (c.replicates.length !== 0 || c.df !== 0 || Math.abs(c.se - c.sigma) > 1e-9) return { ok: false, reason: "known-σ certificate has inconsistent estimate fields" };
     const naiveBest = c.n ? Math.max(...c.values) : 0;
     if (Math.abs(naiveBest - c.naiveBest) > 1e-9) return { ok: false, reason: "recomputed max differs from the recorded best — tampered" };
-    const q = maxQuantile(c.n, c.confidence);
-    const penalty = q * c.sigma, lower = naiveBest - penalty;
+    const z = maxQuantile(c.n, c.confidence); const q = c.sigmaKnown ? z : tMult(df, z);
+    const penalty = q * se, lower = naiveBest - penalty;
     if (Math.abs(penalty - c.selectionPenalty) > 1e-9 || Math.abs(lower - c.correctedLowerBound) > 1e-9) return { ok: false, reason: "recomputed selection correction differs — the discount was understated (winner's curse hidden)" };
-    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, n: c.n, naiveBest: c.naiveBest, correctedLowerBound: c.correctedLowerBound, selectionPenalty: c.selectionPenalty, sigma: c.sigma, confidence: c.confidence, values: c.values })).digest("hex");
+    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, n: c.n, naiveBest: c.naiveBest, correctedLowerBound: c.correctedLowerBound, selectionPenalty: c.selectionPenalty, sigma: c.sigma, sigmaKnown: c.sigmaKnown, df: c.df, se: c.se, confidence: c.confidence, values: c.values, replicates: c.replicates })).digest("hex");
     if (payloadHash !== c.payloadHash) return { ok: false, reason: "payload hash mismatch — a recorded value was altered" };
     const pub = createPublicKey(c.publicKeyPem);
     if (!edVerify(null, Buffer.from(c.payloadHash), pub, Buffer.from(c.signature, "base64"))) return { ok: false, reason: "bad signature" };
@@ -137,7 +169,27 @@ export function selectionGauntlet(): { score: 0 | 100; checks: Array<{ name: str
   // 5) DETERMINISTIC + 6) TOTAL
   const d1 = selectionCertificate({ values: [1, 2, 3, 4], sigma: 1 }), d2 = selectionCertificate({ values: [1, 2, 3, 4], sigma: 1 });
   const deterministic = d1.payloadHash === d2.payloadHash && verifySelectionCertificate(d1).ok;
-  let total = true; try { selectionCertificate({ values: [], sigma: NaN }); selectionCertificate({ values: [NaN, 1], sigma: 1 }); } catch { total = false; }
+  let total = true; try { selectionCertificate({ values: [], sigma: NaN }); selectionCertificate({ values: [NaN, 1], sigma: 1 }); selectionCertificate({ replicates: [[1, 2]] }); } catch { total = false; }
+
+  // ── R14 IMPROVE: ESTIMATED σ (studentized). When σ is unknown and estimated from r replicates, the
+  // known-σ plug-in (normal quantile) UNDER-COVERS; the studentized quantile tMult(df, q_N) restores ≥97.5%. ──
+  let studCov = 0, studN = 0, plugUnder = 0, plugN = 0, studVerify = 0, backCompat = 0;
+  const designs: Array<[number, number]> = [[4, 2], [4, 3], [8, 3], [8, 2]];   // [N candidates, r replicates] — small df
+  for (let s = 1; s <= 1600; s++) {
+    const [N, r] = designs[s % designs.length]; const g = lcg(s * 131 + 7);
+    const reps: number[][] = []; for (let i = 0; i < N; i++) { const row: number[] = []; for (let k = 0; k < r; k++) row.push(5.0 + sigma * gz(g)); reps.push(row); }   // NULL regime (hardest)
+    const means = reps.map(mean); let bi = 0; for (let i = 1; i < N; i++) if (means[i] > means[bi]) bi = i; const trueBest = 5.0;
+    const cStud = selectionCertificate({ replicates: reps });   // studentized (estimates σ itself)
+    studN++; if (cStud.correctedLowerBound <= trueBest + 1e-9) studCov++; if (verifySelectionCertificate(cStud).ok) studVerify++;
+    // the plug-in: estimate σ the same way but use the NORMAL quantile (no studentization) — the thing we fixed
+    const z = maxQuantile(N, 0.975); const plugLB = cStud.naiveBest - z * cStud.se;
+    plugN++; if (plugLB <= trueBest + 1e-9) plugUnder++;
+  }
+  const studCovRate = studN ? studCov / studN : 0, plugCovRate = plugN ? plugUnder / plugN : 0, studVerifyRate = studN ? studVerify / studN : 0;
+  // BACKWARD-COMPAT: with many replicates (df → large) the studentized bound ≈ the known-σ bound
+  { const g = lcg(999); const reps: number[][] = []; for (let i = 0; i < 8; i++) { const row: number[] = []; for (let k = 0; k < 200; k++) row.push(5.0 + sigma * gz(g)); reps.push(row); }
+    const cBig = selectionCertificate({ replicates: reps }); const zb = maxQuantile(8, 0.975);
+    if (Math.abs((cBig.naiveBest - cBig.correctedLowerBound) - zb * cBig.se) < 0.02 * (zb * cBig.se)) backCompat = 1; }
 
   const checks = [
     { name: "COVERAGE≥97.5% (valid lower bound)", pass: covRate >= 0.975 && covN >= 500, detail: `the de-biased bound was ≤ the selected setting's TRUE value in ${cov}/${covN} = ${(covRate * 100).toFixed(1)}% (a valid lower bound, all regimes)` },
@@ -147,6 +199,9 @@ export function selectionGauntlet(): { score: 0 | 100; checks: Array<{ name: str
     { name: "MONOTONE-IN-N (more search ⇒ more discount)", pass: monotone, detail: `selection discount per σ grows with N: q₃=${q3.toFixed(2)} < q₈=${q8.toFixed(2)} < q₂₀=${q20.toFixed(2)} < q₁₀₀=${q100.toFixed(2)}` },
     { name: "SIGNED-VERIFIES+TAMPER", pass: verifyOk && tamper, detail: "the bound re-derives from the recorded values; altering a value fails the hash" },
     { name: "FORGERY-CAUGHT (hidden curse)", pass: forgeryCaught, detail: "a certificate that halves the selection penalty (hiding the winner's curse) is rejected" },
+    { name: "STUDENTIZED-COVERAGE≥97.5% (σ estimated)", pass: studCovRate >= 0.975 && studN >= 500 && studVerifyRate >= 0.999, detail: `with σ UNKNOWN (estimated from few replicates), the studentized bound held coverage at ${(studCovRate * 100).toFixed(1)}% and every cert re-verified (${studVerify}/${studN})` },
+    { name: "PLUGIN-UNDERCOVERS (the fix is real)", pass: plugCovRate < 0.965 && studCovRate - plugCovRate >= 0.02, detail: `the naive normal-quantile plug-in (estimated σ, no studentization) under-covered at ${(plugCovRate * 100).toFixed(1)}% — below the 97.5% guarantee; studentization restored it to ${(studCovRate * 100).toFixed(1)}%` },
+    { name: "BACKWARD-COMPAT (df→∞ ≈ known-σ)", pass: backCompat === 1, detail: "with many replicates the studentized discount converges to the known-σ (normal-quantile) discount" },
     { name: "DETERMINISTIC", pass: deterministic, detail: "same inputs → byte-identical certificate" },
     { name: "TOTAL", pass: total, detail: "empty / NaN inputs never throw" },
   ];
