@@ -470,6 +470,24 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "conformal failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 👥 SUBGROUP-VALIDITY — does the A/B win hold for every segment, or did the average hide a harmed one?
+    if (req.method === "POST" && path === "/subgroup") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 7; const G = 4, n = 60, alpha = 0.05; const deltas = [0.8, 0.8, 0.8, -0.9];   // 3 improve, 1 harmed
+      try {
+        const gz = (g) => { const u1 = Math.max(1e-9, g()), u2 = g(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+        const contribs = deltas.map((d, gi) => { const ga = M.lcg(seed * 131 + gi * 7 + 1), gb = M.lcg(seed * 131 + gi * 7 + 5); const A = [], B = []; for (let i = 0; i < n; i++) { A.push(5 + gz(ga)); B.push(5 + d + gz(gb)); } return { group: "segment" + gi, samplesA: A, samplesB: B }; });
+        const c = M.subgroupCertificate({ contributions: contribs, alpha });
+        return json(res, 200, {
+          groups: c.groups, alpha, verdict: c.verdict,
+          overall: { effect: +c.overallEffect.toFixed(2), significant: c.overallSignificant },
+          overallMisleading: c.overallMisleading, worstSegment: c.worstGroup, worstEffect: +c.worstEffect.toFixed(2),
+          subgroups: c.subgroups.map((s) => ({ group: s.group, effect: +s.effect.toFixed(2), status: s.status })),
+          verified: M.verifySubgroupCertificate(c).ok,
+        });
+      } catch (e) { return json(res, 400, { error: "subgroup failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🔌 MCP over HTTP — the same agent-callable trust middleware via a JSON-RPC body (any-transport).
     // Every tools/call is metered + audited into the signed trust ledger (the toll-booth).
     if (req.method === "POST" && path === "/mcp") {

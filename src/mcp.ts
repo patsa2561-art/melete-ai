@@ -25,6 +25,7 @@ import { falseDiscoveryCertificate, verifyFalseDiscoveryCertificate } from "./fd
 import { anytimeCertificate, verifyAnytimeCertificate } from "./anytime.js";
 import { swarmCertificate, verifySwarmCertificate } from "./swarm.js";
 import { conformalCertificate, verifyConformalCertificate } from "./conformal.js";
+import { subgroupCertificate, verifySubgroupCertificate } from "./subgroup.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -135,10 +136,16 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     run: (a) => { const c = conformalCertificate({ residuals: a.residuals ?? [], alpha: a.alpha, prediction: a.prediction ?? null, difficulty: a.difficulty ?? null, predictionDifficulty: a.predictionDifficulty ?? null }); return { certificate: c, verified: verifyConformalCertificate(c).ok }; },
   },
   {
+    name: "melete.subgroup",
+    description: "Does an A/B win hold for EVERY segment, or did the average hide a harmed one (Simpson's paradox)? Pass per-segment A/B samples. Returns a signed verdict — UNIFORM-IMPROVEMENT vs HARMED-SUBGROUP (names the segment) — with Bonferroni multiplicity control, and flags when the pooled average is misleading.",
+    inputSchema: { type: "object", properties: { contributions: { type: "array", description: "[{group, samplesA:[...], samplesB:[...]}]" }, alpha: { type: "number" } }, required: ["contributions"] },
+    run: (a) => { const c = subgroupCertificate({ contributions: a.contributions ?? [], alpha: a.alpha }); return { certificate: c, verified: verifySubgroupCertificate(c).ok }; },
+  },
+  {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
-    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
   },
   {
     name: "melete.gauntlet",
