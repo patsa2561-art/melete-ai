@@ -58,6 +58,7 @@ export * from "./honestsearch.js";
 export * from "./tolerance.js";
 export * from "./improvement.js";
 export * from "./prereg.js";
+export * from "./breakdown.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
 export * from "./metabrain.js";
@@ -145,6 +146,7 @@ import { honestSearchGauntlet } from "./honestsearch.js";
 import { toleranceGauntlet } from "./tolerance.js";
 import { improvementGauntlet } from "./improvement.js";
 import { preRegGauntlet } from "./prereg.js";
+import { breakdownGauntlet } from "./breakdown.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
 import { metabrainGauntlet } from "./metabrain.js";
@@ -205,6 +207,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "tolerance", g: toleranceGauntlet() },
     { name: "improvement", g: improvementGauntlet() },
     { name: "prereg", g: preRegGauntlet() },
+    { name: "breakdown", g: breakdownGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },
     { name: "metabrain", g: metabrainGauntlet() },

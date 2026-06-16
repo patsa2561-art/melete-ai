@@ -293,6 +293,21 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "prereg failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🪨 DECISION-BREAKDOWN — how many corrupted measurements would it take to flip the "B beats A" verdict?
+    // a strong, clean gain survives many corruptions (ROBUST); a marginal one flips on a single bad point (FRAGILE).
+    if (req.method === "POST" && path === "/breakdown") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 7;
+      try {
+        const gz = (g) => { const u1 = Math.max(1e-9, g()), u2 = g(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+        const mk = (gainTrue, sd, sd2) => { const gA = M.lcg(sd2 * 17 + 1), gB = M.lcg(sd2 * 17 + 7); return M.breakdownCertificate({ oracle: (e) => ((e.sel ?? 0) === 0 ? 5.0 + sd * gz(gA) : 5.0 + gainTrue + sd * gz(gB)), a: { sel: 0 }, b: { sel: 1 }, replicates: 10, seed: sd2, cap: 5, threshold: 2 }); };
+        const strong = mk(1.2, 0.3, seed);            // big gain, low noise → survives many corruptions
+        const marginal = mk(0.85, 0.65, seed + 1000); // a real but small gain → one bad point flips it
+        const pack = (c) => ({ verdict: c.verdict, breakdown: c.breakdown, atLeast: c.breakdownAtLeast, ofMeasurements: c.n, certifiedGain: +c.gainLowerBound.toFixed(2), verified: M.verifyBreakdownCertificate(c).ok });
+        return json(res, 200, { strong: pack(strong), marginal: pack(marginal) });
+      } catch (e) { return json(res, 400, { error: "breakdown failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
