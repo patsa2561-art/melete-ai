@@ -393,6 +393,28 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "fdr failed: " + e.message.slice(0, 120) }); }
     }
 
+    // ⏱ ANYTIME-VALID — an agent peeks after every observation; the e-process keeps the FP guarantee under optional stopping.
+    if (req.method === "POST" && path === "/anytime") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 7; const sigma = 1, alpha = 0.05, tau2 = 0.3, T = 200;
+      try {
+        const gz = (g) => { const u1 = Math.max(1e-9, g()), u2 = g(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+        // a real gain (μ=0.3): the agent monitors continuously and stops when the e-value crosses 1/α
+        const g = M.lcg(seed * 17 + 1); const obs = []; for (let t = 0; t < T; t++) obs.push(0.3 + gz(g));
+        const c = M.anytimeCertificate({ observations: obs, sigma, alpha, tau2 });
+        // measured contrast under the NULL: how often does each method falsely fire when you peek every step?
+        let eFP = 0, naiveFP = 0, K = 300;
+        for (let s = 1; s <= K; s++) { const gg = M.lcg(s * 91 + 13); const nobs = []; for (let t = 0; t < T; t++) nobs.push(gz(gg));
+          if (M.anytimeCertificate({ observations: nobs, sigma, alpha, tau2 }).verdict === "ANYTIME-SIGNIFICANT") eFP++;
+          let S = 0; for (let t = 1; t <= T; t++) { S += nobs[t - 1]; if (Math.abs(S / Math.sqrt(t)) > 1.96) { naiveFP++; break; } } }
+        return json(res, 200, {
+          horizon: T, alpha,
+          realGain: { verdict: c.verdict, stoppedAt: c.stoppedAt, eValueAtStop: +c.eValueAtStop.toFixed(1), threshold: c.threshold, verified: M.verifyAnytimeCertificate(c).ok },
+          nullContrast: { peeks: T, trials: K, anytimeFalsePositivePct: +(eFP / K * 100).toFixed(1), naivePeekFalsePositivePct: +(naiveFP / K * 100).toFixed(1) },
+        });
+      } catch (e) { return json(res, 400, { error: "anytime failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🔌 MCP over HTTP — the same agent-callable trust middleware via a JSON-RPC body (any-transport).
     // Every tools/call is metered + audited into the signed trust ledger (the toll-booth).
     if (req.method === "POST" && path === "/mcp") {

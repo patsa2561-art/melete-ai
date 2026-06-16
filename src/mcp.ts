@@ -22,6 +22,7 @@ import { proposeNext } from "./interactive.js";
 import { selectionCertificate, verifySelectionCertificate } from "./winnerscurse.js";
 import { supportCertificate, verifySupportCertificate } from "./support.js";
 import { falseDiscoveryCertificate, verifyFalseDiscoveryCertificate } from "./fdr.js";
+import { anytimeCertificate, verifyAnytimeCertificate } from "./anytime.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -114,10 +115,16 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     run: (a) => { const c = falseDiscoveryCertificate({ pValues: a.pValues, zScores: a.zScores, q: a.q, alpha: a.alpha, procedure: a.procedure }); return { certificate: c, verified: verifyFalseDiscoveryCertificate(c).ok }; },
   },
   {
+    name: "melete.anytime",
+    description: "Anytime-valid test for an agent that PEEKS after every observation. Pass the observation stream (e.g. paired gains) + σ + α. Returns a signed verdict whose false-positive guarantee holds under optional stopping (peek as often as you like).",
+    inputSchema: { type: "object", properties: { observations: { type: "array" }, sigma: { type: "number" }, alpha: { type: "number" }, tau2: { type: "number" } }, required: ["observations"] },
+    run: (a) => { const c = anytimeCertificate({ observations: a.observations, sigma: a.sigma, alpha: a.alpha, tau2: a.tau2 }); return { certificate: c, verified: verifyAnytimeCertificate(c).ok }; },
+  },
+  {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
-    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
   },
   {
     name: "melete.gauntlet",

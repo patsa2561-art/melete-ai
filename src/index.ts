@@ -62,6 +62,7 @@ export * from "./breakdown.js";
 export * from "./winnerscurse.js";
 export * from "./support.js";
 export * from "./fdr.js";
+export * from "./anytime.js";
 export * from "./mcp.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
@@ -154,6 +155,7 @@ import { breakdownGauntlet } from "./breakdown.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
+import { anytimeGauntlet } from "./anytime.js";
 import { mcpGauntlet } from "./mcp.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
@@ -219,6 +221,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "winnerscurse", g: selectionGauntlet() },
     { name: "support", g: supportGauntlet() },
     { name: "fdr", g: fdrGauntlet() },
+    { name: "anytime", g: anytimeGauntlet() },
     { name: "mcp", g: mcpGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },
