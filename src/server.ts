@@ -1832,6 +1832,14 @@ const AUDIENCE: Record<string, { e: string; col: string; demo: string; en: AudCo
     en: { name: "Security & Compliance", h: "Block more attacks with less friction — a tuned, auditable guardrail.", sub: "List your knobs and the score; Melete finds the policy that maximises attack-block while minimising user friction in a handful of runs — and signs the verdict for the audit.", s1: "List IAM token TTL, firewall sensitivity, max payload size and their ranges.", s2: "Melete proposes a policy; you run your red-team suite and report block % − friction.", s3: "You get the safest robust policy in a handful of runs + a signed verdict.", knobs: "IAM TTL · firewall · payload size  →  attack-block % − friction", b1: "Maximum block rate without strangling real users — the robust trade-off.", b2: "Runs on-prem, air-gapped — your policy and traffic never leave.", b3: "A tamper-evident verdict your compliance officer can re-verify." },
     th: { name: "ความปลอดภัย & คอมไพลแอนซ์", h: "บล็อกการโจมตีได้มากขึ้น โดยรบกวนผู้ใช้น้อยลง — guardrail ที่จูนแล้วและตรวจสอบได้", sub: "ระบุปุ่มและคะแนน Melete หานโยบายที่บล็อกการโจมตีได้สูงสุดพร้อมรบกวนผู้ใช้ต่ำสุดในไม่กี่รอบ แล้วเซ็นคำตัดสินไว้ให้ตรวจ", s1: "ระบุ IAM token TTL, ความไวไฟร์วอลล์, ขนาด payload สูงสุด พร้อมช่วง", s2: "Melete เสนอนโยบาย คุณรันชุด red-team แล้วรายงาน block % − ความรบกวน", s3: "ได้นโยบายที่ปลอดภัยและทนทานที่สุดในไม่กี่รอบ + คำตัดสินที่เซ็นไว้", knobs: "IAM TTL · firewall · payload size  →  บล็อก % − ความรบกวน", b1: "อัตราบล็อกสูงสุดโดยไม่บีบผู้ใช้จริง — จุดสมดุลที่ทนทาน", b2: "รัน on-prem air-gapped — นโยบายและทราฟฟิกไม่ออกไปไหน", b3: "คำตัดสินที่แก้ไม่ได้ เจ้าหน้าที่คอมไพลแอนซ์ตรวจซ้ำได้" } },
 };
+/** Ambient, field-themed hero motif for a per-profession page — decorative (not data): pulsing rings,
+ *  an orbit with travelling dots, a slow gem, the field emoji. Pure SVG/SMIL, accent-coloured. */
+function audHeroArt(emoji: string, col: string): string {
+  const rings = [82, 60, 40].map((r, i) => `<circle r="${r}" fill="none" stroke="${col}" stroke-width="1.2" opacity="${(0.14 + i * 0.06).toFixed(2)}"><animate attributeName="r" values="${r};${r + 5};${r}" dur="${4 + i}s" repeatCount="indefinite"/><animate attributeName="opacity" values="${(0.14 + i * 0.06).toFixed(2)};${(0.3 + i * 0.06).toFixed(2)};${(0.14 + i * 0.06).toFixed(2)}" dur="${4 + i}s" repeatCount="indefinite"/></circle>`).join("");
+  const orbitPath = "M96 0 A96 48 0 1 1 -96 0 A96 48 0 1 1 96 0";
+  const dots = [0, 2.3, 4.6].map((b) => `<circle r="3.4" fill="${col}"><animateMotion dur="7s" begin="${b}s" repeatCount="indefinite" path="${orbitPath}"/></circle>`).join("");
+  return `<svg viewBox="0 0 360 260" role="img" aria-hidden="true"><defs><radialGradient id="ah" cx="50%" cy="46%" r="62%"><stop offset="0" stop-color="${col}30"/><stop offset="1" stop-color="${col}00"/></radialGradient><linearGradient id="ahg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${col}"/><stop offset="1" stop-color="#0ea5b7"/></linearGradient><filter id="ahglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><rect width="360" height="260" fill="url(#ah)"/><g transform="translate(180 130)">${rings}<ellipse rx="96" ry="48" fill="none" stroke="${col}" stroke-width="1" opacity="0.22" stroke-dasharray="2 8"/>${dots}<rect x="-21" y="-21" width="42" height="42" rx="11" transform="rotate(45 0 0)" fill="url(#ahg)" filter="url(#ahglow)" opacity="0.92"/><text x="0" y="12" text-anchor="middle" font-size="34">${emoji}</text></g></svg>`;
+}
 export function audiencePage(key: string, version = "0.4.0"): string {
   const f = AUDIENCE[key] || AUDIENCE.pharma; const c = f.col;
   const en = f.en, th = f.th;
@@ -1861,6 +1869,9 @@ h1{font-size:clamp(38px,6.4vw,68px);line-height:1.05;margin:0 0 18px;font-weight
 .btn.pri{background:linear-gradient(95deg,${c},#0ea5b7);color:#fff;box-shadow:0 18px 40px -16px ${c}}.btn.pri:hover{transform:translateY(-2px)}
 .btn.gho{background:rgba(255,255,255,.7);color:#3a3c54;border:1px solid #e4e3f2}.btn.gho:hover{transform:translateY(-2px)}
 .knob{display:inline-block;margin-top:22px;font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#41435c;background:#fff;border:1px solid #ecebf6;border-left:4px solid ${c};border-radius:10px;padding:11px 15px}
+.ahero{display:grid;grid-template-columns:1.12fr .88fr;gap:30px;align-items:center}
+.aheroart svg{width:100%;height:auto;display:block;filter:drop-shadow(0 24px 50px ${c}22)}
+@media(max-width:820px){.ahero{grid-template-columns:1fr}.aheroart{max-width:380px;margin:8px auto 0}}
 h2{font-size:clamp(24px,3.6vw,36px);margin:0 0 22px;font-weight:850;letter-spacing:-1px;color:#14152a}
 .grid{display:grid;gap:15px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
 .card{background:rgba(255,255,255,.84);border:1px solid #ecebf6;border-radius:18px;padding:22px 22px;box-shadow:0 24px 54px -36px rgba(70,55,160,.5)}
@@ -1877,6 +1888,8 @@ h2{font-size:clamp(24px,3.6vw,36px);margin:0 0 22px;font-weight:850;letter-spaci
 <div class="top"><a href="/"><span class="wm"><span class="g"></span>Melete</span></a><div class="langsw"><button class="lb on" id="lbEN" onclick="setLang('en')">EN</button><button class="lb" id="lbTH" onclick="setLang('th')">ไทย</button></div></div>
 <div class="wrap">
 <section style="padding-top:120px">
+ <div class="ahero">
+  <div>
   <div class="eye">${f.e} Melete for <span data-i18n="name">${en.name}</span></div>
   <h1 data-i18n="h">${en.h}</h1>
   <p class="lead" data-i18n="sub">${en.sub}</p>
@@ -1885,6 +1898,9 @@ h2{font-size:clamp(24px,3.6vw,36px);margin:0 0 22px;font-weight:850;letter-spaci
     <a class="btn gho" href="mailto:patsa2561@gmail.com?subject=Melete%20for%20${encodeURIComponent(en.name)}">Talk to us</a>
   </div>
   <div class="knob" data-i18n="knobs">${en.knobs}</div>
+  </div>
+  <div class="aheroart">${audHeroArt(f.e, c)}</div>
+ </div>
 </section>
 <section>
   <div class="eye" data-i18n="lbl_loop">Your loop</div>
@@ -1930,7 +1946,7 @@ var _l='en';try{_l=localStorage.getItem('mlang')||'en'}catch(e){}setLang(_l);
 export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string; pass: boolean; detail: string }> } {
   const html = landingPage("9.9.9"); const pitch = pitchDeck("9.9.9");
   const landErr = firstScriptSyntaxError(html); const pitchErr = firstScriptSyntaxError(pitch);
-  const audErr = (() => { for (const k of AUDIENCE_KEYS) { const pg = audiencePage(k, "9.9.9"); if (!pg.startsWith("<!doctype html>") || !pg.includes("Melete for") || !pg.includes("Trustworthy Discovery Certificate") || !pg.includes('href="/?demo=')) return k + ": did not render"; const e = firstScriptSyntaxError(pg); if (e) return k + " " + e; } return null; })();
+  const audErr = (() => { for (const k of AUDIENCE_KEYS) { const pg = audiencePage(k, "9.9.9"); if (!pg.startsWith("<!doctype html>") || !pg.includes("Melete for") || !pg.includes("Trustworthy Discovery Certificate") || !pg.includes('href="/?demo=') || !pg.includes('class="aheroart"')) return k + ": did not render"; const e = firstScriptSyntaxError(pg); if (e) return k + " " + e; } return null; })();
   const checks = [
     { name: "SCRIPTS-PARSE", pass: landErr === null && pitchErr === null, detail: landErr ? ("landing " + landErr) : pitchErr ? ("pitch " + pitchErr) : "every inline <script> on the landing page + pitch parses (no JS syntax error can ship)" },
     { name: "AUDIENCE-PAGES", pass: audErr === null, detail: audErr ? ("broken " + audErr) : "all 8 per-profession landing pages render, deep-link to the demo, carry the moat, and their scripts parse" },
