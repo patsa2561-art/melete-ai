@@ -37,6 +37,15 @@ function normInv(p: number): number {
 }
 function tMult(df: number, z0: number): number { if (df < 1) return Math.max(6, z0 + 4); const z = z0, z3 = z * z * z, z5 = z3 * z * z; return z + (z3 + z) / (4 * df) + (5 * z5 + 16 * z3 + 3 * z) / (96 * df * df); }
 function stats(xs: number[]): { mean: number; varOverN: number; n: number } { const n = xs.length; if (n === 0) return { mean: 0, varOverN: 0, n: 0 }; const mean = xs.reduce((s, v) => s + v, 0) / n; const v = n > 1 ? xs.reduce((s, x) => s + (x - mean) * (x - mean), 0) / (n - 1) : 0; return { mean, varOverN: v / n, n }; }
+function erf(x: number): number { const t = 1 / (1 + 0.3275911 * Math.abs(x)); const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x >= 0 ? y : -y; }
+function normCdf(x: number): number { return 0.5 * (1 + erf(x / Math.SQRT2)); }
+// Holm step-down: reject the sorted p-values while p_(k) ≤ α/(G−k); uniformly more powerful than Bonferroni at
+// the same family-wise error. Returns the set of rejected original indices.
+function holmReject(pvals: number[], alpha: number): Set<number> {
+  const order = pvals.map((p, i) => ({ p, i })).sort((a, b) => a.p - b.p); const G = pvals.length; const rej = new Set<number>();
+  for (let k = 0; k < G; k++) { if (order[k].p <= alpha / (G - k)) rej.add(order[k].i); else break; }
+  return rej;
+}
 
 export interface SubgroupResult { group: string; nA: number; nB: number; effect: number; lowerBound: number; upperBound: number; status: "IMPROVED" | "HARMED" | "UNCERTAIN"; }
 export interface SubgroupCertificate {
@@ -58,21 +67,24 @@ export interface SubgroupCertificate {
 }
 
 function evaluate(contribs: Array<{ group: string; samplesA: number[]; samplesB: number[] }>, alpha: number) {
-  const G = Math.max(1, contribs.length); const zB = normInv(1 - alpha / G);
+  // UNIFORM-IMPROVEMENT is an INTERSECTION-UNION test: to claim "every subgroup improves" you reject each at
+  // level α (NO multiplicity penalty — the IUT controls the size at α). HARM detection is a family of tests
+  // where ANY flag is a discovery, so it uses Holm step-down (FWER ≤ α). This is uniformly more powerful than
+  // the naive Bonferroni-everywhere of v1, and the uniform claim is now correctly (not over-) conservative.
+  const zAlpha = normInv(1 - alpha);
+  const raw = (contribs ?? []).map((c) => { const A = c.samplesA ?? [], B = c.samplesB ?? []; const sa = stats(A), sb = stats(B); const effect = sb.mean - sa.mean; const se = Math.sqrt(sa.varOverN + sb.varOverN); const df = Math.min(sa.n, sb.n) - 1; const t = tMult(df, zAlpha); return { group: c.group, A, B, nA: sa.n, nB: sb.n, effect, se, lowerBound: effect - t * se, upperBound: effect + t * se, pHarm: se > 0 ? normCdf(effect / se) : 0.5 }; });
+  const harmedSet = holmReject(raw.map((r) => r.pHarm), alpha);   // family-wise harm at α
   const subs: Array<SubgroupResult & { samplesA: number[]; samplesB: number[] }> = [];
-  const allA: number[] = [], allB: number[] = []; let anyHarmed = false, allImproved = true, worstEffect = Infinity, worstGroup = "";
-  for (const c of contribs) {
-    const A = c.samplesA ?? [], B = c.samplesB ?? []; const sa = stats(A), sb = stats(B);
-    const effect = sb.mean - sa.mean; const se = Math.sqrt(sa.varOverN + sb.varOverN); const df = Math.min(sa.n, sb.n) - 1; const t = tMult(df, zB);
-    const lowerBound = effect - t * se, upperBound = effect + t * se;
-    const status: SubgroupResult["status"] = lowerBound > 0 ? "IMPROVED" : (upperBound < 0 ? "HARMED" : "UNCERTAIN");
+  const allA: number[] = [], allB: number[] = []; let anyHarmed = false, allImproved = raw.length > 0, worstEffect = Infinity, worstGroup = "";
+  for (let i = 0; i < raw.length; i++) {
+    const r = raw[i]; const status: SubgroupResult["status"] = harmedSet.has(i) ? "HARMED" : (r.lowerBound > 0 ? "IMPROVED" : "UNCERTAIN");
     if (status === "HARMED") anyHarmed = true; if (status !== "IMPROVED") allImproved = false;
-    if (effect < worstEffect) { worstEffect = effect; worstGroup = c.group; }
-    subs.push({ group: c.group, nA: sa.n, nB: sb.n, effect, lowerBound, upperBound, status, samplesA: A, samplesB: B });
-    for (const x of A) allA.push(x); for (const x of B) allB.push(x);
+    if (r.effect < worstEffect) { worstEffect = r.effect; worstGroup = r.group; }
+    subs.push({ group: r.group, nA: r.nA, nB: r.nB, effect: r.effect, lowerBound: r.lowerBound, upperBound: r.upperBound, status, samplesA: r.A, samplesB: r.B });
+    for (const x of r.A) allA.push(x); for (const x of r.B) allB.push(x);
   }
   const oa = stats(allA), ob = stats(allB); const oEffect = ob.mean - oa.mean; const oSe = Math.sqrt(oa.varOverN + ob.varOverN);
-  const oLB = oEffect - tMult(Math.min(oa.n, ob.n) - 1, normInv(1 - alpha)) * oSe; const oSig = oLB > 0;
+  const oLB = oEffect - tMult(Math.min(oa.n, ob.n) - 1, zAlpha) * oSe; const oSig = oLB > 0;
   const verdict: SubgroupCertificate["verdict"] = anyHarmed ? "HARMED-SUBGROUP" : (allImproved ? "UNIFORM-IMPROVEMENT" : "MIXED");
   return { subs, oEffect, oLB, oSig, overallMisleading: oSig && anyHarmed, worstGroup, worstEffect: Number.isFinite(worstEffect) ? worstEffect : 0, verdict };
 }
@@ -132,9 +144,40 @@ export function subgroupGauntlet(): { score: 0 | 100; checks: Array<{ name: stri
   const deterministic = d1.payloadHash === d2.payloadHash && verifySubgroupCertificate(d1).ok;
   let total = true; try { subgroupCertificate({ contributions: [] }); subgroupCertificate({ contributions: [{ group: "x", samplesA: [NaN], samplesB: [1, 2] }] }); } catch { total = false; }
 
+  // R28 IMPROVE — (a) UNIFORM via the intersection-union test (level α, not α/G): far more powerful, still
+  // size-controlled. (b) HARM via Holm step-down: more detections than Bonferroni at the same family-wise error.
+  const zA = normInv(1 - alpha), zBon = normInv(1 - alpha / G);
+  const margin = [0.4, 0.4, 0.4, 0.4]; let iutPow = 0, bonUniPow = 0, iutSize = 0, NM = 3000;
+  for (let s = 1; s <= NM; s++) {
+    const c = subgroupCertificate({ contributions: build(margin, s * 3 + 1), alpha });
+    if (c.verdict === "UNIFORM-IMPROVEMENT") iutPow++;
+    // old v1 behaviour: each subgroup LB at α/G must clear 0
+    const bonAll = c.subgroups.every((sg) => { const se = (sg.upperBound - sg.lowerBound) / (2 * tMult(Math.min(sg.nA, sg.nB) - 1, zA)); return sg.effect - tMult(Math.min(sg.nA, sg.nB) - 1, zBon) * se > 0; });
+    if (bonAll) bonUniPow++;
+    // size: one segment truly does NOT improve (δ=0) → a valid procedure must rarely claim UNIFORM
+    const cs = subgroupCertificate({ contributions: build([0.0, 0.4, 0.4, 0.4], s * 5 + 2), alpha });
+    if (cs.verdict === "UNIFORM-IMPROVEMENT") iutSize++;
+  }
+  const iutRate = iutPow / NM, bonUniRate = bonUniPow / NM, iutSizeRate = iutSize / NM;
+  // Holm vs Bonferroni harm detection at G=8 with several modest harms; FWER under no harm
+  const buildG = (deltas: number[], seed: number, nn = 60) => deltas.map((d, gi) => { const ga = lcg(seed * 191 + gi * 11 + 1), gb = lcg(seed * 191 + gi * 11 + 5); const A: number[] = [], B: number[] = []; for (let i = 0; i < nn; i++) { A.push(5 + gz(ga)); B.push(5 + d + gz(gb)); } return { group: "g" + gi, samplesA: A, samplesB: B }; });
+  const harmG = [0.8, 0.8, 0.8, 0.8, -0.55, -0.55, -0.55, -0.55];
+  let holmDet = 0, bonDet = 0, holmFWER = 0, MM = 3000;
+  for (let s = 1; s <= MM; s++) {
+    const c = subgroupCertificate({ contributions: buildG(harmG, s), alpha });
+    let hd = 0; for (const sg of c.subgroups) if (sg.status === "HARMED" && +sg.group.slice(1) >= 4) hd++; holmDet += hd;
+    // Bonferroni harm inline: lower-tail p ≤ α/G
+    for (const sg of c.subgroups) { const se = (sg.upperBound - sg.lowerBound) / (2 * tMult(Math.min(sg.nA, sg.nB) - 1, zA)); const p = normCdf(sg.effect / se); if (p <= alpha / c.groups && +sg.group.slice(1) >= 4) bonDet++; }
+    const c0 = subgroupCertificate({ contributions: buildG(new Array(8).fill(0), s + 5000), alpha });
+    if (c0.subgroups.some((sg) => sg.status === "HARMED")) holmFWER++;
+  }
+  const holmDetAvg = holmDet / MM, bonDetAvg = bonDet / MM, holmFWERRate = holmFWER / MM;
+
   const checks = [
     { name: "DETECTS + NAMES HARM", pass: detectRate >= 0.9 && namedRate >= 0.99, detail: `when one segment is truly harmed, flagged HARMED-SUBGROUP ${(detectRate * 100).toFixed(0)}% and named the right segment ${(namedRate * 100).toFixed(0)}%` },
     { name: "OVERALL-AVERAGE-MISLEADS (the trap)", pass: misleadRate >= 0.8, detail: `the pooled test declared "improvement" while a segment was harmed in ${(misleadRate * 100).toFixed(0)}% of cases — exactly the harm the average hides and this certificate catches` },
+    { name: "UNIFORM via IUT — more powerful + size-controlled", pass: iutRate >= bonUniRate + 0.1 && iutSizeRate <= alpha, detail: `the intersection-union test (level α, no penalty) declares UNIFORM-IMPROVEMENT ${(iutRate * 100).toFixed(0)}% at a marginal effect vs the naive Bonferroni-α/G ${(bonUniRate * 100).toFixed(0)}% — and stays size-controlled (${(iutSizeRate * 100).toFixed(1)}% ≤ α when a segment truly does not improve)` },
+    { name: "HARM via Holm — more powerful, same FWER", pass: holmDetAvg >= bonDetAvg && holmFWERRate <= alpha + 0.005, detail: `Holm step-down detected ${holmDetAvg.toFixed(2)}/4 modest harms vs Bonferroni ${bonDetAvg.toFixed(2)}/4 (≥, uniformly more powerful) while holding the family-wise false-harm rate at ${(holmFWERRate * 100).toFixed(1)}% ≤ α` },
     { name: "NO-FALSE-HARM (Bonferroni)", pass: falseHarmRate <= alpha, detail: `when every segment truly improves, a harmed segment was falsely flagged only ${(falseHarmRate * 100).toFixed(1)}% ≤ α=${(alpha * 100).toFixed(0)}% (family-wise across G)` },
     { name: "UNIFORM-IMPROVEMENT (power)", pass: uniformRate >= 0.8, detail: `when every segment improves, UNIFORM-IMPROVEMENT was declared ${(uniformRate * 100).toFixed(0)}% — the family-wise all-segments claim` },
     { name: "SIGNED-VERIFIES", pass: verifyOk, detail: "every per-segment bound + the verdict re-derive from the recorded data" },
