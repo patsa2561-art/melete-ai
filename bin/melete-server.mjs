@@ -340,6 +340,25 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "selection failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🧭 EXTRAPOLATION-GUARD — is a recommended setting INSIDE the sampled evidence, or a blind extrapolation?
+    if (req.method === "POST" && path === "/support") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 7;
+      try {
+        const gz = (g) => { const u1 = Math.max(1e-9, g()), u2 = g(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+        // two sampled clusters in [0,1]² (left + right) — leaving an interior VOID around x=0.5
+        const mk = (sd, cx, cy) => { const g = M.lcg(sd); const p = []; for (let i = 0; i < 30; i++) p.push([cx + 0.06 * gz(g), cy + 0.06 * gz(g)]); return p; };
+        const design = mk(seed * 13 + 1, 0.25, 0.5).concat(mk(seed * 13 + 9, 0.78, 0.5));
+        const pack = (label, x) => { const c = M.supportCertificate({ design, recommended: x }); return { label, recommended: x.map((v) => +v.toFixed(2)), verdict: c.verdict, supportRatio: +c.supportRatio.toFixed(2), witness: c.witness.map((w) => ({ knob: w.dim, asked: +w.value.toFixed(2), sampledLimit: +w.limit.toFixed(2), side: w.side })), verified: M.verifySupportCertificate(c, design).ok }; };
+        return json(res, 200, {
+          designSize: design.length,
+          insideCluster: pack("inside a sampled cluster", design[0]),     // SUPPORTED
+          interiorVoid: pack("an unsampled gap inside the box", [0.5, 0.5]), // SPARSE-INTERIOR
+          beyondBox: pack("beyond every sampled value", [1.9, 0.5]),       // EXTRAPOLATION + witness
+        });
+      } catch (e) { return json(res, 400, { error: "support failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery

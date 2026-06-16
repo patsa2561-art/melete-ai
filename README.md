@@ -50,7 +50,7 @@ POST /replay/verify    { …token }                           → re-derive the 
 …or skip HTTP entirely and call the library in-process: `import { sovereignAnalyze, aegisDiscover, proposeNext } from "melete-ai"`.
 
 ## ✦ What's inside — by category
-> **60 independently-verified modules.** Every claim below is a check you can re-run: `npx melete-ai gauntlet`.
+> **61 independently-verified modules.** Every claim below is a check you can re-run: `npx melete-ai gauntlet`.
 
 ### 🔍 Optimize — the best setting in the fewest experiments
 | capability | what it does |
@@ -79,7 +79,8 @@ Hosted, no install: `POST https://melete.mneme-ai.space/next`
 | 📜 **Proof of Improvement** | switching from setting A to recipe B is a **proven gain of ≥Δ** — noise-aware 97.5% lower bound; refuses within noise. **Common-random-numbers pairing** certifies the same gain from **~8× fewer measurements**; **sequential early-stopping** (Bonferroni α-split) stops the moment the gain is certified — **~1.9× fewer on average** (41.9 vs 80). *(Δ valid ≥97.5%, false-cert ≤2.5%)* |
 | 🔐 **Pre-Registration** | **commit** the objective, space, budget &amp; decision rule **before** running, then prove the result obeyed it — **no goalpost-moving, no cherry-picking**. *(6 deviation classes all rejected; the scientific-integrity layer)* |
 | 🪨 **Decision-Breakdown** | how many measurements would an adversary (fraud, a glitchy sensor) have to **corrupt to flip** your "B beats A" verdict? The **exact tamper-distance** — a strong clean call survives many corruptions, a marginal one flips on one. The cert **ships the explicit minimal attack** (a witness you re-apply), takes an **arbitrary adversary range** (real sensor/physical bounds), and a stronger adversary provably never raises the count. *(witness truly flips 100%; monotone 100%; an inflated claim caught 100%)* |
-| 📉 **Winner's Curse** *(new)* | you searched N settings and reported the best — but that number is **inflated** (it's the max of N noisy trials, partly luck). The signed **selection correction**: the winner's TRUE value is **≥ this de-biased lower bound**, the discount **grows with N**, and it works with **σ unknown** (estimated from replicates, *studentized*). *(valid bound ≥97.5%, measured 99.5%; with σ estimated a plain plug-in breaks at 94.9% — studentized holds 99.3%; naive overstates 90%)* |
+| 📉 **Winner's Curse** | you searched N settings and reported the best — but that number is **inflated** (it's the max of N noisy trials, partly luck). The signed **selection correction**: the winner's TRUE value is **≥ this de-biased lower bound**, the discount **grows with N**, and it works with **σ unknown** (estimated from replicates, *studentized*). *(valid bound ≥97.5%, measured 99.5%; with σ estimated a plain plug-in breaks at 94.9% — studentized holds 99.3%; naive overstates 90%)* |
+| 🧭 **Extrapolation-Guard** *(new)* | is the recommended setting **inside the data you measured**, or a blind **extrapolation**? A beyond-the-box recommendation is flagged with a **separating-axis witness** — an *exact* proof it's outside the convex hull of your evidence — plus a density signal for interior voids. How you avoid acting on a setting the model only *guessed*. *(out-of-box → flagged 100% with a valid witness; never false-flags a sampled point; a fake "supported" is caught)* |
 | ⬛ **Null Engine** | brave enough to say *"there's nothing to find"* on pure noise |
 | 👑 **Sovereign Verdict + ⏪ Replay** | Ed25519-signed, deterministic, re-derivable on any machine, forever |
 
@@ -103,7 +104,7 @@ npx melete-ai poopt proof-of-optimization.json   # verify any signed certificate
 | **Ceiling · drift** | the achievable best, and whether results drift over time |
 
 ### 🔌 Integrate
-`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/improvement` `/prereg` `/breakdown` `/selection` `/verify`
+`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/improvement` `/prereg` `/breakdown` `/selection` `/support` `/verify`
 
 ## The moat
 - 🔒 **Sovereign** — runs air-gapped, on your machine; data never touches a cloud.

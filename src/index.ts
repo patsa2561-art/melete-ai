@@ -60,6 +60,7 @@ export * from "./improvement.js";
 export * from "./prereg.js";
 export * from "./breakdown.js";
 export * from "./winnerscurse.js";
+export * from "./support.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
 export * from "./metabrain.js";
@@ -149,6 +150,7 @@ import { improvementGauntlet } from "./improvement.js";
 import { preRegGauntlet } from "./prereg.js";
 import { breakdownGauntlet } from "./breakdown.js";
 import { selectionGauntlet } from "./winnerscurse.js";
+import { supportGauntlet } from "./support.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
 import { metabrainGauntlet } from "./metabrain.js";
@@ -211,6 +213,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "prereg", g: preRegGauntlet() },
     { name: "breakdown", g: breakdownGauntlet() },
     { name: "winnerscurse", g: selectionGauntlet() },
+    { name: "support", g: supportGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },
     { name: "metabrain", g: metabrainGauntlet() },
