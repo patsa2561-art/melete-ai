@@ -23,6 +23,7 @@ import { selectionCertificate, verifySelectionCertificate } from "./winnerscurse
 import { supportCertificate, verifySupportCertificate } from "./support.js";
 import { falseDiscoveryCertificate, verifyFalseDiscoveryCertificate } from "./fdr.js";
 import { anytimeCertificate, verifyAnytimeCertificate } from "./anytime.js";
+import { swarmCertificate, verifySwarmCertificate } from "./swarm.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -121,10 +122,16 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     run: (a) => { const c = anytimeCertificate({ observations: a.observations, sigma: a.sigma, alpha: a.alpha, tau2: a.tau2 }); return { certificate: c, verified: verifyAnytimeCertificate(c).ok }; },
   },
   {
+    name: "melete.swarm",
+    description: "Combine MANY agents' independent evidence into one signed meta-verdict. Pass each agent's observation stream; the combiner pools them (stronger than any single agent), and RE-DERIVES each contribution so an agent claiming more than its data supports is excluded. Byzantine-robust.",
+    inputSchema: { type: "object", properties: { contributions: { type: "array", description: "[{agent, observations:[...], claimedEValue?}]" }, sigma: { type: "number" }, alpha: { type: "number" }, tau2: { type: "number" } }, required: ["contributions"] },
+    run: (a) => { const c = swarmCertificate({ contributions: a.contributions ?? [], sigma: a.sigma, alpha: a.alpha, tau2: a.tau2 }); return { certificate: c, verified: verifySwarmCertificate(c).ok }; },
+  },
+  {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
-    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
   },
   {
     name: "melete.gauntlet",

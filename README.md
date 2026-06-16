@@ -50,7 +50,7 @@ POST /replay/verify    { …token }                           → re-derive the 
 …or skip HTTP entirely and call the library in-process: `import { sovereignAnalyze, aegisDiscover, proposeNext } from "melete-ai"`.
 
 ## ✦ What's inside — by category
-> **64 independently-verified modules.** Every claim below is a check you can re-run: `npx melete-ai gauntlet`.
+> **65 independently-verified modules.** Every claim below is a check you can re-run: `npx melete-ai gauntlet`.
 
 ### 🔍 Optimize — the best setting in the fewest experiments
 | capability | what it does |
@@ -82,6 +82,7 @@ Hosted, no install: `POST https://melete.mneme-ai.space/next`
 | 📉 **Winner's Curse** | you searched N settings and reported the best — but that number is **inflated** (it's the max of N noisy trials, partly luck). The signed **selection correction**: the winner's TRUE value is **≥ this de-biased lower bound**, the discount **grows with N**, and it works with **σ unknown** (estimated from replicates, *studentized*). *(valid bound ≥97.5%, measured 99.5%; with σ estimated a plain plug-in breaks at 94.9% — studentized holds 99.3%; naive overstates 90%)* |
 | 🧭 **Extrapolation-Guard** | is the recommended setting **inside the data you measured**, or a blind **extrapolation**? It's flagged with an **exact separating-hyperplane witness** — proof it's outside the **convex hull** of your evidence, in *any* direction (not just out-of-box; it catches an in-box point that's off a correlated-knob manifold, which an axis test misses) — plus a density signal for interior voids. *(out-of-box & in-box-off-hull → flagged 100% with a valid, re-verifiable witness; never false-flags an in-data point; a fake "supported" is caught)* |
 | ⏱ **Anytime-Valid** | an AI agent **peeks after every experiment** — and naive "stop when p<0.05" then false-alarms ~40% of the time. An **e-value martingale** (Ville's inequality) stays valid under **unlimited peeking + optional stopping**, *plus* a **time-uniform confidence sequence** — a running interval on the gain valid at *all* times at once, so the agent can read the estimate at any peek and trust it. *(FP ≤ α measured 2.4% vs naive 42%; the CS covers the true gain uniformly 97.4% where a naive per-peek CI holds only 58%; it tightens as evidence accrues)* |
+| 🤝 **Swarm Evidence** *(new)* | many AI agents each with weak evidence **pool into one verdict** stronger than any single one (pooled sufficient statistics → an anytime-valid combined e-value) — and an agent that **lies** (claims more than its data shows) is **re-derived and excluded**, so it can't swing the result. Multi-agent trust, signed. *(a weak gain caught 61% pooled vs 29% single; null ≤ α; a liar inflating 10⁶× excluded 100%, can't force a false verdict)* |
 | 📊 **False-Discovery Control** | report *K* findings at once and some are pure luck. It controls the **fraction of your reported discoveries that are false** at a target *q*, ships a **per-hypothesis q-value** (usable at *any* threshold from one signed cert), and offers a **Benjamini-Yekutieli mode that holds under *arbitrary dependence*** (the real case — knobs/metrics are correlated). *(BH realized FDP ≤ q, measured 7.6%; naive inflates to 13%; q-values match BH at every threshold; BY safe under ρ=0.5 dependence → 1.6% ≤ q)* |
 | ⬛ **Null Engine** | brave enough to say *"there's nothing to find"* on pure noise |
 | 👑 **Sovereign Verdict + ⏪ Replay** | Ed25519-signed, deterministic, re-derivable on any machine, forever |
@@ -106,7 +107,7 @@ npx melete-ai poopt proof-of-optimization.json   # verify any signed certificate
 | **Ceiling · drift** | the achievable best, and whether results drift over time |
 
 ### 🔌 Integrate — incl. **MCP** (trust middleware for AI agents)
-`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/improvement` `/prereg` `/breakdown` `/selection` `/support` `/fdr` `/anytime` `/mcp` `/verify`
+`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/improvement` `/prereg` `/breakdown` `/selection` `/support` `/fdr` `/anytime` `/swarm` `/mcp` `/verify`
 
 **🔌 Model Context Protocol — be the verification layer any AI agent plugs into.** Any agent (Claude · GPT · Gemini · an autonomous coding agent) calls Melete over MCP and gets back a **signed, offline-verifiable** answer instead of a number to take on faith — de-bias a winner, check support, control the false-discovery rate, propose the next experiment. Plug-and-play, every result Ed25519-signed.
 ```jsonc

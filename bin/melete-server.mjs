@@ -415,6 +415,29 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "anytime failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🤝 SWARM-EVIDENCE — pool many agents' independent streams into one signed verdict; a lying agent is excluded.
+    if (req.method === "POST" && path === "/swarm") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 7; const sigma = 1, alpha = 0.05, tau2 = 0.3, A = 5, n = 40, mu = 0.25;
+      try {
+        const gz = (g) => { const u1 = Math.max(1e-9, g()), u2 = g(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+        // 5 honest agents with weak individual evidence + 1 liar claiming a huge e-value on null data
+        const eOf = (S, t) => Math.sqrt(1 / (1 + tau2 * t)) * Math.exp(tau2 * S * S / (2 * (1 + tau2 * t)));
+        const contribs = []; const singles = [];
+        for (let a = 0; a < A; a++) { const g = M.lcg(seed * 97 + a * 13 + 1); const obs = []; let S = 0; for (let i = 0; i < n; i++) { const v = mu + gz(g); obs.push(v); S += v; } contribs.push({ agent: "agent" + a, observations: obs }); singles.push(+eOf(S, n).toFixed(1)); }
+        const gl = M.lcg(seed * 41 + 99); const lo = []; for (let i = 0; i < n; i++) lo.push(gz(gl));
+        contribs.push({ agent: "liar", observations: lo, claimedEValue: 1e6 });
+        const c = M.swarmCertificate({ contributions: contribs, sigma, alpha, tau2 });
+        return json(res, 200, {
+          agents: c.agents, honestCount: c.honestCount, excludedCount: c.excludedCount,
+          singleAgentEValues: singles, anySingleSignificant: singles.some((e) => e >= c.threshold),
+          combinedEValue: +c.combinedEValue.toFixed(1), threshold: c.threshold, verdict: c.verdict,
+          liarExcluded: !c.contributions.find((x) => x.agent === "liar").honest,
+          verified: M.verifySwarmCertificate(c).ok,
+        });
+      } catch (e) { return json(res, 400, { error: "swarm failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🔌 MCP over HTTP — the same agent-callable trust middleware via a JSON-RPC body (any-transport).
     // Every tools/call is metered + audited into the signed trust ledger (the toll-booth).
     if (req.method === "POST" && path === "/mcp") {
