@@ -455,11 +455,17 @@ const server = createServer(async (req, res) => {
         const c = M.conformalCertificate({ residuals: cal, alpha, prediction: 5.0 });
         let m = 0; for (const r of cal) m += r; m /= nCal; let sd = 0; for (const r of cal) sd += (r - m) * (r - m); sd = Math.sqrt(sd / (nCal - 1)); const qG = z90 * sd;
         let covC = 0, covG = 0; for (let i = 0; i < nTest; i++) { const r = skew(g); if (Math.abs(r) <= c.halfWidth) covC++; if (Math.abs(r) <= qG) covG++; }
+        // adaptive (normalized) leg: heteroscedastic noise σ(x)=1+2x → plain under-covers the hard region; normalized balances
+        const kH = 2; const gh = M.lcg(seed * 211 + 9); const hr = [], hd = []; for (let i = 0; i < nCal; i++) { const x = gh(); const sg = 1 + kH * x; hr.push(sg * gz(gh)); hd.push(sg); }
+        const cP = M.conformalCertificate({ residuals: hr, alpha }); const cN = M.conformalCertificate({ residuals: hr, alpha, difficulty: hd });
+        let plLo = 0, plHi = 0, noLo = 0, noHi = 0, cl = 0, ch = 0; for (let i = 0; i < nTest; i++) { const x = gh(); const sg = 1 + kH * x; const r = sg * gz(gh); const inP = Math.abs(r) <= cP.halfWidth, inN = Math.abs(r) <= cN.halfWidth * sg; if (x < 0.5) { cl++; if (inP) plLo++; if (inN) noLo++; } else { ch++; if (inP) plHi++; if (inN) noHi++; } }
         return json(res, 200, {
           residuals: "skewed", calibrationN: nCal, alpha, targetCoverage: 1 - alpha,
           conformal: { halfWidth: +c.halfWidth.toFixed(3), coverage: +(covC / nTest).toFixed(3), interval: [+c.intervalLower.toFixed(2), +c.intervalUpper.toFixed(2)], coverageBand: [+c.coverageLower.toFixed(3), +c.coverageUpper.toFixed(3)] },
           gaussian: { halfWidth: +qG.toFixed(3), coverage: +(covG / nTest).toFixed(3) },
-          conformalTighterBy: +((qG / c.halfWidth - 1) * 100).toFixed(0), verified: M.verifyConformalCertificate(c).ok,
+          conformalTighterBy: +((qG / c.halfWidth - 1) * 100).toFixed(0),
+          adaptive: { note: "heteroscedastic noise σ(x)=1+2x", plainCoverage: { easyRegion: +(plLo / cl).toFixed(2), hardRegion: +(plHi / ch).toFixed(2) }, normalizedCoverage: { easyRegion: +(noLo / cl).toFixed(2), hardRegion: +(noHi / ch).toFixed(2) } },
+          verified: M.verifyConformalCertificate(c).ok && M.verifyConformalCertificate(cN).ok,
         });
       } catch (e) { return json(res, 400, { error: "conformal failed: " + e.message.slice(0, 120) }); }
     }

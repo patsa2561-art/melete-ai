@@ -130,9 +130,9 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
   },
   {
     name: "melete.conformal",
-    description: "Wrap an agent's predictor with a distribution-free prediction interval. Pass the calibration residuals (its held-out errors) + α (+ optional point prediction). Returns ŷ ± q with GUARANTEED coverage ≥ 1−α, no distributional assumption.",
-    inputSchema: { type: "object", properties: { residuals: { type: "array" }, alpha: { type: "number" }, prediction: { type: "number" } }, required: ["residuals"] },
-    run: (a) => { const c = conformalCertificate({ residuals: a.residuals ?? [], alpha: a.alpha, prediction: a.prediction ?? null }); return { certificate: c, verified: verifyConformalCertificate(c).ok }; },
+    description: "Wrap an agent's predictor with a distribution-free prediction interval. Pass calibration residuals + α (+ optional prediction). Returns ŷ ± q, coverage ≥ 1−α, no distributional assumption. For input-dependent noise, also pass per-residual `difficulty` (σ̂) + `predictionDifficulty` → an ADAPTIVE interval that balances coverage across input regions.",
+    inputSchema: { type: "object", properties: { residuals: { type: "array" }, alpha: { type: "number" }, prediction: { type: "number" }, difficulty: { type: "array", description: "per-residual difficulty σ̂(x) for adaptive (normalized) conformal" }, predictionDifficulty: { type: "number" } }, required: ["residuals"] },
+    run: (a) => { const c = conformalCertificate({ residuals: a.residuals ?? [], alpha: a.alpha, prediction: a.prediction ?? null, difficulty: a.difficulty ?? null, predictionDifficulty: a.predictionDifficulty ?? null }); return { certificate: c, verified: verifyConformalCertificate(c).ok }; },
   },
   {
     name: "melete.verify",

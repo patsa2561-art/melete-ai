@@ -25,42 +25,57 @@ import { lcg } from "./space.js";
 import { createHash, generateKeyPairSync, createPublicKey, sign as edSign, verify as edVerify, type KeyObject } from "node:crypto";
 
 function canonical(o: unknown): string { if (o === null || typeof o !== "object") return JSON.stringify(o); if (Array.isArray(o)) return "[" + o.map(canonical).join(",") + "]"; const k = Object.keys(o as Record<string, unknown>).sort(); return "{" + k.map((x) => JSON.stringify(x) + ":" + canonical((o as Record<string, unknown>)[x])).join(",") + "}"; }
-// split-conformal absolute-residual half-width: the ⌈(1−α)(n+1)⌉-th smallest |residual| (∞ if that exceeds n)
-function conformalHalfWidth(residuals: number[], alpha: number): { q: number; atLeast: boolean } {
-  const abs = residuals.filter((r) => Number.isFinite(r)).map((r) => Math.abs(r)).sort((a, b) => a - b);
-  const n = abs.length; if (n === 0) return { q: Infinity, atLeast: true };
+// the conformal quantile of a set of nonconformity SCORES: the ⌈(1−α)(n+1)⌉-th smallest (∞ if that exceeds n)
+function scoreQuantile(scores: number[], alpha: number): { q: number; atLeast: boolean } {
+  const s = scores.filter((x) => Number.isFinite(x)).slice().sort((a, b) => a - b);
+  const n = s.length; if (n === 0) return { q: Infinity, atLeast: true };
   const k = Math.ceil((1 - alpha) * (n + 1));
-  return k > n ? { q: Infinity, atLeast: true } : { q: abs[k - 1], atLeast: false };
+  return k > n ? { q: Infinity, atLeast: true } : { q: s[k - 1], atLeast: false };
+}
+// build the nonconformity scores: plain = |residual|; NORMALIZED (adaptive) = |residual| / difficulty(x), so the
+// interval is scaled by a per-input difficulty estimate — wider where the model is uncertain. Normalized conformal
+// balances coverage ACROSS input regions under heteroscedastic noise (plain only guarantees the marginal average).
+function buildScores(residuals: number[], difficulty: number[] | null): number[] {
+  if (!difficulty) return residuals.map((r) => Math.abs(r));
+  return residuals.map((r, i) => { const d = difficulty[i]; return d && Number.isFinite(d) && d > 0 ? Math.abs(r) / d : NaN; });
 }
 
 export interface ConformalCertificate {
-  standard: "melete-conformal-certificate/v1";
+  standard: "melete-conformal-certificate/v2";
   verdict: "COVERAGE-GUARANTEED" | "INSUFFICIENT-CALIBRATION";
+  normalized: boolean;             // false = plain (constant width); true = adaptive (width ∝ per-input difficulty)
   n: number;                       // calibration set size
   alpha: number;                   // miscoverage level (target coverage 1−α)
-  halfWidth: number;               // q — the interval is ŷ ± q (−1 sentinel if ∞ / insufficient data)
+  halfWidth: number;               // q — plain: ŷ ± q. normalized: q is a MULTIPLIER → ŷ ± q·difficulty(x). (−1 if ∞)
   atLeast: boolean;                // q hit +∞ (n too small for this α to give a finite interval)
   coverageLower: number;           // guaranteed marginal coverage ≥ this (= 1−α)
   coverageUpper: number;           // ≤ this (= min(1, 1−α+1/(n+1)))
   prediction: number | null;       // optional point prediction ŷ
-  intervalLower: number | null;    // ŷ − q
-  intervalUpper: number | null;    // ŷ + q
+  predictionDifficulty: number | null;   // σ̂(x) for the predicted input (normalized mode)
+  intervalLower: number | null;    // ŷ − q  (plain)  /  ŷ − q·difficulty  (normalized)
+  intervalUpper: number | null;
   residuals: number[];             // the calibration residuals (the evidence)
+  difficulty: number[];            // per-residual difficulty σ̂ (normalized mode; [] if plain)
   payloadHash: string;
   signature: string;
   publicKeyPem: string;
   algo: "ed25519+sha256";
 }
 
-export function conformalCertificate(opts: { residuals: number[]; alpha?: number; prediction?: number | null; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): ConformalCertificate {
+export function conformalCertificate(opts: { residuals: number[]; alpha?: number; prediction?: number | null; difficulty?: number[] | null; predictionDifficulty?: number | null; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): ConformalCertificate {
   const alpha = opts.alpha ?? 0.1; const residuals = opts.residuals ?? [];
+  const difficulty = (opts.difficulty && opts.difficulty.length === residuals.length) ? opts.difficulty : null;
+  const normalized = !!difficulty;
   const n = residuals.filter((r) => Number.isFinite(r)).length;
-  const { q, atLeast } = conformalHalfWidth(residuals, alpha);
+  const { q, atLeast } = scoreQuantile(buildScores(residuals, difficulty), alpha);
   const verdict: ConformalCertificate["verdict"] = atLeast ? "INSUFFICIENT-CALIBRATION" : "COVERAGE-GUARANTEED";
   const pred = opts.prediction ?? null;
-  const intervalLower = pred !== null && !atLeast ? pred - q : null, intervalUpper = pred !== null && !atLeast ? pred + q : null;
+  const pd = normalized ? (opts.predictionDifficulty ?? null) : null;
+  const scale = normalized ? (pd ?? NaN) : 1;
+  const hasInterval = pred !== null && !atLeast && (!normalized || (pd !== null && Number.isFinite(pd)));
+  const intervalLower = hasInterval ? pred - q * scale : null, intervalUpper = hasInterval ? pred + q * scale : null;
   const kp = opts.keys ?? generateKeyPairSync("ed25519");
-  const cert = { standard: "melete-conformal-certificate/v1" as const, verdict, n, alpha, halfWidth: atLeast ? -1 : q, atLeast, coverageLower: 1 - alpha, coverageUpper: Math.min(1, 1 - alpha + 1 / (n + 1)), prediction: pred, intervalLower, intervalUpper, residuals };
+  const cert = { standard: "melete-conformal-certificate/v2" as const, verdict, normalized, n, alpha, halfWidth: atLeast ? -1 : q, atLeast, coverageLower: 1 - alpha, coverageUpper: Math.min(1, 1 - alpha + 1 / (n + 1)), prediction: pred, predictionDifficulty: pd, intervalLower, intervalUpper, residuals, difficulty: difficulty ?? [] };
   const payloadHash = createHash("sha256").update(canonical(cert)).digest("hex");
   const signature = edSign(null, Buffer.from(payloadHash), kp.privateKey).toString("base64");
   return { ...cert, payloadHash, signature, publicKeyPem: kp.publicKey.export({ type: "spki", format: "pem" }).toString(), algo: "ed25519+sha256" };
@@ -68,18 +83,20 @@ export function conformalCertificate(opts: { residuals: number[]; alpha?: number
 
 export function verifyConformalCertificate(c: ConformalCertificate): { ok: boolean; reason: string } {
   try {
-    if (c.standard !== "melete-conformal-certificate/v1") return { ok: false, reason: "unknown standard" };
+    if (c.standard !== "melete-conformal-certificate/v2") return { ok: false, reason: "unknown standard" };
     const n = c.residuals.filter((r) => Number.isFinite(r)).length;
     if (n !== c.n) return { ok: false, reason: "residual count does not match n" };
-    // re-derive the conformal half-width — a forged (too-narrow, over-confident) interval is caught
-    const { q, atLeast } = conformalHalfWidth(c.residuals, c.alpha);
+    if (c.normalized !== (c.difficulty.length === c.residuals.length && c.residuals.length > 0)) return { ok: false, reason: "normalized flag inconsistent with the difficulty vector" };
+    // re-derive the conformal quantile (per mode) — a forged (too-narrow, over-confident) interval is caught
+    const { q, atLeast } = scoreQuantile(buildScores(c.residuals, c.normalized ? c.difficulty : null), c.alpha);
     if (atLeast !== c.atLeast) return { ok: false, reason: "recomputed sufficiency flag differs" };
     if (!atLeast && Math.abs(q - c.halfWidth) > 1e-9) return { ok: false, reason: `recomputed half-width ${q.toFixed(4)} ≠ certificate ${c.halfWidth} — interval understated (over-confident)` };
     const verdict = atLeast ? "INSUFFICIENT-CALIBRATION" : "COVERAGE-GUARANTEED";
     if (verdict !== c.verdict) return { ok: false, reason: "verdict inconsistent with the recomputed half-width" };
     if (Math.abs(c.coverageLower - (1 - c.alpha)) > 1e-9 || Math.abs(c.coverageUpper - Math.min(1, 1 - c.alpha + 1 / (n + 1))) > 1e-9) return { ok: false, reason: "coverage band inconsistent with n and α" };
-    if (c.prediction !== null && !atLeast && (Math.abs((c.prediction - q) - (c.intervalLower ?? NaN)) > 1e-9 || Math.abs((c.prediction + q) - (c.intervalUpper ?? NaN)) > 1e-9)) return { ok: false, reason: "interval endpoints inconsistent with ŷ ± q" };
-    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, n: c.n, alpha: c.alpha, halfWidth: c.halfWidth, atLeast: c.atLeast, coverageLower: c.coverageLower, coverageUpper: c.coverageUpper, prediction: c.prediction, intervalLower: c.intervalLower, intervalUpper: c.intervalUpper, residuals: c.residuals })).digest("hex");
+    const scale = c.normalized ? (c.predictionDifficulty ?? NaN) : 1;
+    if (c.intervalLower !== null && (Math.abs((c.prediction! - q * scale) - c.intervalLower) > 1e-9 || Math.abs((c.prediction! + q * scale) - (c.intervalUpper ?? NaN)) > 1e-9)) return { ok: false, reason: "interval endpoints inconsistent with ŷ ± q·difficulty" };
+    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, normalized: c.normalized, n: c.n, alpha: c.alpha, halfWidth: c.halfWidth, atLeast: c.atLeast, coverageLower: c.coverageLower, coverageUpper: c.coverageUpper, prediction: c.prediction, predictionDifficulty: c.predictionDifficulty, intervalLower: c.intervalLower, intervalUpper: c.intervalUpper, residuals: c.residuals, difficulty: c.difficulty })).digest("hex");
     if (payloadHash !== c.payloadHash) return { ok: false, reason: "payload hash mismatch — a residual was altered" };
     const pub = createPublicKey(c.publicKeyPem);
     if (!edVerify(null, Buffer.from(c.payloadHash), pub, Buffer.from(c.signature, "base64"))) return { ok: false, reason: "bad signature" };
@@ -124,6 +141,29 @@ export function conformalGauntlet(): { score: 0 | 100; checks: Array<{ name: str
   for (let s = 1; s <= Ns; s++) { const g = lcg(s * 53 + 7); const cal: number[] = []; for (let i = 0; i < 20; i++) cal.push(gens.heavy(g)); const c = conformalCertificate({ residuals: cal, alpha }); let cov = 0, T = 400; for (let i = 0; i < T; i++) if (Math.abs(gens.heavy(g)) <= c.halfWidth) cov++; smallCov += cov / T; }
   const smallCoverage = smallCov / Ns;
 
+  // R26 IMPROVE — NORMALIZED (adaptive) conformal under HETEROSCEDASTIC noise: plain conformal's marginal 1−α
+  // HIDES under-coverage of the hard (high-noise) region; normalizing by per-input difficulty BALANCES it.
+  const kHet = 2, nH = 400, tH = 6000, NH = 150;
+  let plainLo = 0, plainHi = 0, normLo = 0, normHi = 0, normMarg = 0, wLo = 0, wHi = 0;
+  for (let s = 1; s <= NH; s++) {
+    const g = lcg(s * 71 + 5);
+    const calR: number[] = [], calD: number[] = [];
+    for (let i = 0; i < nH; i++) { const x = g(); const sig = 1 + kHet * x; calR.push(sig * gz(g)); calD.push(sig); }
+    const cPlain = conformalCertificate({ residuals: calR, alpha });
+    const cNorm = conformalCertificate({ residuals: calR, alpha, difficulty: calD });
+    let pl = 0, ph = 0, nl = 0, nh = 0, nm = 0, cl = 0, ch = 0;
+    for (let i = 0; i < tH; i++) { const x = g(); const sig = 1 + kHet * x; const r = sig * gz(g); const inP = Math.abs(r) <= cPlain.halfWidth; const inN = Math.abs(r) <= cNorm.halfWidth * sig; nm += inN ? 1 : 0; if (x < 0.5) { cl++; if (inP) pl++; if (inN) { nl++; wLo += cNorm.halfWidth * sig; } } else { ch++; if (inP) ph++; if (inN) { nh++; wHi += cNorm.halfWidth * sig; } } }
+    plainLo += pl / cl; plainHi += ph / ch; normLo += nl / cl; normHi += nh / ch; normMarg += nm / tH; wLo += 0; wHi += 0;
+  }
+  plainLo /= NH; plainHi /= NH; normLo /= NH; normHi /= NH; normMarg /= NH;
+  // adaptive width: average interval half-width in the high-noise region vs the low-noise region
+  let wLoSum = 0, wHiSum = 0; { const g = lcg(999); const calR: number[] = [], calD: number[] = []; for (let i = 0; i < nH; i++) { const x = g(); const sig = 1 + kHet * x; calR.push(sig * gz(g)); calD.push(sig); } const cN = conformalCertificate({ residuals: calR, alpha, difficulty: calD }); wLoSum = cN.halfWidth * (1 + kHet * 0.25); wHiSum = cN.halfWidth * (1 + kHet * 0.75); }
+  // normalized verify + a normalized prediction interval
+  const gN = lcg(7); const nR: number[] = [], nD: number[] = []; for (let i = 0; i < nH; i++) { const x = gN(); const sig = 1 + kHet * x; nR.push(sig * gz(gN)); nD.push(sig); }
+  const cNcert = conformalCertificate({ residuals: nR, alpha, difficulty: nD, prediction: 10.0, predictionDifficulty: 3.0 });
+  const normVerify = verifyConformalCertificate(cNcert).ok && cNcert.normalized && Math.abs((cNcert.intervalUpper! - cNcert.intervalLower!) - 2 * cNcert.halfWidth * 3.0) < 1e-9;
+  const normForged = !verifyConformalCertificate({ ...cNcert, halfWidth: cNcert.halfWidth / 2 }).ok;
+
   // 4) SIGNED + FORGERY (too-narrow q) + TAMPER + INTERVAL + DETERMINISTIC + TOTAL
   const cg = lcg(9); const cal: number[] = []; for (let i = 0; i < nCal; i++) cal.push(gens.skewed(cg));
   const cc = conformalCertificate({ residuals: cal, alpha, prediction: 5.0 });
@@ -141,6 +181,9 @@ export function conformalGauntlet(): { score: 0 | 100; checks: Array<{ name: str
     { name: "DISTRIBUTION-FREE (vs assumption-bound)", pass: confSpread <= 0.01 && gaussSpread > confSpread, detail: `conformal coverage spread across distributions is ${(confSpread * 100).toFixed(1)}pp (lands on target everywhere); the Gaussian interval's coverage drifts ${(gaussSpread * 100).toFixed(1)}pp (distribution-dependent)` },
     { name: "EFFICIENT-ON-SKEWED (tighter, valid)", pass: skewConfW < skewGW * 0.95 && skewConfCov >= 1 - alpha - 0.005, detail: `on skewed residuals conformal holds ${(skewConfCov * 100).toFixed(1)}% with width ${skewConfW.toFixed(2)} vs the Gaussian-90 width ${skewGW.toFixed(2)} (which over-covers, ${((skewGW / skewConfW - 1) * 100).toFixed(0)}% wider — its normality assumption is wrong)` },
     { name: "FINITE-SAMPLE-EXACT (n=20)", pass: smallCoverage >= 1 - alpha - 0.005, detail: `with only 20 calibration points the guarantee still holds: coverage ${(smallCoverage * 100).toFixed(1)}% ≥ ${(100 * (1 - alpha)).toFixed(0)}% (exchangeability, not asymptotics)` },
+    { name: "ADAPTIVE-BALANCED (heteroscedastic)", pass: plainHi < 1 - alpha - 0.03 && normLo >= 1 - alpha - 0.02 && normHi >= 1 - alpha - 0.02, detail: `under input-dependent noise PLAIN conformal under-covers the hard region (${(plainHi * 100).toFixed(0)}%, while over-covering the easy ${(plainLo * 100).toFixed(0)}%); NORMALIZED balances both regions (${(normLo * 100).toFixed(0)}% / ${(normHi * 100).toFixed(0)}%)` },
+    { name: "ADAPTIVE-WIDTH + MARGINAL", pass: wHiSum > wLoSum * 1.3 && normMarg >= 1 - alpha - 0.01, detail: `the interval widens with difficulty (high-noise ±${wHiSum.toFixed(2)} vs low-noise ±${wLoSum.toFixed(2)}) and the marginal coverage is preserved (${(normMarg * 100).toFixed(1)}%)` },
+    { name: "NORMALIZED-SIGNED + FORGERY", pass: normVerify && normForged, detail: "a normalized cert verifies (interval = ŷ ± q·difficulty) and halving its multiplier is rejected" },
     { name: "SIGNED-VERIFIES + INTERVAL", pass: verifyOk && intervalOk, detail: "the half-width re-derives from the calibration residuals; ŷ ± q brackets the prediction" },
     { name: "FORGERY-CAUGHT (over-confident interval)", pass: forgeryCaught, detail: "halving the conformal half-width (overstating precision) is rejected on re-derivation" },
     { name: "SIGNED-TAMPER", pass: tamper, detail: "altering a calibration residual breaks the payload hash" },
