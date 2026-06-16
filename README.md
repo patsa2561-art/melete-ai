@@ -50,7 +50,7 @@ POST /replay/verify    { …token }                           → re-derive the 
 …or skip HTTP entirely and call the library in-process: `import { sovereignAnalyze, aegisDiscover, proposeNext } from "melete-ai"`.
 
 ## ✦ What's inside — by category
-> **62 independently-verified modules.** Every claim below is a check you can re-run: `npx melete-ai gauntlet`.
+> **63 independently-verified modules.** Every claim below is a check you can re-run: `npx melete-ai gauntlet`.
 
 ### 🔍 Optimize — the best setting in the fewest experiments
 | capability | what it does |
@@ -104,8 +104,15 @@ npx melete-ai poopt proof-of-optimization.json   # verify any signed certificate
 | **Sensitivity · cliffs · shape** | which knobs matter, where it breaks, the response shape |
 | **Ceiling · drift** | the achievable best, and whether results drift over time |
 
-### 🔌 Integrate
-`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/improvement` `/prereg` `/breakdown` `/selection` `/support` `/fdr` `/verify`
+### 🔌 Integrate — incl. **MCP** (trust middleware for AI agents)
+`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/improvement` `/prereg` `/breakdown` `/selection` `/support` `/fdr` `/mcp` `/verify`
+
+**🔌 Model Context Protocol — be the verification layer any AI agent plugs into.** Any agent (Claude · GPT · Gemini · an autonomous coding agent) calls Melete over MCP and gets back a **signed, offline-verifiable** answer instead of a number to take on faith — de-bias a winner, check support, control the false-discovery rate, propose the next experiment. Plug-and-play, every result Ed25519-signed.
+```jsonc
+// Claude Desktop / Cursor MCP config:
+{ "mcpServers": { "melete": { "command": "melete-mcp" } } }
+```
+…or over HTTP: `POST /mcp` with a JSON-RPC body (`initialize` · `tools/list` · `tools/call`).
 
 ## The moat
 - 🔒 **Sovereign** — runs air-gapped, on your machine; data never touches a cloud.

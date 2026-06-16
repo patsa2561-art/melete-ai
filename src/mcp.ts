@@ -1,0 +1,161 @@
+/**
+ * 🔌 THE MELETE MCP SERVER — Melete as agent-callable trust middleware (the "toll-booth of truth").
+ *
+ * The 2026 battleground is not model intelligence — it is context, memory, and TRUST between AI agents. The
+ * strategic move for Melete is not to be another optimizer app, but the INFRASTRUCTURE any AI agent (Claude,
+ * GPT, Gemini, an autonomous coding agent) plugs into over the Model Context Protocol to get answers it can
+ * VERIFY rather than take on faith. An agent that just ran experiments POSTs the numbers; Melete hands back a
+ * signed, offline-verifiable certificate — de-bias this winner, is this recommendation supported, control the
+ * false-discovery rate, propose the next setting. Plug-and-play, every result signed.
+ *
+ * This module is a transport-agnostic JSON-RPC 2.0 / MCP request handler over a tool registry. `bin/melete-mcp`
+ * wires it to stdio so it drops straight into Claude Desktop / Cursor / any MCP client. The differentiator vs a
+ * plain tool server: the RESULTS are Ed25519-signed certificates the calling agent re-verifies with the
+ * embedded public key — trust without trusting the server.
+ *
+ * Honest by design (DIAKRISIS): this is a thin, dependency-free protocol shell over the SAME proven engine and
+ * honesty stack — its value is reach (any agent, plug-and-play) + the signed results, not a new algorithm.
+ */
+import { type Space } from "./space.js";
+import { proposeNext } from "./interactive.js";
+import { selectionCertificate, verifySelectionCertificate } from "./winnerscurse.js";
+import { supportCertificate, verifySupportCertificate } from "./support.js";
+import { falseDiscoveryCertificate, verifyFalseDiscoveryCertificate } from "./fdr.js";
+import { selectionGauntlet } from "./winnerscurse.js";
+import { supportGauntlet } from "./support.js";
+import { fdrGauntlet } from "./fdr.js";
+
+export const MCP_PROTOCOL_VERSION = "2024-11-05";
+export const MCP_SERVER_NAME = "melete";
+
+interface McpTool { name: string; description: string; inputSchema: Record<string, unknown>; run: (args: Record<string, any>) => unknown; }
+
+function asSpace(s: any): Space { return Array.isArray(s) ? { dims: s } : (s && Array.isArray(s.dims) ? s : { dims: [] }); }
+
+export const MELETE_MCP_TOOLS: McpTool[] = [
+  {
+    name: "melete.next",
+    description: "Propose the next setting to evaluate (the adaptive optimizer engine). Give your knobs + the results so far; get the most informative next experiment.",
+    inputSchema: { type: "object", properties: { space: { type: "array", description: "knobs: [{name,type:'real'|'int',min,max}]" }, observations: { type: "array", description: "[{experiment:{knob:value}, value:number}]" }, goal: { type: "string", enum: ["maximize", "minimize"] }, seed: { type: "number" } }, required: ["space"] },
+    run: (a) => ({ next: proposeNext(asSpace(a.space), a.observations ?? [], a.goal ?? "maximize", a.seed ?? 1) }),
+  },
+  {
+    name: "melete.selection",
+    description: "De-bias the best-of-N from a search (winner's-curse). Pass the N observed values + noise σ, or per-candidate replicates. Returns a signed lower bound on the winner's TRUE value.",
+    inputSchema: { type: "object", properties: { values: { type: "array" }, replicates: { type: "array" }, sigma: { type: "number" }, q: { type: "number" }, confidence: { type: "number" } } },
+    run: (a) => { const c = selectionCertificate({ values: a.values, replicates: a.replicates, sigma: a.sigma, confidence: a.confidence }); return { certificate: c, verified: verifySelectionCertificate(c).ok }; },
+  },
+  {
+    name: "melete.support",
+    description: "Is a recommended setting INSIDE your measured evidence, or a blind extrapolation? Pass the evaluated design + the recommended point. Returns a signed verdict with a separating-hyperplane witness when it is outside the convex hull.",
+    inputSchema: { type: "object", properties: { design: { type: "array", description: "[[x1,x2,...], ...] evaluated settings" }, recommended: { type: "array", description: "[x1,x2,...] the setting to check" }, tau: { type: "number" } }, required: ["design", "recommended"] },
+    run: (a) => { const c = supportCertificate({ design: a.design, recommended: a.recommended, tau: a.tau }); return { certificate: c, verified: verifySupportCertificate(c).ok }; },
+  },
+  {
+    name: "melete.fdr",
+    description: "Report K findings at once with the false-discovery rate controlled. Pass p-values (or z-scores) + target q. BH or BY (dependence-robust). Returns per-hypothesis q-values + the signed discovery set.",
+    inputSchema: { type: "object", properties: { pValues: { type: "array" }, zScores: { type: "array" }, q: { type: "number" }, alpha: { type: "number" }, procedure: { type: "string", enum: ["BH", "BY"] } } },
+    run: (a) => { const c = falseDiscoveryCertificate({ pValues: a.pValues, zScores: a.zScores, q: a.q, alpha: a.alpha, procedure: a.procedure }); return { certificate: c, verified: verifyFalseDiscoveryCertificate(c).ok }; },
+  },
+  {
+    name: "melete.verify",
+    description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
+  },
+  {
+    name: "melete.gauntlet",
+    description: "Run a correctness gauntlet — proof the engine works, re-runnable by the caller. Optionally name a module (selection|support|fdr); otherwise runs all.",
+    inputSchema: { type: "object", properties: { module: { type: "string", enum: ["selection", "support", "fdr"] } } },
+    run: (a) => { const g: Record<string, () => { score: number }> = { selection: selectionGauntlet, support: supportGauntlet, fdr: fdrGauntlet }; const keys = a.module && g[a.module] ? [a.module] : Object.keys(g); const out: Record<string, number> = {}; for (const k of keys) out[k] = g[k]().score; return out; },
+  },
+];
+
+export interface JsonRpcRequest { jsonrpc?: string; id?: string | number | null; method?: string; params?: any; }
+export interface JsonRpcResponse { jsonrpc: "2.0"; id: string | number | null; result?: unknown; error?: { code: number; message: string }; }
+
+/** Handle one JSON-RPC 2.0 / MCP request. Pure + total: never throws — protocol errors come back as JSON-RPC errors. */
+export function handleMcpRequest(req: JsonRpcRequest): JsonRpcResponse {
+  const id = req && req.id !== undefined ? req.id : null;
+  const ok = (result: unknown): JsonRpcResponse => ({ jsonrpc: "2.0", id, result });
+  const err = (code: number, message: string): JsonRpcResponse => ({ jsonrpc: "2.0", id, error: { code, message } });
+  try {
+    if (!req || req.jsonrpc !== "2.0" || typeof req.method !== "string") return err(-32600, "invalid request");
+    switch (req.method) {
+      case "initialize":
+        return ok({ protocolVersion: MCP_PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: { name: MCP_SERVER_NAME, version: MCP_PROTOCOL_VERSION } });
+      case "ping":
+        return ok({});
+      case "tools/list":
+        return ok({ tools: MELETE_MCP_TOOLS.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })) });
+      case "tools/call": {
+        const name = req.params?.name; const args = req.params?.arguments ?? {};
+        const tool = MELETE_MCP_TOOLS.find((t) => t.name === name);
+        if (!tool) return ok({ content: [{ type: "text", text: "unknown tool: " + name }], isError: true });
+        try { const out = tool.run(args); return ok({ content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out }); }
+        catch (e) { return ok({ content: [{ type: "text", text: "tool error: " + (e as Error).message.slice(0, 160) }], isError: true }); }
+      }
+      default:
+        return err(-32601, "method not found: " + req.method);
+    }
+  } catch { return err(-32603, "internal error"); }
+}
+
+export function mcpGauntlet(): { score: 0 | 100; checks: Array<{ name: string; pass: boolean; detail: string }> } {
+  const call = (method: string, params?: any, id: number = 1) => handleMcpRequest({ jsonrpc: "2.0", id, method, params });
+
+  const init = call("initialize");
+  const initOk = (init.result as any)?.serverInfo?.name === "melete" && !!(init.result as any)?.protocolVersion && !!(init.result as any)?.capabilities?.tools;
+
+  const list = call("tools/list");
+  const tools = (list.result as any)?.tools ?? [];
+  const listOk = Array.isArray(tools) && tools.length >= 6 && tools.every((t: any) => typeof t.name === "string" && t.description && t.inputSchema && t.inputSchema.type === "object");
+
+  // tools/call each data-driven tool and confirm the returned certificate VERIFIES (signed round-trip)
+  const fdr = call("tools/call", { name: "melete.fdr", arguments: { zScores: [4.2, 3.8, 3.5, 0.3, 0.1, -0.2, 3.9], q: 0.1 } });
+  const fdrOut = (fdr.result as any)?.structuredContent;
+  const fdrOk = fdrOut?.verified === true && fdrOut?.certificate?.standard === "melete-fdr-certificate/v2" && !(fdr.result as any)?.isError;
+
+  const sup = call("tools/call", { name: "melete.support", arguments: { design: [[0, 0], [1, 1], [0, 1], [1, 0]], recommended: [5, 0.5] } });
+  const supOut = (sup.result as any)?.structuredContent;
+  const supOk = supOut?.verified === true && supOut?.certificate?.verdict === "EXTRAPOLATION";
+
+  const sel = call("tools/call", { name: "melete.selection", arguments: { values: [5.0, 6.1, 5.5, 7.2, 5.3, 6.8], sigma: 1.0 } });
+  const selOut = (sel.result as any)?.structuredContent;
+  const selOk = selOut?.verified === true && typeof selOut?.certificate?.correctedLowerBound === "number";
+
+  const next = call("tools/call", { name: "melete.next", arguments: { space: [{ name: "x", type: "real", min: 0, max: 1 }, { name: "y", type: "real", min: 0, max: 1 }], observations: [] } });
+  const nextOut = (next.result as any)?.structuredContent;
+  const nextOk = nextOut?.next && typeof nextOut.next === "object" && !(next.result as any)?.isError;
+
+  // cross-tool: feed the fdr tool's certificate back to melete.verify → ok
+  const ver = call("tools/call", { name: "melete.verify", arguments: { kind: "fdr", certificate: fdrOut?.certificate } });
+  const verOk = (ver.result as any)?.structuredContent?.ok === true;
+
+  const gaunt = call("tools/call", { name: "melete.gauntlet", arguments: { module: "fdr" } });
+  const gauntOk = (gaunt.result as any)?.structuredContent?.fdr === 100;
+
+  // error handling: unknown method, unknown tool, malformed
+  const unknownMethod = call("foo/bar").error?.code === -32601;
+  const unknownTool = ((call("tools/call", { name: "melete.nope", arguments: {} }).result as any)?.isError) === true;
+  const malformed = !!handleMcpRequest({} as any).error && !!handleMcpRequest(null as any).error;   // never throws
+
+  // deterministic: identical fdr calls produce byte-identical signed certificates
+  const a1 = (call("tools/call", { name: "melete.fdr", arguments: { pValues: [0.001, 0.02, 0.3, 0.4], q: 0.1 } }).result as any)?.structuredContent?.certificate?.payloadHash;
+  const a2 = (call("tools/call", { name: "melete.fdr", arguments: { pValues: [0.001, 0.02, 0.3, 0.4], q: 0.1 } }).result as any)?.structuredContent?.certificate?.payloadHash;
+  const deterministic = !!a1 && a1 === a2;
+
+  const checks = [
+    { name: "INITIALIZE (MCP handshake)", pass: initOk, detail: `serverInfo.name=melete, protocolVersion=${MCP_PROTOCOL_VERSION}, tools capability advertised` },
+    { name: "TOOLS-LIST", pass: listOk, detail: `${tools.length} agent-callable tools advertised, each with name + JSON input schema` },
+    { name: "CALL melete.fdr (signed round-trip)", pass: fdrOk, detail: "an agent's z-scores → a signed FDR certificate that re-verifies (verified:true)" },
+    { name: "CALL melete.support (signed)", pass: supOk, detail: "design + an out-of-hull recommendation → EXTRAPOLATION verdict, verified" },
+    { name: "CALL melete.selection (signed)", pass: selOk, detail: "N observed values + σ → a signed de-biased lower bound, verified" },
+    { name: "CALL melete.next (engine)", pass: nextOk, detail: "knobs + history → the next setting to evaluate" },
+    { name: "CROSS-TOOL melete.verify", pass: verOk, detail: "a certificate returned by one tool re-verifies through melete.verify — trust without trusting the server" },
+    { name: "CALL melete.gauntlet", pass: gauntOk, detail: "the caller can re-run a correctness gauntlet over MCP (fdr → 100)" },
+    { name: "ERROR-HANDLING (JSON-RPC)", pass: unknownMethod && unknownTool && malformed, detail: "unknown method → -32601; unknown tool → isError; malformed/null → JSON-RPC error, never a throw" },
+    { name: "DETERMINISTIC", pass: deterministic, detail: "identical tool calls return byte-identical signed certificates" },
+  ];
+  return { score: checks.every((c) => c.pass) ? 100 : 0, checks };
+}

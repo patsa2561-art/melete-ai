@@ -390,6 +390,12 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "fdr failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🔌 MCP over HTTP — the same agent-callable trust middleware via a JSON-RPC body (any-transport)
+    if (req.method === "POST" && path === "/mcp") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try { return json(res, 200, M.handleMcpRequest(body)); } catch (e) { return json(res, 400, { error: "mcp failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery

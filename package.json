@@ -1,11 +1,12 @@
 {
   "name": "melete-ai",
-  "version": "0.120.0",
+  "version": "0.121.0",
   "description": "Melete — the Self-Driving Discovery Brain. A closed-loop active-experiment engine with a pluggable oracle and a signed, offline-verifiable discovery trace. Mneme remembers; Melete discovers.",
   "type": "module",
   "bin": {
     "melete": "bin/melete.mjs",
-    "melete-server": "bin/melete-server.mjs"
+    "melete-server": "bin/melete-server.mjs",
+    "melete-mcp": "bin/melete-mcp.mjs"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
