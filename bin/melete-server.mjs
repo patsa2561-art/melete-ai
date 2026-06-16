@@ -428,12 +428,18 @@ const server = createServer(async (req, res) => {
         const gl = M.lcg(seed * 41 + 99); const lo = []; for (let i = 0; i < n; i++) lo.push(gz(gl));
         contribs.push({ agent: "liar", observations: lo, claimedEValue: 1e6 });
         const c = M.swarmCertificate({ contributions: contribs, sigma, alpha, tau2 });
+        // a second swarm where one rogue agent measures a different effect → the consensus check flags disagreement
+        const rogue = []; for (let a = 0; a < 4; a++) { const g = M.lcg(seed * 53 + a * 7 + 3); const o = []; for (let i = 0; i < n; i++) o.push(gz(g)); rogue.push({ agent: "agent" + a, observations: o }); }
+        const grg = M.lcg(seed * 53 + 88); const ro = []; for (let i = 0; i < n; i++) ro.push(1.3 + gz(grg)); rogue.push({ agent: "rogue", observations: ro });
+        const cr = M.swarmCertificate({ contributions: rogue, sigma, alpha, tau2 });
         return json(res, 200, {
           agents: c.agents, honestCount: c.honestCount, excludedCount: c.excludedCount,
           singleAgentEValues: singles, anySingleSignificant: singles.some((e) => e >= c.threshold),
           combinedEValue: +c.combinedEValue.toFixed(1), threshold: c.threshold, verdict: c.verdict,
           liarExcluded: !c.contributions.find((x) => x.agent === "liar").honest,
-          verified: M.verifySwarmCertificate(c).ok,
+          consensus: c.consensus, iSquared: +c.iSquared.toFixed(2),
+          rogueScenario: { consensus: cr.consensus, mostHeterogeneousAgent: cr.mostHeterogeneousAgent, iSquared: +cr.iSquared.toFixed(2), pooledVerdict: cr.verdict },
+          verified: M.verifySwarmCertificate(c).ok && M.verifySwarmCertificate(cr).ok,
         });
       } catch (e) { return json(res, 400, { error: "swarm failed: " + e.message.slice(0, 120) }); }
     }
