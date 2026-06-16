@@ -444,6 +444,26 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "swarm failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 📏 CONFORMAL — wrap a predictor with a distribution-free interval; compare to a Gaussian interval on skewed data.
+    if (req.method === "POST" && path === "/conformal") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 7; const alpha = 0.1, nCal = 200, nTest = 4000, z90 = 1.6448536269514722;
+      try {
+        const gz = (g) => { const u1 = Math.max(1e-9, g()), u2 = g(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+        const skew = (g) => { const u = Math.max(1e-9, g()); return -Math.log(u) - 1; };   // right-skewed residuals
+        const g = M.lcg(seed * 101 + 1); const cal = []; for (let i = 0; i < nCal; i++) cal.push(skew(g));
+        const c = M.conformalCertificate({ residuals: cal, alpha, prediction: 5.0 });
+        let m = 0; for (const r of cal) m += r; m /= nCal; let sd = 0; for (const r of cal) sd += (r - m) * (r - m); sd = Math.sqrt(sd / (nCal - 1)); const qG = z90 * sd;
+        let covC = 0, covG = 0; for (let i = 0; i < nTest; i++) { const r = skew(g); if (Math.abs(r) <= c.halfWidth) covC++; if (Math.abs(r) <= qG) covG++; }
+        return json(res, 200, {
+          residuals: "skewed", calibrationN: nCal, alpha, targetCoverage: 1 - alpha,
+          conformal: { halfWidth: +c.halfWidth.toFixed(3), coverage: +(covC / nTest).toFixed(3), interval: [+c.intervalLower.toFixed(2), +c.intervalUpper.toFixed(2)], coverageBand: [+c.coverageLower.toFixed(3), +c.coverageUpper.toFixed(3)] },
+          gaussian: { halfWidth: +qG.toFixed(3), coverage: +(covG / nTest).toFixed(3) },
+          conformalTighterBy: +((qG / c.halfWidth - 1) * 100).toFixed(0), verified: M.verifyConformalCertificate(c).ok,
+        });
+      } catch (e) { return json(res, 400, { error: "conformal failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🔌 MCP over HTTP — the same agent-callable trust middleware via a JSON-RPC body (any-transport).
     // Every tools/call is metered + audited into the signed trust ledger (the toll-booth).
     if (req.method === "POST" && path === "/mcp") {
