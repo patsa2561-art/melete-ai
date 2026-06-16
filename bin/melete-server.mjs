@@ -488,6 +488,26 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "subgroup failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🎯 CALIBRATION — when the model says 90%, is it right ~90%? Spiegelhalter Z + ECE; overconfident vs calibrated.
+    if (req.method === "POST" && path === "/calibration") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 7; const N = 1000;
+      try {
+        const g = M.lcg(seed * 17 + 1);
+        const cp = [], cy = [], op = [], oy = [];
+        for (let i = 0; i < N; i++) { const q = g(); cp.push(q); cy.push(g() < q ? 1 : 0); const q2 = g(); op.push(Math.min(0.999, Math.max(0.001, 0.5 + 1.5 * (q2 - 0.5)))); oy.push(g() < q2 ? 1 : 0); }
+        const cc = M.calibrationCertificate({ predictions: cp, outcomes: cy }); const co = M.calibrationCertificate({ predictions: op, outcomes: oy });
+        // recalibrate the overconfident model on a split, re-measure ECE on held-out
+        const half = N / 2; const recal = M.histogramRecalibrate(op.slice(0, half), oy.slice(0, half), op.slice(half));
+        const cr = M.calibrationCertificate({ predictions: recal, outcomes: oy.slice(half) });
+        const pack = (c) => ({ verdict: c.verdict, direction: c.direction, Z: +c.spiegelhalterZ.toFixed(2), ece: +(c.ece * 100).toFixed(1), verified: M.verifyCalibrationCertificate(c).ok });
+        return json(res, 200, {
+          calibrated: pack(cc), overconfident: pack(co),
+          recalibrated: { ...pack(cr), eceBeforePct: +(M.calibrationCertificate({ predictions: op.slice(half), outcomes: oy.slice(half) }).ece * 100).toFixed(1) },
+        });
+      } catch (e) { return json(res, 400, { error: "calibration failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🔌 MCP over HTTP — the same agent-callable trust middleware via a JSON-RPC body (any-transport).
     // Every tools/call is metered + audited into the signed trust ledger (the toll-booth).
     if (req.method === "POST" && path === "/mcp") {

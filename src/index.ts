@@ -66,6 +66,7 @@ export * from "./anytime.js";
 export * from "./swarm.js";
 export * from "./conformal.js";
 export * from "./subgroup.js";
+export * from "./calibration.js";
 export * from "./mcp.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
@@ -162,6 +163,7 @@ import { anytimeGauntlet } from "./anytime.js";
 import { swarmGauntlet } from "./swarm.js";
 import { conformalGauntlet } from "./conformal.js";
 import { subgroupGauntlet } from "./subgroup.js";
+import { calibrationGauntlet } from "./calibration.js";
 import { mcpGauntlet } from "./mcp.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
@@ -231,6 +233,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "swarm", g: swarmGauntlet() },
     { name: "conformal", g: conformalGauntlet() },
     { name: "subgroup", g: subgroupGauntlet() },
+    { name: "calibration", g: calibrationGauntlet() },
     { name: "mcp", g: mcpGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },
