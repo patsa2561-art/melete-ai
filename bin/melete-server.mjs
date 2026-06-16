@@ -269,6 +269,26 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "improvement failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🔐 PRE-REGISTRATION — commit to a protocol before running, then prove the result obeyed it. A genuine
+    // run conforms; a cherry-picked one (reported a worse-but-nicer point) is rejected.
+    if (req.method === "POST" && path === "/prereg") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 3;
+      try {
+        const space = { dims: [{ name: "x", type: "real", min: 0, max: 10 }, { name: "y", type: "real", min: 0, max: 10 }] };
+        const protocol = { space, objectiveId: "yield-v1", budget: 40, goal: "maximize", decisionRule: "max-observed" };
+        const nonce = "demo-" + seed; const commit = M.preCommit(protocol, nonce);
+        const trace = Array.from({ length: 24 }, (_, i) => ({ experiment: { x: (i * 2.3 + seed) % 10, y: (i * 1.7 + seed) % 10 }, value: Math.sin(i + seed) * 3 + i * 0.1 }));
+        const best = trace.reduce((a, b) => b.value > a.value ? b : a, trace[0]);
+        const genuineRun = { objectiveId: "yield-v1", space, evaluations: 24, trace, best };
+        const worse = trace.reduce((a, b) => b.value < a.value ? b : a, trace[0]);
+        const cherryRun = { ...genuineRun, best: { experiment: worse.experiment, value: worse.value } };
+        const g = M.verifyPreRegistration(commit, protocol, nonce, genuineRun);
+        const c = M.verifyPreRegistration(commit, protocol, nonce, cherryRun);
+        return json(res, 200, { commitHash: commit.commitHash.slice(0, 16), genuine: { conforms: g.conforms, reason: g.reason }, cherryPicked: { conforms: c.conforms, reason: c.reason } });
+      } catch (e) { return json(res, 400, { error: "prereg failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
