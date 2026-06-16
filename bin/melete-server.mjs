@@ -40,6 +40,7 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && path.startsWith("/og/") && path.endsWith(".svg")) { const k = path.slice(4, -4); res.writeHead(200, { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=3600" }); return res.end(M.socialCard(k)); }
     if (req.method === "GET" && path === "/sitemap.xml") { res.writeHead(200, { "content-type": "application/xml; charset=utf-8" }); return res.end(M.sitemapXml()); }
     if (req.method === "GET" && path === "/robots.txt") { res.writeHead(200, { "content-type": "text/plain; charset=utf-8" }); return res.end(M.robotsTxt()); }
+    if (req.method === "GET" && path === "/favicon.svg") { res.writeHead(200, { "content-type": "image/svg+xml; charset=utf-8", "cache-control": "public, max-age=86400" }); return res.end(M.faviconSvg()); }
     if (req.method === "GET" && path === "/docs") { const html = M.docsPage(VERSION); res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); return res.end(html); }
     if (req.method === "GET" && path === "/health") return json(res, 200, { ok: true, version: VERSION, service: "melete" });
 

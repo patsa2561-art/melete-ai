@@ -63,6 +63,19 @@ ${chipSvg}
 <text x="1110" y="566" text-anchor="end" font-family="ui-monospace,Menlo,monospace" font-size="22" fill="#7e8db0">melete.mneme-ai.space</text>
 </svg>`;
 }
+/** A branded gem favicon (SVG) — crisp at every size, served at /favicon.svg. */
+export function faviconSvg(): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6d5cf0"/><stop offset="1" stop-color="#0ea5b7"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="#0b1120"/><rect x="16" y="16" width="32" height="32" rx="8" transform="rotate(45 32 32)" fill="url(#g)"/></svg>`;
+}
+export function faviconLinks(): string { return `<link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="apple-touch-icon" href="/favicon.svg">`; }
+/** JSON-LD structured data — SoftwareApplication + WebPage (honest: free OSS tier, no fabricated ratings). */
+export function structuredData(path: string, name: string, desc: string): string {
+  const g = { "@context": "https://schema.org", "@graph": [
+    { "@type": "SoftwareApplication", name: "Melete", applicationCategory: "DeveloperApplication", operatingSystem: "Windows, macOS, Linux", description: desc, url: SITE, softwareVersion: "0.x", offers: { "@type": "Offer", price: "0", priceCurrency: "USD" }, author: { "@type": "Person", name: "Shinnapat Phunsriphatchalakul" } },
+    { "@type": "WebPage", name, description: desc, url: SITE + path, isPartOf: { "@type": "WebSite", name: "Melete", url: SITE } },
+  ] };
+  return `<script type="application/ld+json">` + JSON.stringify(g).split("</").join("<\\/") + `</script>`;
+}
 /** robots.txt — allow all, point at the sitemap. */
 export function robotsTxt(): string { return `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`; }
 /** sitemap.xml — home + pitch + docs + every per-profession page. */
@@ -427,7 +440,7 @@ export function vizProject(gi: number, gj: number, t: number, nx: number, ny: nu
 
 export function landingPage(version = "0.4.0"): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Melete — find the best answer in the fewest experiments</title>${socialMeta({ title: "Melete — find the best answer in the fewest experiments", desc: 'Tell Melete what you can change and what "good" means — it finds the best, most robust recipe in the fewest experiments, then hands you one signed, verifiable decision.', path: "/", img: "/og.svg" })}<style>${SHELL_CSS}
+<title>Melete — find the best answer in the fewest experiments</title>${socialMeta({ title: "Melete — find the best answer in the fewest experiments", desc: 'Tell Melete what you can change and what "good" means — it finds the best, most robust recipe in the fewest experiments, then hands you one signed, verifiable decision.', path: "/", img: "/og.svg" })}${faviconLinks()}${structuredData("/", "Melete — find the best answer in the fewest experiments", "The sovereign, verifiable discovery brain: the best, most robust recipe in the fewest experiments, with a signed, offline-verifiable certificate.")}<style>${SHELL_CSS}
 .aurora{position:fixed;top:0;left:0;right:0;height:3px;z-index:60;background:linear-gradient(90deg,#6d5cf0,#14b8a6,#6d5cf0,#a78bfa,#14b8a6);background-size:300% 100%;animation:auroraShift 9s linear infinite}
 @keyframes auroraShift{0%{background-position:0% 50%}100%{background-position:300% 50%}}
 @media (prefers-reduced-motion:reduce){.aurora{animation:none}}</style></head><body>
@@ -1578,7 +1591,7 @@ setMode('simple');loadPreset();setLang(LANG);
 
 export function pitchDeck(version = "0.4.0"): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Melete — the sovereign, verifiable discovery brain</title>${socialMeta({ title: "Melete — the sovereign, verifiable discovery brain", desc: "One engine for every expensive process: the best, most robust recipe in the fewest experiments — with a signed, offline-verifiable Trustworthy Discovery Certificate.", path: "/pitch", img: "/og.svg" })}<style>
+<title>Melete — the sovereign, verifiable discovery brain</title>${socialMeta({ title: "Melete — the sovereign, verifiable discovery brain", desc: "One engine for every expensive process: the best, most robust recipe in the fewest experiments — with a signed, offline-verifiable Trustworthy Discovery Certificate.", path: "/pitch", img: "/og.svg" })}${faviconLinks()}${structuredData("/pitch", "Melete — the sovereign, verifiable discovery brain", "One engine for every expensive process: the best robust recipe in the fewest experiments, with a signed Trustworthy Discovery Certificate.")}<style>
 :root{color-scheme:light}*{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:#fafaff;color:#14152a;font:17px/1.65 -apple-system,system-ui,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
@@ -1816,7 +1829,7 @@ export function audiencePage(key: string, version = "0.4.0"): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Melete for ${en.name} — the sovereign discovery brain</title>
 <meta name="description" content="${xesc(en.h)}">
-${socialMeta({ title: "Melete for " + en.name + " — " + en.h, desc: en.sub, path: "/for/" + key, img: "/og/" + key + ".svg" })}
+${socialMeta({ title: "Melete for " + en.name + " — " + en.h, desc: en.sub, path: "/for/" + key, img: "/og/" + key + ".svg" })}${faviconLinks()}${structuredData("/for/" + key, "Melete for " + en.name, en.h)}
 <style>:root{color-scheme:light}*{box-sizing:border-box}html{scroll-behavior:smooth}
 body{margin:0;background:#fafaff;color:#14152a;font:17px/1.65 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
 body::before{content:"";position:fixed;inset:-20% -10%;z-index:-2;pointer-events:none;background:radial-gradient(34% 32% at 84% 4%,${c}26,transparent 62%),radial-gradient(40% 40% at 4% 12%,rgba(109,92,240,.14),transparent 60%),radial-gradient(34% 36% at 94% 92%,${c}1e,transparent 60%);filter:blur(26px)}
@@ -1910,6 +1923,7 @@ export function serverGauntlet(): { score: 0 | 100; checks: Array<{ name: string
     { name: "SOCIAL-META", pass: html.includes('property="og:image"') && html.includes('name="twitter:card"') && pitch.includes('property="og:title"') && audiencePage("energy", "9.9.9").includes('og:image" content="' + SITE + '/og/energy.svg"'), detail: "Open-Graph + Twitter-card meta on landing, pitch, and per-field pages (rich shareable previews)" },
     { name: "SOCIAL-CARD", pass: socialCard().startsWith("<svg") && socialCard().includes("Melete") && socialCard("security").includes("SECURITY") && socialCard("energy").includes("ENERGY") && socialCard().includes("</svg>"), detail: "1200×630 branded social card SVG renders (master + per-field, accent-coloured)" },
     { name: "SITEMAP+ROBOTS", pass: sitemapXml().includes("<urlset") && sitemapXml().includes(SITE + "/for/security") && sitemapXml().includes(SITE + "/pitch") && robotsTxt().includes("Sitemap: " + SITE + "/sitemap.xml"), detail: "sitemap.xml lists home + pitch + docs + all per-field pages; robots.txt points at it" },
+    { name: "JSONLD+FAVICON", pass: (() => { try { JSON.parse(structuredData("/", "x", "y").replace(/^<script[^>]*>/, "").replace(/<\/script>$/, "")); } catch { return false; } return html.includes("application/ld+json") && html.includes('rel="icon"') && audiencePage("aero", "9.9.9").includes("application/ld+json") && faviconSvg().startsWith("<svg") && html.includes('href="/favicon.svg"'); })(), detail: "valid JSON-LD (SoftwareApplication + WebPage) + branded SVG favicon on landing and per-field pages (Google rich results + browser/bookmark branding)" },
     { name: "LANDING-RENDERS", pass: html.startsWith("<!doctype html>") && html.includes("Melete") && html.length > 4000, detail: "world-class landing page renders with hero + sections" },
     { name: "LIGHT-THEME", pass: html.includes("--bg:#ffffff") && !html.includes("background:#07070c"), detail: "clean light theme (not the old dark background)" },
     { name: "DEMO-FORM", pass: html.includes('id="space"') && html.includes('id="obj"') && html.includes('id="preset"') && html.includes("/discover"), detail: "demo has worked examples + posts to /discover" },
