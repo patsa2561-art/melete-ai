@@ -44,8 +44,10 @@ function gainLB(A: number[], B: number[], z0 = 2.054): number {
   return (sb.mean - sa.mean) - tMult(df, z0) * se;
 }
 
+export interface CorruptionMove { index: number; from: number; to: number; }   // a single corrupted measurement (global index)
+
 export interface BreakdownCertificate {
-  standard: "melete-breakdown-certificate/v1";
+  standard: "melete-breakdown-certificate/v2";
   verdict: "ROBUST" | "FRAGILE" | "NO-DECISION";
   baseVerdict: "IMPROVEMENT" | "INCONCLUSIVE";
   observedGain: number;
@@ -53,8 +55,10 @@ export interface BreakdownCertificate {
   breakdown: number;             // EXACT minimum corrupted measurements needed to flip the verdict
   breakdownAtLeast: boolean;     // true ⇒ breakdown hit the search cap (decision survives ≥ cap corruptions)
   breakdownFraction: number;     // breakdown / n — the decision's breakdown POINT (like the 50% of a median)
+  witness: CorruptionMove[];     // the EXACT minimal attack that flips the verdict — a constructive proof (empty if ATLEAST)
   n: number;                     // total measurements (nA + nB)
-  range: [number, number];       // observed [Lo, Hi] used as the adversary's in-range corruption bounds
+  range: [number, number];       // observed [Lo, Hi] of the data
+  adversary: [number, number];   // the bound the adversary may corrupt WITHIN (default = observed range; wider = stronger adversary)
   cap: number;                   // exact-search cap
   threshold: number;             // ROBUST iff breakdown ≥ threshold
   samplesA: number[];
@@ -65,55 +69,64 @@ export interface BreakdownCertificate {
   algo: "ed25519+sha256";
 }
 
-// enumerate combinations of `t` indices from 0..n-1, calling fn until it returns true (early exit)
-function someCombination(n: number, t: number, fn: (idx: number[]) => boolean): boolean {
+// enumerate combinations of `t` indices from 0..n-1, returning the FIRST that satisfies fn (else null)
+function firstCombination(n: number, t: number, fn: (idx: number[]) => boolean): number[] | null {
   const idx = Array.from({ length: t }, (_, i) => i);
   for (;;) {
-    if (fn(idx)) return true;
+    if (fn(idx)) return idx.slice();
     let i = t - 1; while (i >= 0 && idx[i] === n - t + i) i--;
-    if (i < 0) return false;
+    if (i < 0) return null;
     idx[i]++; for (let j = i + 1; j < t; j++) idx[j] = idx[j - 1] + 1;
   }
 }
 
-/** EXACT decision breakdown: the smallest number of measurements whose worst-case in-range corruption flips
- *  the verdict (LB ≤ 0). The adversary sets a corrupted A-point to Hi (inflates μA) and a B-point to Lo
- *  (deflates μB) — the most damaging in-range move for each. Early-exits at the first flipping subset of
- *  each size, so it returns the exact minimum. */
-function exactBreakdown(samplesA: number[], samplesB: number[], cap: number, z0 = 2.054): { m: number; atLeast: boolean } {
-  const nA = samplesA.length, nB = samplesB.length, n = nA + nB;
-  const all = samplesA.concat(samplesB); const Lo = Math.min(...all), Hi = Math.max(...all);
-  if (gainLB(samplesA, samplesB, z0) <= 0) return { m: 0, atLeast: false };
+/** EXACT decision breakdown: the smallest number of measurements whose worst-case corruption flips the
+ *  verdict (LB ≤ 0). The adversary may set any corrupted point to a value within [advLo, advHi]; the most
+ *  damaging move is A-point → advHi (inflates μA) and B-point → advLo (deflates μB). Returns the exact
+ *  minimum AND a witnessing subset — the explicit minimal attack — so robustness is proven constructively. */
+function exactBreakdown(samplesA: number[], samplesB: number[], cap: number, advLo: number, advHi: number, z0 = 2.054): { m: number; atLeast: boolean; witness: CorruptionMove[] } {
+  const nA = samplesA.length, n = nA + samplesB.length;
+  if (gainLB(samplesA, samplesB, z0) <= 0) return { m: 0, atLeast: false, witness: [] };
   const maxT = Math.min(cap, n);
   for (let t = 1; t <= maxT; t++) {
-    const flipped = someCombination(n, t, (sel) => {
+    const sel = firstCombination(n, t, (s) => {
       const Ac = samplesA.slice(), Bc = samplesB.slice();
-      for (const idx of sel) { if (idx < nA) Ac[idx] = Hi; else Bc[idx - nA] = Lo; }
+      for (const idx of s) { if (idx < nA) Ac[idx] = advHi; else Bc[idx - nA] = advLo; }
       return gainLB(Ac, Bc, z0) <= 0;
     });
-    if (flipped) return { m: t, atLeast: false };
+    if (sel) { const witness = sel.map((idx) => idx < nA ? { index: idx, from: samplesA[idx], to: advHi } : { index: idx, from: samplesB[idx - nA], to: advLo }); return { m: t, atLeast: false, witness }; }
   }
-  return { m: maxT, atLeast: true };
+  return { m: maxT, atLeast: true, witness: [] };
 }
 
-export function breakdownCertificate(opts: { oracle?: (e: Experiment) => number; a: Experiment; b: Experiment; replicates?: number; seed?: number; goal?: "maximize" | "minimize"; cap?: number; threshold?: number; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): BreakdownCertificate {
+// apply a recorded witness to the samples and return the resulting lower bound (for constructive verification)
+function applyWitnessLB(samplesA: number[], samplesB: number[], witness: CorruptionMove[], z0 = 2.054): number {
+  const nA = samplesA.length; const Ac = samplesA.slice(), Bc = samplesB.slice();
+  for (const w of witness) { if (w.index < nA) Ac[w.index] = w.to; else Bc[w.index - nA] = w.to; }
+  return gainLB(Ac, Bc, z0);
+}
+
+export function breakdownCertificate(opts: { oracle?: (e: Experiment) => number; a: Experiment; b: Experiment; replicates?: number; seed?: number; goal?: "maximize" | "minimize"; cap?: number; threshold?: number; adversaryLo?: number; adversaryHi?: number; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): BreakdownCertificate {
   const reps = Math.max(2, opts.replicates ?? 10); const goal = opts.goal ?? "maximize"; const sgn = goal === "maximize" ? 1 : -1;
   const cap = Math.max(1, opts.cap ?? 5); const threshold = Math.max(1, opts.threshold ?? 2);
   const r = lcg((opts.seed ?? 1) | 0);
   const samplesA: number[] = [], samplesB: number[] = [];
   for (let i = 0; i < reps; i++) { samplesA.push(sgn * (opts.oracle ? opts.oracle(opts.a) : 0)); samplesB.push(sgn * (opts.oracle ? opts.oracle(opts.b) : 0)); void r; }
-  return buildBreakdown(samplesA, samplesB, cap, threshold, opts.keys);
+  return buildBreakdown(samplesA, samplesB, cap, threshold, opts.adversaryLo, opts.adversaryHi, opts.keys);
 }
 
-function buildBreakdown(samplesA: number[], samplesB: number[], cap: number, threshold: number, keys?: { publicKey: KeyObject; privateKey: KeyObject }): BreakdownCertificate {
+function buildBreakdown(samplesA: number[], samplesB: number[], cap: number, threshold: number, advLo?: number, advHi?: number, keys?: { publicKey: KeyObject; privateKey: KeyObject }): BreakdownCertificate {
   const sa = stats(samplesA), sb = stats(samplesB);
   const lb = gainLB(samplesA, samplesB); const baseVerdict: "IMPROVEMENT" | "INCONCLUSIVE" = lb > 0 ? "IMPROVEMENT" : "INCONCLUSIVE";
-  const { m, atLeast } = exactBreakdown(samplesA, samplesB, cap);
   const n = samplesA.length + samplesB.length;
   const all = samplesA.concat(samplesB); const Lo = all.length ? Math.min(...all) : 0, Hi = all.length ? Math.max(...all) : 0;
+  // the adversary may corrupt within [aLo, aHi] — default the observed range; a domain (sensor/physical) range
+  // may be WIDER, granting a stronger adversary. It can never be tighter than the observed data.
+  const aLo = Math.min(Lo, advLo ?? Lo), aHi = Math.max(Hi, advHi ?? Hi);
+  const { m, atLeast, witness } = exactBreakdown(samplesA, samplesB, cap, aLo, aHi);
   const verdict: BreakdownCertificate["verdict"] = baseVerdict === "INCONCLUSIVE" ? "NO-DECISION" : (m >= threshold || atLeast ? "ROBUST" : "FRAGILE");
   const kp = keys ?? generateKeyPairSync("ed25519");
-  const cert = { standard: "melete-breakdown-certificate/v1" as const, verdict, baseVerdict, observedGain: sb.mean - sa.mean, gainLowerBound: lb, breakdown: m, breakdownAtLeast: atLeast, breakdownFraction: n ? m / n : 0, n, range: [Lo, Hi] as [number, number], cap, threshold, samplesA, samplesB };
+  const cert = { standard: "melete-breakdown-certificate/v2" as const, verdict, baseVerdict, observedGain: sb.mean - sa.mean, gainLowerBound: lb, breakdown: m, breakdownAtLeast: atLeast, breakdownFraction: n ? m / n : 0, witness, n, range: [Lo, Hi] as [number, number], adversary: [aLo, aHi] as [number, number], cap, threshold, samplesA, samplesB };
   const payloadHash = createHash("sha256").update(canonical(cert)).digest("hex");
   const signature = edSign(null, Buffer.from(payloadHash), kp.privateKey).toString("base64");
   return { ...cert, payloadHash, signature, publicKeyPem: kp.publicKey.export({ type: "spki", format: "pem" }).toString(), algo: "ed25519+sha256" };
@@ -121,16 +134,23 @@ function buildBreakdown(samplesA: number[], samplesB: number[], cap: number, thr
 
 export function verifyBreakdownCertificate(c: BreakdownCertificate): { ok: boolean; reason: string } {
   try {
-    if (c.standard !== "melete-breakdown-certificate/v1") return { ok: false, reason: "unknown standard" };
+    if (c.standard !== "melete-breakdown-certificate/v2") return { ok: false, reason: "unknown standard" };
     const sa = stats(c.samplesA), sb = stats(c.samplesB);
     const lb = gainLB(c.samplesA, c.samplesB); const baseVerdict = lb > 0 ? "IMPROVEMENT" : "INCONCLUSIVE";
     if (Math.abs(lb - c.gainLowerBound) > 1e-9 || baseVerdict !== c.baseVerdict || Math.abs(sb.mean - sa.mean - c.observedGain) > 1e-9) return { ok: false, reason: "recomputed gain/verdict differs from the certificate — tampered" };
+    const [aLo, aHi] = c.adversary;
     // re-derive the breakdown number INDEPENDENTLY from the recorded samples — a forged (inflated) m is caught here
-    const { m, atLeast } = exactBreakdown(c.samplesA, c.samplesB, c.cap);
+    const { m, atLeast } = exactBreakdown(c.samplesA, c.samplesB, c.cap, aLo, aHi);
     if (m !== c.breakdown || atLeast !== c.breakdownAtLeast) return { ok: false, reason: `breakdown recomputation differs (cert claims ${c.breakdown}${c.breakdownAtLeast ? "+" : ""}, data supports ${m}${atLeast ? "+" : ""}) — robustness overstated` };
+    // CONSTRUCTIVE check: the recorded witness must actually flip the verdict, use exactly m in-range moves, and not exist for a real decision
+    if (!atLeast && baseVerdict === "IMPROVEMENT") {
+      if (c.witness.length !== m) return { ok: false, reason: `witness size ${c.witness.length} ≠ claimed breakdown ${m}` };
+      for (const w of c.witness) { if (w.to < aLo - 1e-9 || w.to > aHi + 1e-9) return { ok: false, reason: "witness move is outside the adversary bound" }; }
+      if (applyWitnessLB(c.samplesA, c.samplesB, c.witness) > 0) return { ok: false, reason: "the recorded witness does not actually flip the verdict — bogus proof" };
+    } else if (c.witness.length !== 0) return { ok: false, reason: "a survivable/no-decision certificate must carry no witness" };
     const expectVerdict = baseVerdict === "INCONCLUSIVE" ? "NO-DECISION" : (m >= c.threshold || atLeast ? "ROBUST" : "FRAGILE");
     if (expectVerdict !== c.verdict) return { ok: false, reason: "verdict inconsistent with the recomputed breakdown" };
-    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, baseVerdict: c.baseVerdict, observedGain: c.observedGain, gainLowerBound: c.gainLowerBound, breakdown: c.breakdown, breakdownAtLeast: c.breakdownAtLeast, breakdownFraction: c.breakdownFraction, n: c.n, range: c.range, cap: c.cap, threshold: c.threshold, samplesA: c.samplesA, samplesB: c.samplesB })).digest("hex");
+    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, baseVerdict: c.baseVerdict, observedGain: c.observedGain, gainLowerBound: c.gainLowerBound, breakdown: c.breakdown, breakdownAtLeast: c.breakdownAtLeast, breakdownFraction: c.breakdownFraction, witness: c.witness, n: c.n, range: c.range, adversary: c.adversary, cap: c.cap, threshold: c.threshold, samplesA: c.samplesA, samplesB: c.samplesB })).digest("hex");
     if (payloadHash !== c.payloadHash) return { ok: false, reason: "payload hash mismatch — a recorded sample was altered" };
     const pub = createPublicKey(c.publicKeyPem);
     if (!edVerify(null, Buffer.from(c.payloadHash), pub, Buffer.from(c.signature, "base64"))) return { ok: false, reason: "bad signature" };
@@ -190,6 +210,30 @@ export function breakdownGauntlet(): { score: 0 | 100; checks: Array<{ name: str
     if (!verifyBreakdownCertificate(forged).ok) forgeCaught++;
   }
 
+  // 4b) WITNESS-CONSTRUCTIVE: the recorded minimal attack actually flips the verdict + the cert verifies.
+  // 4c) MONOTONE-IN-ADVERSARY: a wider corruption range (a stronger adversary) never RAISES the breakdown.
+  let witnessOk = 0, witnessN = 0, monoOk = 0, monoN = 0, monoStrict = 0, witnessForgeCaught = 0, witnessForgeN = 0;
+  for (let s = 1; s <= 120; s++) {
+    const gainTrue = [0.5, 0.9, 1.4][s % 3];
+    const gA = lcg(s * 29 + 1), gB = lcg(s * 29 + 7);
+    const oracle = (e: Experiment) => ((e.sel ?? 0) === 0 ? 5.0 + 0.6 * gz(gA) : 5.0 + gainTrue + 0.6 * gz(gB));
+    const cObs = breakdownCertificate({ oracle, a: { sel: 0 }, b: { sel: 1 }, replicates: 10, seed: s, cap: 6, threshold: 2 });
+    const allv = cObs.samplesA.concat(cObs.samplesB); const lo = Math.min(...allv), hi = Math.max(...allv); const spread = (hi - lo) || 1;
+    const cWide = breakdownCertificate({ oracle, a: { sel: 0 }, b: { sel: 1 }, replicates: 10, seed: s, cap: 6, threshold: 2, adversaryLo: lo - 1.5 * spread, adversaryHi: hi + 1.5 * spread });
+    if (cObs.baseVerdict === "IMPROVEMENT" && cWide.baseVerdict === "IMPROVEMENT") {
+      monoN++; const mo = cObs.breakdownAtLeast ? cObs.cap + 1 : cObs.breakdown, mw = cWide.breakdownAtLeast ? cWide.cap + 1 : cWide.breakdown;
+      if (mw <= mo) { monoOk++; if (mw < mo) monoStrict++; }
+    }
+    for (const c of [cObs, cWide]) {
+      if (c.baseVerdict === "IMPROVEMENT" && !c.breakdownAtLeast && c.witness.length > 0) {
+        witnessN++; if (applyWitnessLB(c.samplesA, c.samplesB, c.witness) <= 0 && verifyBreakdownCertificate(c).ok) witnessOk++;
+        // a bogus witness (drop one move, claim the same breakdown) must be rejected — robustness cannot be faked
+        if (c.witness.length >= 2) { witnessForgeN++; const bogus = { ...c, witness: c.witness.slice(1) }; if (!verifyBreakdownCertificate(bogus).ok) witnessForgeCaught++; }
+      }
+    }
+  }
+  const witnessRate = witnessN ? witnessOk / witnessN : 0, monoRate = monoN ? monoOk / monoN : 0, witnessForgeRate = witnessForgeN ? witnessForgeCaught / witnessForgeN : 0;
+
   // 5) TAMPER: altering a recorded sample breaks the hash
   const ct = mk(1.2, 0.3, 3); const tampered = { ...ct, samplesB: ct.samplesB.map((v, i) => (i === 0 ? v + 5 : v)) };
   const tamperCaught = !verifyBreakdownCertificate(tampered).ok;
@@ -206,6 +250,8 @@ export function breakdownGauntlet(): { score: 0 | 100; checks: Array<{ name: str
     { name: "EXACT (m flips, m−1 holds)", pass: exactRate >= 0.975 && exactN >= 30, detail: `corrupting the breakdown m points flips the verdict AND m−1 does not, in ${exactOk}/${exactN} = ${(exactRate * 100).toFixed(1)}% (an exact minimum, not a heuristic)` },
     { name: "DISCRIMINATES (strong≫marginal)", pass: meanStrong >= meanMarg + 1.5 && meanStrong >= 3 && meanMarg <= 1.6, detail: `breakdown: strong clean gain avg ${meanStrong.toFixed(2)} (robust ${robustStrong}/${strongN}) vs marginal avg ${meanMarg.toFixed(2)} (fragile ${fragileMarg}/${margN}) — one bad point flips a marginal call` },
     { name: "FORGERY-CAUGHT (inflated m)", pass: forgeRate >= 0.999 && forgeN >= 30, detail: `a certificate claiming m+2 robustness was rejected (verifier found a cheaper attack) in ${forgeCaught}/${forgeN} = ${(forgeRate * 100).toFixed(1)}%` },
+    { name: "WITNESS-CONSTRUCTIVE (flips)", pass: witnessRate >= 0.999 && witnessN >= 30 && witnessForgeRate >= 0.999 && witnessForgeN >= 20, detail: `the recorded minimal attack actually drives the verdict to flip (and re-verifies) in ${witnessOk}/${witnessN} = ${(witnessRate * 100).toFixed(1)}% — a constructive proof; a witness with a move removed is rejected ${witnessForgeCaught}/${witnessForgeN}` },
+    { name: "MONOTONE-IN-ADVERSARY", pass: monoRate >= 0.999 && monoStrict >= 5 && monoN >= 30, detail: `granting the adversary a WIDER corruption range never raised the breakdown in ${monoOk}/${monoN} = ${(monoRate * 100).toFixed(1)}% — and lowered it (a stronger adversary flips it sooner) in ${monoStrict} cases` },
     { name: "SIGNED-TAMPER", pass: tamperCaught, detail: "altering a single recorded measurement breaks the payload hash" },
     { name: "DETERMINISTIC", pass: deterministic, detail: "same seed → byte-identical certificate" },
     { name: "NO-DECISION (no gain ⇒ m=0)", pass: noDecision, detail: "when the clean gain is inconclusive, breakdown is 0 and the verdict is NO-DECISION" },

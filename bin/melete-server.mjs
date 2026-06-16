@@ -303,7 +303,7 @@ const server = createServer(async (req, res) => {
         const mk = (gainTrue, sd, sd2) => { const gA = M.lcg(sd2 * 17 + 1), gB = M.lcg(sd2 * 17 + 7); return M.breakdownCertificate({ oracle: (e) => ((e.sel ?? 0) === 0 ? 5.0 + sd * gz(gA) : 5.0 + gainTrue + sd * gz(gB)), a: { sel: 0 }, b: { sel: 1 }, replicates: 10, seed: sd2, cap: 5, threshold: 2 }); };
         const strong = mk(1.2, 0.3, seed);            // big gain, low noise → survives many corruptions
         const marginal = mk(0.85, 0.65, seed + 1000); // a real but small gain → one bad point flips it
-        const pack = (c) => ({ verdict: c.verdict, breakdown: c.breakdown, atLeast: c.breakdownAtLeast, ofMeasurements: c.n, certifiedGain: +c.gainLowerBound.toFixed(2), verified: M.verifyBreakdownCertificate(c).ok });
+        const pack = (c) => ({ verdict: c.verdict, breakdown: c.breakdown, atLeast: c.breakdownAtLeast, ofMeasurements: c.n, certifiedGain: +c.gainLowerBound.toFixed(2), verified: M.verifyBreakdownCertificate(c).ok, witness: (c.witness || []).map((w) => ({ measurement: w.index + 1, from: +w.from.toFixed(2), to: +w.to.toFixed(2) })) });
         return json(res, 200, { strong: pack(strong), marginal: pack(marginal) });
       } catch (e) { return json(res, 400, { error: "breakdown failed: " + e.message.slice(0, 120) }); }
     }
