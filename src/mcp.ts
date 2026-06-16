@@ -16,6 +16,7 @@
  * Honest by design (DIAKRISIS): this is a thin, dependency-free protocol shell over the SAME proven engine and
  * honesty stack — its value is reach (any agent, plug-and-play) + the signed results, not a new algorithm.
  */
+import { createHash, generateKeyPairSync, createPublicKey, sign as edSign, verify as edVerify, type KeyObject } from "node:crypto";
 import { type Space } from "./space.js";
 import { proposeNext } from "./interactive.js";
 import { selectionCertificate, verifySelectionCertificate } from "./winnerscurse.js";
@@ -27,6 +28,61 @@ import { fdrGauntlet } from "./fdr.js";
 
 export const MCP_PROTOCOL_VERSION = "2024-11-05";
 export const MCP_SERVER_NAME = "melete";
+
+function canonical(o: unknown): string { if (o === null || typeof o !== "object") return JSON.stringify(o); if (Array.isArray(o)) return "[" + o.map(canonical).join(",") + "]"; const k = Object.keys(o as Record<string, unknown>).sort(); return "{" + k.map((x) => JSON.stringify(x) + ":" + canonical((o as Record<string, unknown>)[x])).join(",") + "}"; }
+function sha256(s: string): string { return createHash("sha256").update(s).digest("hex"); }
+
+// ── THE TRUST LEDGER ──────────────────────────────────────────────────────────────────────────────────────
+// Every agent tool-call leaves a hash-chained, Ed25519-signed receipt: which agent, which tool, the hash of the
+// inputs, the hash of the (signed) result, linked to the previous receipt. This is the toll-booth's two missing
+// pieces at once — USAGE METERING (a tamper-evident count to bill on) and a SHARED AUDIT TRAIL every agent and
+// human can re-verify offline: "who verified what, and is the chain intact?". Multi-agent knowledge sync of
+// VERIFIED results — agent B trusts agent A's discovery from the signed receipt, without re-running it.
+export interface LedgerReceipt { seq: number; agent: string; tool: string; inputHash: string; resultHash: string; prevHash: string; hash: string; sig: string; }
+export interface MeleteLedger {
+  record: (agent: string, tool: string, args: unknown, result: unknown) => LedgerReceipt;
+  verifyChain: () => { ok: boolean; brokenAt: number; reason: string };
+  usage: () => { total: number; byAgent: Record<string, number>; byTool: Record<string, number> };
+  receipts: LedgerReceipt[];
+  publicKeyPem: string;
+}
+export function createLedger(keys?: { publicKey: KeyObject; privateKey: KeyObject }): MeleteLedger {
+  const kp = keys ?? generateKeyPairSync("ed25519");
+  const pub = kp.publicKey.export({ type: "spki", format: "pem" }).toString();
+  const receipts: LedgerReceipt[] = [];
+  const core = (r: { seq: number; agent: string; tool: string; inputHash: string; resultHash: string; prevHash: string }) => canonical({ seq: r.seq, agent: r.agent, tool: r.tool, inputHash: r.inputHash, resultHash: r.resultHash, prevHash: r.prevHash });
+  function record(agent: string, tool: string, args: unknown, result: unknown): LedgerReceipt {
+    const seq = receipts.length;
+    const inputHash = sha256(canonical(args ?? {}));
+    // bind to the SIGNED result: if the tool returned a certificate, its payloadHash IS the result identity
+    const cert = (result as any)?.certificate;
+    const resultHash = cert?.payloadHash ? String(cert.payloadHash) : sha256(canonical(result ?? null));
+    const prevHash = seq === 0 ? "genesis" : receipts[seq - 1].hash;
+    const base = { seq, agent: agent || "anon", tool, inputHash, resultHash, prevHash };
+    const hash = sha256(core(base));
+    const sig = edSign(null, Buffer.from(hash), kp.privateKey).toString("base64");
+    const r: LedgerReceipt = { ...base, hash, sig };
+    receipts.push(r); return r;
+  }
+  function verifyChain(): { ok: boolean; brokenAt: number; reason: string } {
+    const pk = createPublicKey(pub);
+    for (let i = 0; i < receipts.length; i++) {
+      const r = receipts[i];
+      if (r.seq !== i) return { ok: false, brokenAt: i, reason: "sequence out of order" };
+      if (sha256(core(r)) !== r.hash) return { ok: false, brokenAt: i, reason: "receipt hash mismatch — tampered" };
+      const expectedPrev = i === 0 ? "genesis" : receipts[i - 1].hash;
+      if (r.prevHash !== expectedPrev) return { ok: false, brokenAt: i, reason: "broken chain link" };
+      if (!edVerify(null, Buffer.from(r.hash), pk, Buffer.from(r.sig, "base64"))) return { ok: false, brokenAt: i, reason: "bad signature" };
+    }
+    return { ok: true, brokenAt: -1, reason: "chain intact" };
+  }
+  function usage() {
+    const byAgent: Record<string, number> = {}, byTool: Record<string, number> = {};
+    for (const r of receipts) { byAgent[r.agent] = (byAgent[r.agent] ?? 0) + 1; byTool[r.tool] = (byTool[r.tool] ?? 0) + 1; }
+    return { total: receipts.length, byAgent, byTool };
+  }
+  return { record, verifyChain, usage, receipts, publicKeyPem: pub };
+}
 
 interface McpTool { name: string; description: string; inputSchema: Record<string, unknown>; run: (args: Record<string, any>) => unknown; }
 
@@ -74,8 +130,11 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
 export interface JsonRpcRequest { jsonrpc?: string; id?: string | number | null; method?: string; params?: any; }
 export interface JsonRpcResponse { jsonrpc: "2.0"; id: string | number | null; result?: unknown; error?: { code: number; message: string }; }
 
-/** Handle one JSON-RPC 2.0 / MCP request. Pure + total: never throws — protocol errors come back as JSON-RPC errors. */
-export function handleMcpRequest(req: JsonRpcRequest): JsonRpcResponse {
+export interface McpContext { ledger?: MeleteLedger; agent?: string; }
+
+/** Handle one JSON-RPC 2.0 / MCP request. Pure + total: never throws — protocol errors come back as JSON-RPC errors.
+ *  Pass a ctx with a ledger to meter + audit every tool call (a signed receipt is attached to the response). */
+export function handleMcpRequest(req: JsonRpcRequest, ctx?: McpContext): JsonRpcResponse {
   const id = req && req.id !== undefined ? req.id : null;
   const ok = (result: unknown): JsonRpcResponse => ({ jsonrpc: "2.0", id, result });
   const err = (code: number, message: string): JsonRpcResponse => ({ jsonrpc: "2.0", id, error: { code, message } });
@@ -92,7 +151,13 @@ export function handleMcpRequest(req: JsonRpcRequest): JsonRpcResponse {
         const name = req.params?.name; const args = req.params?.arguments ?? {};
         const tool = MELETE_MCP_TOOLS.find((t) => t.name === name);
         if (!tool) return ok({ content: [{ type: "text", text: "unknown tool: " + name }], isError: true });
-        try { const out = tool.run(args); return ok({ content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out }); }
+        try {
+          const out = tool.run(args);
+          const receipt = ctx?.ledger ? ctx.ledger.record(ctx.agent ?? "anon", name, args, out) : undefined;
+          const result: Record<string, unknown> = { content: [{ type: "text", text: JSON.stringify(out) }], structuredContent: out };
+          if (receipt) result._receipt = { seq: receipt.seq, hash: receipt.hash, sig: receipt.sig };   // signed usage + audit receipt
+          return ok(result);
+        }
         catch (e) { return ok({ content: [{ type: "text", text: "tool error: " + (e as Error).message.slice(0, 160) }], isError: true }); }
       }
       default:
@@ -145,6 +210,40 @@ export function mcpGauntlet(): { score: 0 | 100; checks: Array<{ name: string; p
   const a2 = (call("tools/call", { name: "melete.fdr", arguments: { pValues: [0.001, 0.02, 0.3, 0.4], q: 0.1 } }).result as any)?.structuredContent?.certificate?.payloadHash;
   const deterministic = !!a1 && a1 === a2;
 
+  // R20 IMPROVE — THE TRUST LEDGER: meter + audit every tool call as a hash-chained, signed receipt
+  const led = createLedger();
+  const calls: Array<[string, string, any]> = [
+    ["agentA", "melete.fdr", { zScores: [4.2, 3.5, 0.2], q: 0.1 }],
+    ["agentB", "melete.support", { design: [[0, 0], [1, 1], [0, 1], [1, 0]], recommended: [5, 0.5] }],
+    ["agentA", "melete.selection", { values: [5, 6, 7, 5.2], sigma: 1 }],
+    ["agentA", "melete.fdr", { zScores: [3.9, 0.1, 0.2, 0.3], q: 0.1 }],
+    ["agentC", "melete.next", { space: [{ name: "x", type: "real", min: 0, max: 1 }], observations: [] }],
+  ];
+  let recordedOk = true, fdrReceipt: any = null, fdrCertHash: string | null = null;
+  for (let i = 0; i < calls.length; i++) {
+    const [agent, name, args] = calls[i];
+    const resp = handleMcpRequest({ jsonrpc: "2.0", id: 100 + i, method: "tools/call", params: { name, arguments: args } }, { ledger: led, agent });
+    const r = (resp.result as any)?._receipt;
+    if (!r || typeof r.hash !== "string" || r.seq !== i) recordedOk = false;
+    if (i === 0) { fdrReceipt = r; fdrCertHash = (resp.result as any)?.structuredContent?.certificate?.payloadHash; }
+  }
+  const ledgerRecorded = recordedOk && led.receipts.length === calls.length;
+  const chainOk = led.verifyChain().ok;
+  // the receipt binds to the SIGNED result (its resultHash is the certificate's payloadHash)
+  const receiptBindsCert = !!fdrCertHash && led.receipts[0].resultHash === fdrCertHash;
+  // usage metering (the toll-booth bill): per-agent + per-tool tallies
+  const u = led.usage();
+  const usageOk = u.total === 5 && u.byAgent.agentA === 3 && u.byAgent.agentB === 1 && u.byAgent.agentC === 1 && u.byTool["melete.fdr"] === 2;
+  // tamper: altering any recorded receipt is localized by verifyChain
+  const led2 = createLedger();
+  for (const [agent, name, args] of calls.slice(0, 3)) handleMcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, { ledger: led2, agent });
+  led2.receipts[1].tool = "melete.evil";
+  const tamperChk = led2.verifyChain(); const tamperCaught = !tamperChk.ok && tamperChk.brokenAt === 1;
+  // deterministic chain: same keys + same calls → identical head hash (Ed25519 is deterministic)
+  const kp = generateKeyPairSync("ed25519");
+  const mkChain = () => { const l = createLedger(kp); for (const [agent, name, args] of calls) handleMcpRequest({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, { ledger: l, agent }); return l.receipts[l.receipts.length - 1].hash; };
+  const ledgerDeterministic = mkChain() === mkChain();
+
   const checks = [
     { name: "INITIALIZE (MCP handshake)", pass: initOk, detail: `serverInfo.name=melete, protocolVersion=${MCP_PROTOCOL_VERSION}, tools capability advertised` },
     { name: "TOOLS-LIST", pass: listOk, detail: `${tools.length} agent-callable tools advertised, each with name + JSON input schema` },
@@ -156,6 +255,12 @@ export function mcpGauntlet(): { score: 0 | 100; checks: Array<{ name: string; p
     { name: "CALL melete.gauntlet", pass: gauntOk, detail: "the caller can re-run a correctness gauntlet over MCP (fdr → 100)" },
     { name: "ERROR-HANDLING (JSON-RPC)", pass: unknownMethod && unknownTool && malformed, detail: "unknown method → -32601; unknown tool → isError; malformed/null → JSON-RPC error, never a throw" },
     { name: "DETERMINISTIC", pass: deterministic, detail: "identical tool calls return byte-identical signed certificates" },
+    { name: "LEDGER-RECORDS (signed receipt/call)", pass: ledgerRecorded, detail: `every tool call left a hash-chained signed receipt (${led.receipts.length}/${calls.length}), attached to the response` },
+    { name: "LEDGER-CHAIN-VERIFIES", pass: chainOk, detail: "the whole receipt chain re-verifies offline (hashes + prev-links + Ed25519 signatures)" },
+    { name: "RECEIPT-BINDS-SIGNED-RESULT", pass: receiptBindsCert, detail: "a receipt's resultHash is the certificate's own payloadHash — it proves WHICH signed result was served" },
+    { name: "USAGE-METERED (toll-booth bill)", pass: usageOk, detail: `tamper-evident usage tally: total ${u.total}, agentA=${u.byAgent.agentA}, melete.fdr=${u.byTool["melete.fdr"]} — the number you bill on` },
+    { name: "LEDGER-TAMPER-LOCALIZED", pass: tamperCaught, detail: `altering a recorded receipt is caught and pinned to the exact entry (brokenAt=${tamperChk.brokenAt})` },
+    { name: "LEDGER-DETERMINISTIC", pass: ledgerDeterministic, detail: "same key + same call sequence → identical chain head hash" },
   ];
   return { score: checks.every((c) => c.pass) ? 100 : 0, checks };
 }

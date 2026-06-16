@@ -114,6 +114,8 @@ npx melete-ai poopt proof-of-optimization.json   # verify any signed certificate
 ```
 …or over HTTP: `POST /mcp` with a JSON-RPC body (`initialize` · `tools/list` · `tools/call`).
 
+Every tool call is metered + audited into a **signed trust ledger** — a hash-chained, Ed25519-signed receipt per call (which agent, which tool, the hash of the signed result). `POST /mcp/usage` returns the tamper-evident usage tally (the number you bill on) + the chain-integrity check. One layer, two jobs: **usage-based billing** *and* a **shared audit trail** every agent and human re-verifies offline.
+
 ## The moat
 - 🔒 **Sovereign** — runs air-gapped, on your machine; data never touches a cloud.
 - 👑 **Verifiable** — every verdict is Ed25519-signed; an auditor re-verifies it offline with the embedded public key, no trust in us required.

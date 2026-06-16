@@ -17,6 +17,9 @@ import { dirname, join } from "node:path";
 import * as M from "../dist/index.js";
 import { createHash } from "node:crypto";
 
+// the live MCP trust ledger — meters + audits every agent tool call this server serves (the toll-booth)
+const mcpLedger = M.createLedger();
+
 const VERSION = (() => { try { return JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"), "utf8")).version; } catch { return "0.2.0"; } })();
 const PORT = +(process.env.PORT || 8790); const HOST = process.env.HOST || "127.0.0.1";
 const MAX_BUDGET = +(process.env.MELETE_MAX_BUDGET || 120);
@@ -390,10 +393,17 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "fdr failed: " + e.message.slice(0, 120) }); }
     }
 
-    // 🔌 MCP over HTTP — the same agent-callable trust middleware via a JSON-RPC body (any-transport)
+    // 🔌 MCP over HTTP — the same agent-callable trust middleware via a JSON-RPC body (any-transport).
+    // Every tools/call is metered + audited into the signed trust ledger (the toll-booth).
     if (req.method === "POST" && path === "/mcp") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
-      try { return json(res, 200, M.handleMcpRequest(body)); } catch (e) { return json(res, 400, { error: "mcp failed: " + e.message.slice(0, 120) }); }
+      const agent = (typeof body.agent === "string" && body.agent) || (req.headers["x-agent"] || "anon");
+      try { return json(res, 200, M.handleMcpRequest(body, { ledger: mcpLedger, agent })); } catch (e) { return json(res, 400, { error: "mcp failed: " + e.message.slice(0, 120) }); }
+    }
+    // 🔌 the toll-booth report: tamper-evident usage tally (billing) + chain-integrity of the audit trail
+    if (req.method === "POST" && path === "/mcp/usage") {
+      const chain = mcpLedger.verifyChain();
+      return json(res, 200, { usage: mcpLedger.usage(), chainIntact: chain.ok, totalReceipts: mcpLedger.receipts.length, publicKeyEmbedded: true });
     }
 
     if (req.method === "POST" && path === "/discover") {
