@@ -36,33 +36,48 @@ function benjaminiHochberg(pValues: number[], q: number): { kStar: number; thres
   discoveries.sort((a, b) => a - b);
   return { kStar, threshold, discoveries };
 }
+function harmonic(m: number): number { let h = 0; for (let i = 1; i <= m; i++) h += 1 / i; return h; }
+// per-hypothesis ADJUSTED q-values (step-up, monotone): q-value_i = the smallest FDR at which hypothesis i is
+// rejected. c = 1 → Benjamini-Hochberg (independence/PRDS); c = H_m → Benjamini-Yekutieli (ARBITRARY dependence).
+function adjustedQValues(pValues: number[], c: number): number[] {
+  const m = pValues.length; if (m === 0) return [];
+  const order = pValues.map((p, i) => ({ p, i })).sort((a, b) => a.p - b.p);
+  const qv = new Array<number>(m); let prev = 1;
+  for (let k = m; k >= 1; k--) { const val = Math.min(1, (c * m * order[k - 1].p) / k); prev = Math.min(prev, val); qv[order[k - 1].i] = prev; }
+  return qv;   // discoveries at level q = exactly { i : qv[i] ≤ q }
+}
 
 export interface FalseDiscoveryCertificate {
-  standard: "melete-fdr-certificate/v1";
+  standard: "melete-fdr-certificate/v2";
   verdict: "FDR-CONTROLLED";
+  procedure: "BH" | "BY";          // BH = independence/PRDS; BY = guaranteed under ARBITRARY dependence
   m: number;                       // number of hypotheses tested
   q: number;                       // target false-discovery rate
   alpha: number;                   // the naive per-test threshold compared against
+  harmonic: number;                // H_m = Σ 1/i, the BY dependence factor (1 for BH)
   pValues: number[];               // the recorded p-values (the evidence)
-  discoveries: number[];           // indices that survive BH at FDR ≤ q
+  qValues: number[];               // per-hypothesis adjusted q-value — usable at ANY threshold from this one cert
+  discoveries: number[];           // indices with q-value ≤ q
   discoveryCount: number;
-  bhThreshold: number;             // the BH p-value cutoff
+  bhThreshold: number;             // the effective p-value cutoff (largest p among the discoveries)
   naiveCount: number;              // how many would be "significant" at the naive p < α (no multiplicity control)
-  droppedAsLikelyFalse: number;    // naiveCount − discoveryCount: naive findings BH refuses to certify
+  droppedAsLikelyFalse: number;    // naiveCount − discoveryCount: naive findings the procedure refuses to certify
   payloadHash: string;
   signature: string;
   publicKeyPem: string;
   algo: "ed25519+sha256";
 }
 
-export function falseDiscoveryCertificate(opts: { pValues?: number[]; zScores?: number[]; q?: number; alpha?: number; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): FalseDiscoveryCertificate {
+export function falseDiscoveryCertificate(opts: { pValues?: number[]; zScores?: number[]; q?: number; alpha?: number; procedure?: "BH" | "BY"; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): FalseDiscoveryCertificate {
   const pValues = opts.pValues ?? (opts.zScores ? opts.zScores.map(pValueFromZ) : []);
-  const q = opts.q ?? 0.1, alpha = opts.alpha ?? 0.05;
-  const m = pValues.length;
-  const { threshold, discoveries } = benjaminiHochberg(pValues, q);
+  const q = opts.q ?? 0.1, alpha = opts.alpha ?? 0.05, procedure = opts.procedure ?? "BH";
+  const m = pValues.length; const Hm = harmonic(m); const c = procedure === "BY" ? Hm : 1;
+  const qValues = adjustedQValues(pValues, c);
+  const discoveries: number[] = []; for (let i = 0; i < m; i++) if (qValues[i] <= q) discoveries.push(i);
+  const bhThreshold = discoveries.length ? Math.max(...discoveries.map((i) => pValues[i])) : 0;
   const naiveCount = pValues.filter((p) => p < alpha).length;
   const kp = opts.keys ?? generateKeyPairSync("ed25519");
-  const cert = { standard: "melete-fdr-certificate/v1" as const, verdict: "FDR-CONTROLLED" as const, m, q, alpha, pValues, discoveries, discoveryCount: discoveries.length, bhThreshold: threshold, naiveCount, droppedAsLikelyFalse: Math.max(0, naiveCount - discoveries.length) };
+  const cert = { standard: "melete-fdr-certificate/v2" as const, verdict: "FDR-CONTROLLED" as const, procedure, m, q, alpha, harmonic: Hm, pValues, qValues, discoveries, discoveryCount: discoveries.length, bhThreshold, naiveCount, droppedAsLikelyFalse: Math.max(0, naiveCount - discoveries.length) };
   const payloadHash = createHash("sha256").update(canonical(cert)).digest("hex");
   const signature = edSign(null, Buffer.from(payloadHash), kp.privateKey).toString("base64");
   return { ...cert, payloadHash, signature, publicKeyPem: kp.publicKey.export({ type: "spki", format: "pem" }).toString(), algo: "ed25519+sha256" };
@@ -70,20 +85,27 @@ export function falseDiscoveryCertificate(opts: { pValues?: number[]; zScores?: 
 
 export function verifyFalseDiscoveryCertificate(c: FalseDiscoveryCertificate): { ok: boolean; reason: string } {
   try {
-    if (c.standard !== "melete-fdr-certificate/v1") return { ok: false, reason: "unknown standard" };
-    if (c.pValues.length !== c.m) return { ok: false, reason: "p-value count does not match m" };
-    // re-run BH independently — a certificate that claims more discoveries than the data supports is caught
-    const { threshold, discoveries } = benjaminiHochberg(c.pValues, c.q);
-    if (discoveries.length !== c.discoveryCount) return { ok: false, reason: `recomputed ${discoveries.length} discoveries ≠ certificate ${c.discoveryCount} — discovery set overstated` };
-    for (let i = 0; i < discoveries.length; i++) if (discoveries[i] !== c.discoveries[i]) return { ok: false, reason: "recomputed discovery set differs from the certificate" };
-    if (Math.abs(threshold - c.bhThreshold) > 1e-12) return { ok: false, reason: "recomputed BH threshold differs" };
+    if (c.standard !== "melete-fdr-certificate/v2") return { ok: false, reason: "unknown standard" };
+    if (c.pValues.length !== c.m || c.qValues.length !== c.m) return { ok: false, reason: "p-value / q-value count does not match m" };
+    // re-derive the per-hypothesis q-values for the recorded procedure — a forged discovery set is caught
+    const c0 = c.procedure === "BY" ? harmonic(c.m) : 1;
+    if (Math.abs(c0 - (c.procedure === "BY" ? c.harmonic : 1)) > 1e-9) return { ok: false, reason: "recorded harmonic factor is wrong for the procedure" };
+    const qv = adjustedQValues(c.pValues, c0);
+    for (let i = 0; i < c.m; i++) if (Math.abs(qv[i] - c.qValues[i]) > 1e-9) return { ok: false, reason: "recomputed q-value differs — q-values tampered" };
+    // q-values must be MONOTONE in p-rank (a higher p can never have a lower q-value)
+    const ord = c.pValues.map((p, i) => ({ p, i })).sort((a, b) => a.p - b.p);
+    for (let k = 1; k < c.m; k++) if (c.qValues[ord[k].i] < c.qValues[ord[k - 1].i] - 1e-12) return { ok: false, reason: "q-values are not monotone in p-rank — invalid" };
+    // the discovery set must be EXACTLY { i : q-value ≤ q } (consistency)
+    const expected: number[] = []; for (let i = 0; i < c.m; i++) if (qv[i] <= c.q) expected.push(i);
+    if (expected.length !== c.discoveryCount) return { ok: false, reason: `recomputed ${expected.length} discoveries ≠ certificate ${c.discoveryCount} — discovery set overstated` };
+    for (let i = 0; i < expected.length; i++) if (expected[i] !== c.discoveries[i]) return { ok: false, reason: "discovery set is not exactly { q-value ≤ q }" };
     const naiveCount = c.pValues.filter((p) => p < c.alpha).length;
     if (naiveCount !== c.naiveCount || Math.max(0, naiveCount - c.discoveryCount) !== c.droppedAsLikelyFalse) return { ok: false, reason: "recomputed naive/dropped counts differ" };
-    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, m: c.m, q: c.q, alpha: c.alpha, pValues: c.pValues, discoveries: c.discoveries, discoveryCount: c.discoveryCount, bhThreshold: c.bhThreshold, naiveCount: c.naiveCount, droppedAsLikelyFalse: c.droppedAsLikelyFalse })).digest("hex");
+    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, procedure: c.procedure, m: c.m, q: c.q, alpha: c.alpha, harmonic: c.harmonic, pValues: c.pValues, qValues: c.qValues, discoveries: c.discoveries, discoveryCount: c.discoveryCount, bhThreshold: c.bhThreshold, naiveCount: c.naiveCount, droppedAsLikelyFalse: c.droppedAsLikelyFalse })).digest("hex");
     if (payloadHash !== c.payloadHash) return { ok: false, reason: "payload hash mismatch — a recorded p-value was altered" };
     const pub = createPublicKey(c.publicKeyPem);
     if (!edVerify(null, Buffer.from(c.payloadHash), pub, Buffer.from(c.signature, "base64"))) return { ok: false, reason: "bad signature" };
-    return { ok: true, reason: `${c.discoveryCount} discoveries at FDR ≤ ${c.q} (BH cutoff ${c.bhThreshold.toExponential(2)}); ${c.droppedAsLikelyFalse} naive findings dropped` };
+    return { ok: true, reason: `${c.discoveryCount} discoveries at FDR ≤ ${c.q} (${c.procedure}); per-hypothesis q-values re-derived; ${c.droppedAsLikelyFalse} naive findings dropped` };
   } catch (e) { return { ok: false, reason: "exception: " + (e as Error).message.slice(0, 80) }; }
 }
 
@@ -125,7 +147,36 @@ export function fdrGauntlet(): { score: 0 | 100; checks: Array<{ name: string; p
   const subset = cc.discoveries.every((i) => cc.pValues[i] < alpha) && cc.discoveryCount <= cc.naiveCount;
   const d1 = falseDiscoveryCertificate({ pValues: pc, q, alpha }), d2 = falseDiscoveryCertificate({ pValues: pc, q, alpha });
   const deterministic = d1.payloadHash === d2.payloadHash && verifyFalseDiscoveryCertificate(d1).ok;
-  let total = true; try { falseDiscoveryCertificate({ pValues: [], q }); falseDiscoveryCertificate({ zScores: [NaN, 2, 0] }); falseDiscoveryCertificate({ pValues: [0.5] }); } catch { total = false; }
+  let total = true; try { falseDiscoveryCertificate({ pValues: [], q }); falseDiscoveryCertificate({ zScores: [NaN, 2, 0] }); falseDiscoveryCertificate({ pValues: [0.5], procedure: "BY" }); } catch { total = false; }
+
+  // R18 IMPROVE — q-VALUES: per-hypothesis adjusted FDR, monotone, and the discovery set equals BH at EVERY threshold
+  let monoOk = 0, consistOk = 0, qN = 0; const thresholds = [0.01, 0.05, 0.1, 0.2];
+  for (let s = 1; s <= 200; s++) {
+    const g = lcg(s * 23 + 1); const z = Array.from({ length: m }, (_, i) => (i < m1 ? delta : 0) + gz(g)); const p = z.map(pValueFromZ);
+    const cert = falseDiscoveryCertificate({ pValues: p, q, alpha }); qN++;
+    const ord = p.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v);
+    let mono = true; for (let k = 1; k < m; k++) if (cert.qValues[ord[k].i] < cert.qValues[ord[k - 1].i] - 1e-12) mono = false; if (mono) monoOk++;
+    let cons = true; for (const t of thresholds) { const bhSet = benjaminiHochberg(p, t).discoveries; const qSet: number[] = []; for (let i = 0; i < m; i++) if (cert.qValues[i] <= t) qSet.push(i); if (qSet.length !== bhSet.length || qSet.some((x, ix) => x !== bhSet[ix])) cons = false; } if (cons) consistOk++;
+  }
+
+  // R18 IMPROVE — BY: guaranteed FDR control under ARBITRARY dependence. Under equicorrelated tests, BY holds
+  // FDP ≤ q; and under independence BY is more conservative than BH (the honest price for dependence-safety).
+  const rho = 0.5; let byDepFdpSum = 0, byDepN = 0, byTprSum = 0;
+  for (let s = 1; s <= 2000; s++) {
+    const g = lcg(s * 41 + 3); const C = gz(g); const isReal: boolean[] = []; const z: number[] = [];
+    for (let i = 0; i < m; i++) { const r = i < m1; isReal.push(r); z.push((r ? delta : 0) + Math.sqrt(rho) * C + Math.sqrt(1 - rho) * gz(g)); }
+    const p = z.map(pValueFromZ); const by = falseDiscoveryCertificate({ pValues: p, q, procedure: "BY" });
+    let f = 0, t = 0; for (const i of by.discoveries) (isReal[i] ? t++ : f++);
+    byDepFdpSum += by.discoveries.length ? f / by.discoveries.length : 0; byTprSum += t / m1; byDepN++;
+  }
+  const byDepFdp = byDepFdpSum / byDepN, byDepTpr = byTprSum / byDepN;
+  let byDisc = 0, bhDisc = 0, consN = 0;
+  for (let s = 1; s <= 2000; s++) {
+    const g = lcg(s * 53 + 7); const z = Array.from({ length: m }, (_, i) => (i < m1 ? delta : 0) + gz(g)); const p = z.map(pValueFromZ);
+    byDisc += falseDiscoveryCertificate({ pValues: p, q, procedure: "BY" }).discoveryCount;
+    bhDisc += falseDiscoveryCertificate({ pValues: p, q, procedure: "BH" }).discoveryCount; consN++;
+  }
+  const byMeanDisc = byDisc / consN, bhMeanDisc = bhDisc / consN;
 
   const checks = [
     { name: "FDR-CONTROLLED ≤ q (BH)", pass: bhFdp <= q && sims >= 1000, detail: `the realized false-discovery proportion under BH averaged ${(bhFdp * 100).toFixed(1)}% ≤ q=${(q * 100).toFixed(0)}% over ${sims} simulations` },
@@ -135,6 +186,10 @@ export function fdrGauntlet(): { score: 0 | 100; checks: Array<{ name: string; p
     { name: "FORGERY-CAUGHT (extra discovery)", pass: forgeryCaught, detail: "a certificate claiming a discovery BH rejected is rejected on re-derivation" },
     { name: "SIGNED-TAMPER", pass: tamper, detail: "altering a recorded p-value breaks the payload hash" },
     { name: "BH ⊆ NAIVE (a strict tightening)", pass: subset, detail: "every BH discovery is also naively significant, and BH never reports more — multiplicity only removes findings" },
+    { name: "Q-VALUES-MONOTONE", pass: monoOk === qN && qN >= 100, detail: `per-hypothesis q-values are monotone in p-rank (a higher p never gets a lower q-value) in ${monoOk}/${qN}` },
+    { name: "Q-VALUES-CONSISTENT (any threshold)", pass: consistOk === qN && qN >= 100, detail: `the set {q-value ≤ t} equals the BH discovery set at EVERY threshold t∈{.01,.05,.1,.2} in ${consistOk}/${qN} — one signed cert, usable at any FDR level` },
+    { name: "BY-DEPENDENCE-ROBUST ≤ q", pass: byDepFdp <= q && byDepN >= 1000, detail: `under equicorrelated (ρ=${rho}) tests, Benjamini-Yekutieli held the realized FDP at ${(byDepFdp * 100).toFixed(1)}% ≤ q=${(q * 100).toFixed(0)}% (guaranteed under ARBITRARY dependence; recovered ${(byDepTpr * 100).toFixed(0)}% of real effects)` },
+    { name: "BY-CONSERVATIVE (honest price)", pass: byMeanDisc < bhMeanDisc, detail: `the dependence guarantee costs power: under independence BY reports avg ${byMeanDisc.toFixed(1)} discoveries vs BH's ${bhMeanDisc.toFixed(1)} (BY divides q by H_m=${harmonic(m).toFixed(2)})` },
     { name: "DETERMINISTIC", pass: deterministic, detail: "same p-values → byte-identical certificate" },
     { name: "TOTAL", pass: total, detail: "empty / NaN inputs never throw" },
   ];

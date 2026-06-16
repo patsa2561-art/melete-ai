@@ -372,14 +372,20 @@ const server = createServer(async (req, res) => {
         for (let i = 0; i < m; i++) { const real = i < m1; isReal.push(real); z.push((real ? delta : 0) + gz(g)); }
         const p = z.map(M.pValueFromZ);
         const c = M.falseDiscoveryCertificate({ pValues: p, q, alpha });
+        const by = M.falseDiscoveryCertificate({ pValues: p, q, procedure: "BY" });
         const falseInBH = c.discoveries.filter((i) => !isReal[i]).length;
+        const falseInBY = by.discoveries.filter((i) => !isReal[i]).length;
         const naiveIdx = p.map((v, i) => i).filter((i) => p[i] < alpha);
         const falseInNaive = naiveIdx.filter((i) => !isReal[i]).length;
+        // a few per-hypothesis q-values (sorted) — the threshold-free, per-finding adjusted significance
+        const qSorted = c.discoveries.map((i) => +c.qValues[i].toFixed(4)).sort((a, b) => a - b).slice(0, 5);
         return json(res, 200, {
           tested: m, realEffects: m1, targetFDR: q, naiveAlpha: alpha,
           naive: { findings: naiveIdx.length, falseOnes: falseInNaive },                 // no multiplicity control
           bh: { discoveries: c.discoveryCount, falseOnes: falseInBH, threshold: +c.bhThreshold.toExponential(2) },
-          droppedAsLikelyFalse: c.droppedAsLikelyFalse, verified: M.verifyFalseDiscoveryCertificate(c).ok,
+          by: { discoveries: by.discoveryCount, falseOnes: falseInBY, harmonic: +by.harmonic.toFixed(2) }, // arbitrary-dependence safe
+          qValuesOfDiscoveries: qSorted,                                                 // per-hypothesis adjusted FDR
+          droppedAsLikelyFalse: c.droppedAsLikelyFalse, verified: M.verifyFalseDiscoveryCertificate(c).ok && M.verifyFalseDiscoveryCertificate(by).ok,
         });
       } catch (e) { return json(res, 400, { error: "fdr failed: " + e.message.slice(0, 120) }); }
     }
