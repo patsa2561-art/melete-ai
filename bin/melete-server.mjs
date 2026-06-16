@@ -217,6 +217,22 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "stability failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 💎 HONEST-SEARCH PROOF — prove an optimization was genuinely searched (not faked). Issues a real proof,
+    // then forges a copy (random points), and audits BOTH offline — genuine VERIFIES, forgery is REJECTED.
+    if (req.method === "POST" && path === "/honest-search") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 1;
+      const space = { dims: [{ name: "x", type: "real", min: 0, max: 10 }, { name: "y", type: "real", min: 0, max: 10 }] };
+      const oracle = (e) => Math.exp(-(((e.x ?? 0) - 7.2) ** 2 + ((e.y ?? 0) - 3.4) ** 2) / 3) + 0.6 * Math.exp(-(((e.x ?? 0) - 2) ** 2 + ((e.y ?? 0) - 8) ** 2) / 2);
+      try {
+        const proof = await M.issueSearchProof({ space, oracle, budget: 22, goal: "maximize", seed, candidatePool: 500 });
+        const genuine = await M.auditSearchProof(proof);
+        const forged = M.forgeRandomProof(proof, seed);
+        const forgedAudit = await M.auditSearchProof(forged);
+        return json(res, 200, { evaluations: proof.trace.length, best: proof.best, traceHash: proof.traceHash.slice(0, 16), genuine: { verdict: genuine.genuine ? "GENUINE" : "REJECTED", reason: genuine.reason }, forged: { verdict: forgedAudit.genuine ? "GENUINE" : "REJECTED", reason: forgedAudit.reason } });
+      } catch (e) { return json(res, 400, { error: "honest-search failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
