@@ -144,7 +144,7 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
   },
   {
     name: "melete.calibration",
-    description: "Is a model/agent's stated confidence trustworthy? Pass its predicted probabilities + the binary outcomes. Returns a signed verdict (Spiegelhalter's Z + ECE) — CALIBRATED vs MISCALIBRATED with the direction (OVER/UNDER-confident) and the reliability curve.",
+    description: "Is a model/agent's stated confidence trustworthy? Pass its predicted probabilities + the binary outcomes. Returns a signed verdict from TWO tests — the global Spiegelhalter Z (catches over/under-confidence + names the direction) AND a per-bin Hosmer-Lemeshow test (catches mid-range miscalibration near p=0.5, where the global Z is structurally blind), Bonferroni-split so the combined false-flag stays ≤ α. Reports ECE, the reliability curve, and localizes the worst-calibrated bin.",
     inputSchema: { type: "object", properties: { predictions: { type: "array", description: "predicted probabilities p∈[0,1]" }, outcomes: { type: "array", description: "binary outcomes 0/1" }, bins: { type: "number" } }, required: ["predictions", "outcomes"] },
     run: (a) => { const c = calibrationCertificate({ predictions: a.predictions ?? [], outcomes: a.outcomes ?? [], bins: a.bins }); return { certificate: c, verified: verifyCalibrationCertificate(c).ok }; },
   },

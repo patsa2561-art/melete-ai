@@ -494,15 +494,23 @@ const server = createServer(async (req, res) => {
       const seed = (body.seed | 0) || 7; const N = 1000;
       try {
         const g = M.lcg(seed * 17 + 1);
-        const cp = [], cy = [], op = [], oy = [];
-        for (let i = 0; i < N; i++) { const q = g(); cp.push(q); cy.push(g() < q ? 1 : 0); const q2 = g(); op.push(Math.min(0.999, Math.max(0.001, 0.5 + 1.5 * (q2 - 0.5)))); oy.push(g() < q2 ? 1 : 0); }
+        const cp = [], cy = [], op = [], oy = [], mp = [], my = [];
+        const clip = (p) => Math.min(0.999999999, Math.max(1e-9, p));
+        for (let i = 0; i < N; i++) {
+          const q = g(); cp.push(q); cy.push(g() < q ? 1 : 0);
+          const q2 = g(); op.push(clip(0.5 + 1.5 * (q2 - 0.5))); oy.push(g() < q2 ? 1 : 0);
+          // MID-RANGE miscalibration: predictions clustered near 0.5 (where Spiegelhalter's (1−2p) weight ≈ 0), true rate higher
+          const q3 = 0.45 + 0.10 * g(); mp.push(q3); my.push(g() < clip(q3 + 0.20) ? 1 : 0);
+        }
         const cc = M.calibrationCertificate({ predictions: cp, outcomes: cy }); const co = M.calibrationCertificate({ predictions: op, outcomes: oy });
+        const cm = M.calibrationCertificate({ predictions: mp, outcomes: my });
         // recalibrate the overconfident model on a split, re-measure ECE on held-out
         const half = N / 2; const recal = M.histogramRecalibrate(op.slice(0, half), oy.slice(0, half), op.slice(half));
         const cr = M.calibrationCertificate({ predictions: recal, outcomes: oy.slice(half) });
         const pack = (c) => ({ verdict: c.verdict, direction: c.direction, Z: +c.spiegelhalterZ.toFixed(2), ece: +(c.ece * 100).toFixed(1), verified: M.verifyCalibrationCertificate(c).ok });
         return json(res, 200, {
           calibrated: pack(cc), overconfident: pack(co),
+          midrange: { ...pack(cm), globally: cm.globallyMiscalibrated, conditionally: cm.conditionallyMiscalibrated, worstBin: cm.worstBin ? { lo: +cm.worstBin.lo.toFixed(2), hi: +cm.worstBin.hi.toFixed(2), confidence: +cm.worstBin.confidence.toFixed(2), accuracy: +cm.worstBin.accuracy.toFixed(2) } : null },
           recalibrated: { ...pack(cr), eceBeforePct: +(M.calibrationCertificate({ predictions: op.slice(half), outcomes: oy.slice(half) }).ece * 100).toFixed(1) },
         });
       } catch (e) { return json(res, 400, { error: "calibration failed: " + e.message.slice(0, 120) }); }
