@@ -308,6 +308,30 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "breakdown failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 📉 SELECTION-BIAS (winner's curse) — searching N settings & reporting the best inflates the number.
+    // De-bias it: the TRUE value of the selected setting is ≥ correctedLowerBound (accounting for the optimism).
+    if (req.method === "POST" && path === "/selection") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 7; const n = Math.min(200, Math.max(3, (body.n | 0) || 30)); const sigma = 1.0;
+      try {
+        const gz = (g) => { const u1 = Math.max(1e-9, g()), u2 = g(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+        const g = M.lcg(seed * 13 + 1); const mu = [], y = [];
+        for (let i = 0; i < n; i++) { const m = 5.0 + 0.25 * gz(g); mu.push(m); y.push(m + sigma * gz(g)); }
+        let bi = 0; for (let i = 1; i < n; i++) if (y[i] > y[bi]) bi = i;
+        const c = M.selectionCertificate({ values: y, sigma });
+        return json(res, 200, {
+          searched: n,
+          naiveBest: +c.naiveBest.toFixed(2),                  // what every other tool reports
+          trueValueOfWinner: +mu[bi].toFixed(2),               // the winner's actual mean (the simulator knows it)
+          correctedLowerBound: +c.correctedLowerBound.toFixed(2),
+          selectionPenalty: +c.selectionPenalty.toFixed(2),
+          naiveOverstatedBy: +(c.naiveBest - mu[bi]).toFixed(2),
+          boundIsValid: c.correctedLowerBound <= mu[bi] + 1e-9, // the de-biased bound sits at/below the truth
+          confidence: c.confidence, verified: M.verifySelectionCertificate(c).ok,
+        });
+      } catch (e) { return json(res, 400, { error: "selection failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
