@@ -27,6 +27,7 @@ import { swarmCertificate, verifySwarmCertificate } from "./swarm.js";
 import { conformalCertificate, verifyConformalCertificate } from "./conformal.js";
 import { subgroupCertificate, verifySubgroupCertificate } from "./subgroup.js";
 import { calibrationCertificate, verifyCalibrationCertificate } from "./calibration.js";
+import { privacyCertificate, verifyPrivacyCertificate } from "./privacy.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -149,10 +150,16 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     run: (a) => { const c = calibrationCertificate({ predictions: a.predictions ?? [], outcomes: a.outcomes ?? [], bins: a.bins }); return { certificate: c, verified: verifyCalibrationCertificate(c).ok }; },
   },
   {
+    name: "melete.privacy",
+    description: "Before you SHARE an aggregate (a mean, a count, a pooled gradient), prove no individual can be re-identified. Pass the true statistic (a number array), its L2 sensitivity (how much one record can change it), and your target (ε, δ). Returns a signed (ε,δ)-differential-privacy certificate: the analytic-Gaussian (Balle-Wang) minimum noise is added and ONLY the noised release is returned (the true value is never stored). An under-noised release that claims a small ε is rejected on re-derivation.",
+    inputSchema: { type: "object", properties: { statistic: { type: "array", description: "the true aggregate to release (numbers)" }, sensitivity: { type: "number", description: "L2 sensitivity: max change from one record" }, epsilon: { type: "number", description: "privacy budget ε > 0" }, delta: { type: "number", description: "failure prob δ ∈ (0,1), e.g. 1e-5" } }, required: ["statistic", "sensitivity", "epsilon", "delta"] },
+    run: (a) => { const c = privacyCertificate({ statistic: a.statistic ?? [], sensitivity: a.sensitivity, epsilon: a.epsilon, delta: a.delta }); return { certificate: c, verified: verifyPrivacyCertificate(c).ok }; },
+  },
+  {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
-    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
   },
   {
     name: "melete.gauntlet",
