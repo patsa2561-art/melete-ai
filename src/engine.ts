@@ -33,6 +33,23 @@ export interface DiscoverOpts {
 
 const key = (e: Experiment) => JSON.stringify(e);
 
+// Halton low-discrepancy sequence — a space-filling design that covers the box far more evenly than a
+// coarse grid for the same point count, so the surrogate sees the surface's shape from fewer seed points.
+const HALTON_PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37];
+function haltonValue(i: number, base: number): number { let f = 1, r = 0, n = i; while (n > 0) { f /= base; r += f * (n % base); n = Math.floor(n / base); } return r; }
+function haltonDesign(space: Space, n: number): Experiment[] {
+  const out: Experiment[] = [];
+  for (let i = 1; i <= n; i++) {
+    const e: Experiment = {};
+    space.dims.forEach((d, j) => {
+      const mn = +(d.min ?? 0), mx = +(d.max ?? 1); const u = haltonValue(i, HALTON_PRIMES[j % HALTON_PRIMES.length]);
+      e[d.name] = d.type === "int" ? Math.round(mn + (mx - mn) * u) : mn + (mx - mn) * u;
+    });
+    out.push(e);
+  }
+  return out;
+}
+
 /** Run the closed discovery loop. Returns the best experiment found + the full reproducible history. */
 export async function discover(opts: DiscoverOpts): Promise<DiscoveryResult> {
   const space = opts.space; const goal: Goal = opts.goal ?? "maximize"; const budget = Math.max(1, opts.budget | 0);
@@ -51,11 +68,12 @@ export async function discover(opts: DiscoverOpts): Promise<DiscoveryResult> {
     return best;
   };
 
-  // cold start: a coarse grid design of experiments (global coverage before any modelling)
-  const perDim = space.dims.length <= 2 ? 3 : 2;
-  for (const e of gridCandidates(space, perDim).slice(0, Math.max(1, Math.min(budget, space.dims.length <= 2 ? 9 : 8)))) {
+  // cold start: a Halton low-discrepancy design of experiments (even global coverage from few seed points,
+  // beating a coarse grid that can miss the optimum's region entirely) before any modelling.
+  const seedN = Math.max(1, Math.min(budget, space.dims.length <= 2 ? 9 : 8));
+  for (const e of haltonDesign(space, seedN)) {
     if (obs.length >= budget) break; if (seen.has(key(e))) continue;
-    await record(e, 0, kappa0, "seed: design-of-experiments grid point");
+    await record(e, 0, kappa0, "seed: Halton low-discrepancy design point");
   }
   let best = obs.length ? obs.reduce((a, b) => better(b.value, a.value) ? b : a) : { experiment: {}, value: goal === "maximize" ? -Infinity : Infinity };
 
