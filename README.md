@@ -76,7 +76,7 @@ Hosted, no install: `POST https://melete.mneme-ai.space/next`
 | 🏔 **Stability** | is the optimum **reproducible**, or a lucky one-off? *(STABLE ⇒ reproduced ≥97.5%, measured)* |
 | 💎 **Honest-Search Proof** | is this a **GENUINE** search or a **FAKED** one? Re-derive the trace offline (no oracle) — a forgery is rejected. *(360/360 forgeries caught; something an LLM cannot do)* |
 | 🛡 **Tolerance Certificate** | the certified **±tolerance** that still keeps ≥90% of the optimum — a worst-case **Lipschitz guarantee**, not an average. *(8400/8400 off-grid adversarial samples held the floor)* |
-| 📜 **Proof of Improvement** | switching from setting A to recipe B is a **proven gain of ≥Δ** — noise-aware 97.5% lower bound; refuses within noise. With **common-random-numbers pairing**, certifies the same gain from **~8× fewer measurements**. *(Δ valid ≥97.5%, false-cert ≤2.5%)* |
+| 📜 **Proof of Improvement** | switching from setting A to recipe B is a **proven gain of ≥Δ** — noise-aware 97.5% lower bound; refuses within noise. **Common-random-numbers pairing** certifies the same gain from **~8× fewer measurements**; **sequential early-stopping** (Bonferroni α-split) stops the moment the gain is certified — **~1.9× fewer on average** (41.9 vs 80). *(Δ valid ≥97.5%, false-cert ≤2.5%)* |
 | 🔐 **Pre-Registration** *(new)* | **commit** the objective, space, budget &amp; decision rule **before** running, then prove the result obeyed it — **no goalpost-moving, no cherry-picking**. *(6 deviation classes all rejected; the scientific-integrity layer)* |
 | ⬛ **Null Engine** | brave enough to say *"there's nothing to find"* on pure noise |
 | 👑 **Sovereign Verdict + ⏪ Replay** | Ed25519-signed, deterministic, re-derivable on any machine, forever |

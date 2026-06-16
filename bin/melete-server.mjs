@@ -262,9 +262,13 @@ const server = createServer(async (req, res) => {
         // common-random-numbers paired measurement — shared noise cancels in the difference
         const gpS = M.lcg(seed * 53 + 1), gpA = M.lcg(seed * 53 + 5), gpB = M.lcg(seed * 53 + 9);
         const cp = M.improvementCertificate({ pairedOracle: () => { const sh = gauss(gpS); return { a: 5.0 + shareSd * sh + residSd * gauss(gpA), b: 5.0 + gap + shareSd * sh + residSd * gauss(gpB) }; }, a: { sel: 0 }, b: { sel: 1 }, replicates: 8, seed });
+        // sequential early-stopping — measures in looks of 8 and STOPS the moment the gain is certified (Bonferroni α-split)
+        const gsA = M.lcg(seed * 61 + 3), gsB = M.lcg(seed * 61 + 9);
+        const cs = M.sequentialImprovementCertificate({ oracle: (e) => ((e.sel ?? 0) === 0 ? 5.0 + gauss(gsA) : 5.0 + gap + gauss(gsB)), a: { sel: 0 }, b: { sel: 1 }, looks: [8, 16, 24, 32, 40], alpha: 0.025, seed });
         return json(res, 200, {
           independent: { verdict: ci.verdict, measurements: ci.a.n + ci.b.n, certifiedGain: +ci.gainLowerBound.toFixed(2), verified: M.verifyImprovementCertificate(ci).ok },
           paired: { verdict: cp.verdict, measurements: cp.a.n + cp.b.n, certifiedGain: +cp.gainLowerBound.toFixed(2), verified: M.verifyImprovementCertificate(cp).ok },
+          sequential: { verdict: cs.verdict, measurements: cs.a.n + cs.b.n, stoppedAt: cs.sequential.stoppedAt, vsFixed: 80, certifiedGain: +cs.gainLowerBound.toFixed(2), verified: M.verifyImprovementCertificate(cs).ok },
         });
       } catch (e) { return json(res, 400, { error: "improvement failed: " + e.message.slice(0, 120) }); }
     }
