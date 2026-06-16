@@ -409,7 +409,7 @@ const server = createServer(async (req, res) => {
           let S = 0; for (let t = 1; t <= T; t++) { S += nobs[t - 1]; if (Math.abs(S / Math.sqrt(t)) > 1.96) { naiveFP++; break; } } }
         return json(res, 200, {
           horizon: T, alpha,
-          realGain: { verdict: c.verdict, stoppedAt: c.stoppedAt, eValueAtStop: +c.eValueAtStop.toFixed(1), threshold: c.threshold, verified: M.verifyAnytimeCertificate(c).ok },
+          realGain: { verdict: c.verdict, stoppedAt: c.stoppedAt, eValueAtStop: +c.eValueAtStop.toFixed(1), threshold: c.threshold, estimate: +c.estimate.toFixed(3), ciLower: +c.ciLower.toFixed(3), ciUpper: +c.ciUpper.toFixed(3), excludesZero: c.excludesZero, verified: M.verifyAnytimeCertificate(c).ok },
           nullContrast: { peeks: T, trials: K, anytimeFalsePositivePct: +(eFP / K * 100).toFixed(1), naivePeekFalsePositivePct: +(naiveFP / K * 100).toFixed(1) },
         });
       } catch (e) { return json(res, 400, { error: "anytime failed: " + e.message.slice(0, 120) }); }

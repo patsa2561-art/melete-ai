@@ -29,6 +29,13 @@ function canonical(o: unknown): string { if (o === null || typeof o !== "object"
 function eValueAt(S: number, t: number, s2: number, tau2: number): number {
   return Math.sqrt(s2 / (s2 + tau2 * t)) * Math.exp((tau2 * S * S) / (2 * s2 * (s2 + tau2 * t)));
 }
+// the time-uniform CONFIDENCE-SEQUENCE radius at step t: μ ∈ x̄_t ± r_t holds SIMULTANEOUSLY over all t with
+// prob ≥ 1−α (the dual of the e-process — the set of μ whose e-value has not yet crossed 1/α).
+function csRadius(t: number, s2: number, tau2: number, alpha: number, sigma: number): number {
+  if (t < 1) return Infinity;
+  const inside = (2 * s2 * (s2 + tau2 * t) / tau2) * Math.log(Math.sqrt(s2 + tau2 * t) / (alpha * sigma));
+  return Math.sqrt(Math.max(0, inside)) / t;
+}
 // scan the stream once: first crossing of the threshold 1/α + the running maximum
 function scan(obs: number[], s2: number, tau2: number, threshold: number): { stoppedAt: number; eAtStop: number; maxE: number } {
   let S = 0, stoppedAt = -1, eAtStop = 0, maxE = 0;
@@ -42,7 +49,7 @@ function scan(obs: number[], s2: number, tau2: number, threshold: number): { sto
 }
 
 export interface AnytimeCertificate {
-  standard: "melete-anytime-certificate/v1";
+  standard: "melete-anytime-certificate/v2";
   verdict: "ANYTIME-SIGNIFICANT" | "INCONCLUSIVE";
   n: number;                       // observations seen
   sigma: number;                   // known measurement sd of one observation
@@ -52,6 +59,11 @@ export interface AnytimeCertificate {
   stoppedAt: number;               // the first peek at which E_t ≥ 1/α (−1 if never within the stream)
   eValueAtStop: number;            // E at the stopping time (0 if inconclusive)
   maxEValue: number;               // the running max of the e-process
+  estimate: number;                // x̄ — the running mean of the stream (the point estimate of the gain)
+  ciLower: number;                 // time-uniform confidence sequence on the gain — valid at ALL times at once
+  ciUpper: number;
+  ciRadius: number;                // the current half-width (shrinks ~√(ln t / t))
+  excludesZero: boolean;           // does the confidence sequence exclude 0? (⟺ the e-process has crossed 1/α)
   observations: number[];          // the recorded stream (the evidence)
   payloadHash: string;
   signature: string;
@@ -67,11 +79,17 @@ export function anytimeCertificate(opts: { observations?: number[]; oracle?: (e:
     for (let i = 0; i < n; i++) { observations.push((opts.b ? opts.oracle(opts.b) : opts.oracle({})) - (opts.a ? opts.oracle(opts.a) : 0)); void r; }
   }
   observations = observations ?? [];
-  const s2 = sigma * sigma, threshold = 1 / alpha;
+  const s2 = sigma * sigma, threshold = 1 / alpha, n = observations.length;
   const { stoppedAt, eAtStop, maxE } = scan(observations, s2, tau2, threshold);
   const verdict: AnytimeCertificate["verdict"] = stoppedAt > 0 ? "ANYTIME-SIGNIFICANT" : "INCONCLUSIVE";
+  // the time-uniform confidence sequence on the gain, read at the latest observation
+  let S = 0; for (const x of observations) S += x;
+  const estimate = n > 0 ? S / n : 0;
+  const ciRadius = n > 0 ? csRadius(n, s2, tau2, alpha, sigma) : Infinity;
+  const ciLower = estimate - ciRadius, ciUpper = estimate + ciRadius;
+  const excludesZero = n > 0 && (ciLower > 0 || ciUpper < 0);
   const kp = opts.keys ?? generateKeyPairSync("ed25519");
-  const cert = { standard: "melete-anytime-certificate/v1" as const, verdict, n: observations.length, sigma, alpha, tau2, threshold, stoppedAt, eValueAtStop: eAtStop, maxEValue: maxE, observations };
+  const cert = { standard: "melete-anytime-certificate/v2" as const, verdict, n, sigma, alpha, tau2, threshold, stoppedAt, eValueAtStop: eAtStop, maxEValue: maxE, estimate, ciLower, ciUpper, ciRadius, excludesZero, observations };
   const payloadHash = createHash("sha256").update(canonical(cert)).digest("hex");
   const signature = edSign(null, Buffer.from(payloadHash), kp.privateKey).toString("base64");
   return { ...cert, payloadHash, signature, publicKeyPem: kp.publicKey.export({ type: "spki", format: "pem" }).toString(), algo: "ed25519+sha256" };
@@ -79,7 +97,7 @@ export function anytimeCertificate(opts: { observations?: number[]; oracle?: (e:
 
 export function verifyAnytimeCertificate(c: AnytimeCertificate): { ok: boolean; reason: string } {
   try {
-    if (c.standard !== "melete-anytime-certificate/v1") return { ok: false, reason: "unknown standard" };
+    if (c.standard !== "melete-anytime-certificate/v2") return { ok: false, reason: "unknown standard" };
     if (c.observations.length !== c.n) return { ok: false, reason: "observation count does not match n" };
     if (Math.abs(c.threshold - 1 / c.alpha) > 1e-9) return { ok: false, reason: "threshold ≠ 1/α" };
     const s2 = c.sigma * c.sigma;
@@ -90,7 +108,12 @@ export function verifyAnytimeCertificate(c: AnytimeCertificate): { ok: boolean; 
     if (verdict !== c.verdict) return { ok: false, reason: "verdict inconsistent with the recomputed e-process" };
     if (Math.abs(eAtStop - c.eValueAtStop) > 1e-6 || Math.abs(maxE - c.maxEValue) > 1e-6) return { ok: false, reason: "recomputed e-values differ from the certificate" };
     if (c.verdict === "ANYTIME-SIGNIFICANT" && !(eAtStop >= c.threshold)) return { ok: false, reason: "claimed significant but the e-value never reached 1/α — bogus" };
-    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, n: c.n, sigma: c.sigma, alpha: c.alpha, tau2: c.tau2, threshold: c.threshold, stoppedAt: c.stoppedAt, eValueAtStop: c.eValueAtStop, maxEValue: c.maxEValue, observations: c.observations })).digest("hex");
+    // re-derive the time-uniform confidence sequence — a forged (too narrow) interval is caught here
+    let S = 0; for (const x of c.observations) S += x;
+    const est = c.n > 0 ? S / c.n : 0; const rad = c.n > 0 ? csRadius(c.n, s2, c.tau2, c.alpha, c.sigma) : Infinity;
+    if (Math.abs(est - c.estimate) > 1e-6 || Math.abs(rad - c.ciRadius) > 1e-6 || Math.abs((est - rad) - c.ciLower) > 1e-6 || Math.abs((est + rad) - c.ciUpper) > 1e-6) return { ok: false, reason: "recomputed confidence sequence differs — interval understated (tampered)" };
+    if (c.excludesZero !== (c.n > 0 && (c.ciLower > 0 || c.ciUpper < 0))) return { ok: false, reason: "excludesZero flag inconsistent with the interval" };
+    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, n: c.n, sigma: c.sigma, alpha: c.alpha, tau2: c.tau2, threshold: c.threshold, stoppedAt: c.stoppedAt, eValueAtStop: c.eValueAtStop, maxEValue: c.maxEValue, estimate: c.estimate, ciLower: c.ciLower, ciUpper: c.ciUpper, ciRadius: c.ciRadius, excludesZero: c.excludesZero, observations: c.observations })).digest("hex");
     if (payloadHash !== c.payloadHash) return { ok: false, reason: "payload hash mismatch — an observation was altered" };
     const pub = createPublicKey(c.publicKeyPem);
     if (!edVerify(null, Buffer.from(c.payloadHash), pub, Buffer.from(c.signature, "base64"))) return { ok: false, reason: "bad signature" };
@@ -151,6 +174,32 @@ export function anytimeGauntlet(): { score: 0 | 100; checks: Array<{ name: strin
   const deterministic = d1.payloadHash === d2.payloadHash && verifyAnytimeCertificate(d1).ok;
   let total = true; try { anytimeCertificate({ observations: [] }); anytimeCertificate({ observations: [NaN, 1, 2] }); anytimeCertificate({ oracle: () => NaN, n: 5, seed: 1 }); } catch { total = false; }
 
+  // R22 IMPROVE — the CONFIDENCE SEQUENCE: a running interval valid SIMULTANEOUSLY over all t (the dual of the
+  // e-process). Time-uniform coverage ≥ 1−α; a naive per-peek CI is pierced far more often under monitoring.
+  let csUniform = 0, naiveCiUniform = 0, csN = 0, consistOk = 0, consistN = 0;
+  for (let s = 1; s <= 3000; s++) {
+    const mu = s % 2 ? 0.0 : 0.25; const g = lcg(s * 19 + 1);
+    let S = 0, csCover = true, naiveCover = true;
+    for (let t = 1; t <= T; t++) { S += mu + gz(g); const xbar = S / t; const r = csRadius(t, s2, tau2, alpha, sigma); if (Math.abs(xbar - mu) >= r) csCover = false; if (Math.abs(xbar - mu) >= 1.96 * sigma / Math.sqrt(t)) naiveCover = false; }
+    csN++; if (csCover) csUniform++; if (naiveCover) naiveCiUniform++;
+  }
+  const csCovRate = csUniform / csN, naiveCiRate = naiveCiUniform / csN;
+  // CS-CONSISTENT-WITH-E-VALUE: at the stop time, the confidence sequence excludes 0 (the e-process crossing ⟺ 0 ∉ CS)
+  for (let s = 1; s <= 400; s++) {
+    const g = lcg(s * 71 + 3); const obs: number[] = []; for (let t = 0; t < T; t++) obs.push(0.5 + gz(g));
+    const c = anytimeCertificate({ observations: obs, sigma, alpha, tau2 });
+    if (c.verdict !== "ANYTIME-SIGNIFICANT") continue; consistN++;
+    let S = 0; for (let t = 1; t <= c.stoppedAt; t++) S += obs[t - 1];
+    const est = S / c.stoppedAt, r = csRadius(c.stoppedAt, s2, tau2, alpha, sigma);
+    if (est - r > 0 || est + r < 0) consistOk++;   // CS excludes 0 at the stop
+  }
+  const consistRate = consistN ? consistOk / consistN : 0;
+  // CS-SHRINKS: the interval tightens as evidence accrues (radius decreasing over time)
+  const csShrinks = csRadius(200, s2, tau2, alpha, sigma) < csRadius(50, s2, tau2, alpha, sigma) && csRadius(50, s2, tau2, alpha, sigma) < csRadius(15, s2, tau2, alpha, sigma) && Number.isFinite(csRadius(5, s2, tau2, alpha, sigma));
+  // CS-FORGERY: claiming a narrower interval than the data supports is caught
+  const csForged = { ...cc, ciRadius: cc.ciRadius / 2, ciLower: cc.estimate - cc.ciRadius / 2, ciUpper: cc.estimate + cc.ciRadius / 2 };
+  const csForgeryCaught = !verifyAnytimeCertificate(csForged).ok;
+
   const exactRate = exactN ? exactOk / exactN : 0;
   const checks = [
     { name: "ANYTIME-VALID ≤ α (optional stopping)", pass: eFpRate <= alpha && N >= 1000, detail: `under the null with continuous monitoring + optional stopping, the e-process falsely fired in ${eFP}/${N} = ${(eFpRate * 100).toFixed(1)}% ≤ α=${(alpha * 100).toFixed(0)}% (Ville's inequality)` },
@@ -159,6 +208,11 @@ export function anytimeGauntlet(): { score: 0 | 100; checks: Array<{ name: strin
     { name: "EXACT-STOP (first crossing)", pass: exactRate >= 0.999 && exactN >= 100, detail: `the stopping time is exactly the FIRST peek the e-process crosses 1/α (E<thr before, ≥thr at stop), re-verified in ${exactOk}/${exactN}` },
     { name: "SIGNED-VERIFIES", pass: verifyOk, detail: "the e-process + stopping time + verdict re-derive from the recorded stream" },
     { name: "FORGERY-CAUGHT (earlier stop / fake significant)", pass: forgeryCaught && fakeSig, detail: "claiming an earlier stop, or upgrading an inconclusive run to significant, is rejected on re-derivation" },
+    { name: "CS-TIME-UNIFORM-COVERAGE ≥ 1−α", pass: csCovRate >= 1 - alpha && csN >= 1000, detail: `the confidence sequence covered the true gain at EVERY t simultaneously in ${(csCovRate * 100).toFixed(1)}% ≥ ${((1 - alpha) * 100).toFixed(0)}% of streams` },
+    { name: "NAIVE-CI-PIERCED (per-peek)", pass: naiveCiRate < 0.75 && csCovRate - naiveCiRate >= 0.1, detail: `a naive per-peek 95% CI held uniformly in only ${(naiveCiRate * 100).toFixed(0)}% — pierced under continuous monitoring, where the CS holds ${(csCovRate * 100).toFixed(0)}%` },
+    { name: "CS-CONSISTENT-WITH-E-VALUE", pass: consistRate >= 0.999 && consistN >= 100, detail: `at the stopping time the confidence sequence excludes 0 in ${consistOk}/${consistN} — the interval and the decision agree exactly` },
+    { name: "CS-SHRINKS (tightens with evidence)", pass: csShrinks, detail: `the interval half-width decreases as evidence accrues: r₁₅=${csRadius(15, s2, tau2, alpha, sigma).toFixed(2)} > r₅₀=${csRadius(50, s2, tau2, alpha, sigma).toFixed(2)} > r₂₀₀=${csRadius(200, s2, tau2, alpha, sigma).toFixed(2)}` },
+    { name: "CS-FORGERY-CAUGHT (too-narrow interval)", pass: csForgeryCaught, detail: "halving the confidence-sequence width (overstating precision) is rejected on re-derivation" },
     { name: "SIGNED-TAMPER", pass: tamper, detail: "altering a recorded observation breaks the payload hash" },
     { name: "DETERMINISTIC", pass: deterministic, detail: "same stream → byte-identical certificate" },
     { name: "TOTAL", pass: total, detail: "empty / NaN / garbage streams never throw" },
