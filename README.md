@@ -50,7 +50,7 @@ POST /replay/verify    { …token }                           → re-derive the 
 …or skip HTTP entirely and call the library in-process: `import { sovereignAnalyze, aegisDiscover, proposeNext } from "melete-ai"`.
 
 ## ✦ What's inside — by category
-> **61 independently-verified modules.** Every claim below is a check you can re-run: `npx melete-ai gauntlet`.
+> **62 independently-verified modules.** Every claim below is a check you can re-run: `npx melete-ai gauntlet`.
 
 ### 🔍 Optimize — the best setting in the fewest experiments
 | capability | what it does |
@@ -81,6 +81,7 @@ Hosted, no install: `POST https://melete.mneme-ai.space/next`
 | 🪨 **Decision-Breakdown** | how many measurements would an adversary (fraud, a glitchy sensor) have to **corrupt to flip** your "B beats A" verdict? The **exact tamper-distance** — a strong clean call survives many corruptions, a marginal one flips on one. The cert **ships the explicit minimal attack** (a witness you re-apply), takes an **arbitrary adversary range** (real sensor/physical bounds), and a stronger adversary provably never raises the count. *(witness truly flips 100%; monotone 100%; an inflated claim caught 100%)* |
 | 📉 **Winner's Curse** | you searched N settings and reported the best — but that number is **inflated** (it's the max of N noisy trials, partly luck). The signed **selection correction**: the winner's TRUE value is **≥ this de-biased lower bound**, the discount **grows with N**, and it works with **σ unknown** (estimated from replicates, *studentized*). *(valid bound ≥97.5%, measured 99.5%; with σ estimated a plain plug-in breaks at 94.9% — studentized holds 99.3%; naive overstates 90%)* |
 | 🧭 **Extrapolation-Guard** | is the recommended setting **inside the data you measured**, or a blind **extrapolation**? It's flagged with an **exact separating-hyperplane witness** — proof it's outside the **convex hull** of your evidence, in *any* direction (not just out-of-box; it catches an in-box point that's off a correlated-knob manifold, which an axis test misses) — plus a density signal for interior voids. *(out-of-box & in-box-off-hull → flagged 100% with a valid, re-verifiable witness; never false-flags an in-data point; a fake "supported" is caught)* |
+| 📊 **False-Discovery Control** *(new)* | report *K* findings at once and some are pure luck. **Benjamini-Hochberg** controls the **fraction of your reported discoveries that are false** at a target *q*, and drops the naive "findings" that don't survive — the multiple-testing layer for sensitivity sweeps & multi-metric reports. *(realized false-discovery proportion ≤ q, measured 7.6% ≤ 10%; naive inflates to 13%; still recovers 89% of real effects; a forged discovery is caught)* |
 | ⬛ **Null Engine** | brave enough to say *"there's nothing to find"* on pure noise |
 | 👑 **Sovereign Verdict + ⏪ Replay** | Ed25519-signed, deterministic, re-derivable on any machine, forever |
 
@@ -104,7 +105,7 @@ npx melete-ai poopt proof-of-optimization.json   # verify any signed certificate
 | **Ceiling · drift** | the achievable best, and whether results drift over time |
 
 ### 🔌 Integrate
-`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/improvement` `/prereg` `/breakdown` `/selection` `/support` `/verify`
+`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/improvement` `/prereg` `/breakdown` `/selection` `/support` `/fdr` `/verify`
 
 ## The moat
 - 🔒 **Sovereign** — runs air-gapped, on your machine; data never touches a cloud.

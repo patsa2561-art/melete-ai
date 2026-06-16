@@ -362,6 +362,28 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "support failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 📊 FALSE-DISCOVERY — report K findings at once; BH controls the fraction that are false. Naive p<α inflates it.
+    if (req.method === "POST" && path === "/fdr") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      const seed = (body.seed | 0) || 4; const m = 40, m1 = 10, delta = 3.5, q = 0.1, alpha = 0.05;
+      try {
+        const gz = (g) => { const u1 = Math.max(1e-9, g()), u2 = g(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+        const g = M.lcg(seed * 17 + 1); const isReal = [], z = [];
+        for (let i = 0; i < m; i++) { const real = i < m1; isReal.push(real); z.push((real ? delta : 0) + gz(g)); }
+        const p = z.map(M.pValueFromZ);
+        const c = M.falseDiscoveryCertificate({ pValues: p, q, alpha });
+        const falseInBH = c.discoveries.filter((i) => !isReal[i]).length;
+        const naiveIdx = p.map((v, i) => i).filter((i) => p[i] < alpha);
+        const falseInNaive = naiveIdx.filter((i) => !isReal[i]).length;
+        return json(res, 200, {
+          tested: m, realEffects: m1, targetFDR: q, naiveAlpha: alpha,
+          naive: { findings: naiveIdx.length, falseOnes: falseInNaive },                 // no multiplicity control
+          bh: { discoveries: c.discoveryCount, falseOnes: falseInBH, threshold: +c.bhThreshold.toExponential(2) },
+          droppedAsLikelyFalse: c.droppedAsLikelyFalse, verified: M.verifyFalseDiscoveryCertificate(c).ok,
+        });
+      } catch (e) { return json(res, 400, { error: "fdr failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/discover") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       // VERTICAL live-demo: load the domain-shaped (simulated) objective + space + goal from the gallery
