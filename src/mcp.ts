@@ -30,6 +30,7 @@ import { calibrationCertificate, verifyCalibrationCertificate } from "./calibrat
 import { privacyCertificate, verifyPrivacyCertificate } from "./privacy.js";
 import { unlearningCertificate, verifyUnlearningCertificate, ridgeSufficientStats } from "./unlearning.js";
 import { droCertificate, verifyDroCertificate } from "./dro.js";
+import { fairnessCertificate, verifyFairnessCertificate } from "./fairness.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -176,10 +177,16 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     run: (a) => { const c = droCertificate({ values: a.values ?? [], rho: a.rho, confidence: a.confidence, threshold: a.threshold }); return { certificate: c, verified: verifyDroCertificate(c).ok }; },
   },
   {
+    name: "melete.fairness",
+    description: "Is an automated decision fair across a protected group, with statistical confidence (EU AI Act / fair-lending grade)? Pass the binary decisions, the protected group of each, and optionally the true outcomes. Returns a signed certificate: the demographic-parity gap (and, with outcomes, equalized-odds TPR/FPR gaps) each with simultaneous Bonferroni-corrected Wilson confidence intervals, and a verdict — FAIR (every gap's upper CI ≤ τ), UNFAIR (a gap's lower CI > τ, names the metric + groups), or INCONCLUSIVE. Guards against both hidden bias and false accusation.",
+    inputSchema: { type: "object", properties: { predictions: { type: "array", description: "binary decisions 0/1" }, groupOf: { type: "array", description: "protected group label per decision" }, outcomes: { type: "array", description: "true outcomes 0/1 (optional, enables equalized odds)" }, tolerance: { type: "number", description: "fairness tolerance τ (default 0.1)" }, alpha: { type: "number", description: "significance level (default 0.05)" } }, required: ["predictions", "groupOf"] },
+    run: (a) => { const c = fairnessCertificate({ predictions: a.predictions ?? [], groupOf: a.groupOf ?? [], outcomes: a.outcomes ?? null, tolerance: a.tolerance, alpha: a.alpha }); return { certificate: c, verified: verifyFairnessCertificate(c).ok }; },
+  },
+  {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
-    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); if (a.kind === "unlearning") return verifyUnlearningCertificate(c); if (a.kind === "dro") return verifyDroCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); if (a.kind === "unlearning") return verifyUnlearningCertificate(c); if (a.kind === "dro") return verifyDroCertificate(c); if (a.kind === "fairness") return verifyFairnessCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
   },
   {
     name: "melete.gauntlet",

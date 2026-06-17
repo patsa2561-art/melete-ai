@@ -597,6 +597,21 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "dro failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/fairness") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        const tol = Number.isFinite(+body.tolerance) ? +body.tolerance : 0.1, alpha = Number.isFinite(+body.alpha) ? +body.alpha : 0.05;
+        const g = M.lcg((body.seed | 0) || 7); const nPer = Math.max(50, (body.n | 0) || 400);
+        const build = (rA, rB, m) => { const pred = [], grp = [], out = []; for (const [gn, r] of [["A", rA], ["B", rB]]) for (let i = 0; i < m; i++) { grp.push(gn); out.push(g() < 0.5 ? 1 : 0); pred.push(g() < r ? 1 : 0); } return { pred, grp, out }; };
+        // a biased loan model (group A approved 70%, group B 30%) vs a fair one (both 50%, audited at scale so parity is confirmable)
+        const biased = build(0.7, 0.3, nPer), fair = build(0.5, 0.5, Math.max(nPer, 3000));
+        const cBias = M.fairnessCertificate({ predictions: biased.pred, groupOf: biased.grp, tolerance: tol, alpha });
+        const cFair = M.fairnessCertificate({ predictions: fair.pred, groupOf: fair.grp, tolerance: tol, alpha });
+        const pack = (c) => { const dp = c.metrics.find((m) => m.metric === "demographic-parity"); return { verdict: c.verdict, worstMetric: c.worstMetric, dpGap: dp ? +dp.gap.toFixed(3) : null, dpGapCI: dp ? [+dp.gapLo.toFixed(3), +dp.gapHi.toFixed(3)] : null, highGroup: dp ? dp.highGroup : null, lowGroup: dp ? dp.lowGroup : null, verified: M.verifyFairnessCertificate(c).ok }; };
+        return json(res, 200, { tolerance: tol, alpha, n: nPer * 2, biasedModel: pack(cBias), fairModel: pack(cFair) });
+      } catch (e) { return json(res, 400, { error: "fairness failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🔌 MCP over HTTP — the same agent-callable trust middleware via a JSON-RPC body (any-transport).
     // Every tools/call is metered + audited into the signed trust ledger (the toll-booth).
     if (req.method === "POST" && path === "/mcp") {
