@@ -528,16 +528,20 @@ const server = createServer(async (req, res) => {
         const sn = () => { let u = 0, v = 0; while (u < 1e-12) u = gN(); while (v < 1e-12) v = gN(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
         const region = (sigma) => { const od = [], op = []; for (let i = 0; i < T; i++) { od.push(sigma * sn()); op.push(sens + sigma * sn()); } od.sort((a, b) => a - b); op.sort((a, b) => a - b); const frac = (a, x) => { let lo = 0, hi = a.length; while (lo < hi) { const m = (lo + hi) >> 1; if (a[m] < x) lo = m + 1; else hi = m; } return lo / a.length; }; let w = 0; for (let q = 0; q <= 200; q++) { const t = -0.6 + (sens + 1.2) * (q / 200); const fpr = 1 - frac(od, t), tpr = 1 - frac(op, t); w = Math.max(w, tpr - Math.exp(eps) * fpr, fpr - Math.exp(eps) * tpr); } return w; };
         const privViol = region(cert.sigma), underViol = region(cert.sigma * 0.2);
-        // ledger: cumulative budget across k releases of this ε
-        const k = Math.max(1, (body.releases | 0) || 5); const led = M.createPrivacyLedger(1.0, Math.max(0.05, del * k)); let accepted = 0;
-        for (let i = 0; i < k; i++) { const c2 = M.privacyCertificate({ statistic: [trueMean], sensitivity: sens, epsilon: eps, delta: del }); if (M.ledgerRecord(led, c2).accepted) accepted++; }
+        // v2 zCDP ACCOUNTANT: under ONE fixed (ε,δ) budget, how many releases fit vs basic Σε?
+        // composition accounting uses a realistic tiny δ (where zCDP's √k advantage is dramatic); the attack panel
+        // above uses the request δ for an estimable empirical demonstration.
+        const budgetEps = Math.max(eps * 2, +body.budgetEpsilon || 3.0), budgetDelta = 1e-5;
+        const led = M.createPrivacyLedger(budgetEps, budgetDelta); let zcdpAccepted = 0;
+        for (let i = 0; i < 200; i++) { const c2 = M.privacyCertificate({ statistic: [trueMean], sensitivity: sens, epsilon: eps, delta: budgetDelta }); if (M.ledgerRecord(led, c2).accepted) zcdpAccepted++; else break; }
+        const basicAdmits = Math.floor(budgetEps / eps);
         return json(res, 200, {
           epsilon: eps, delta: del, sensitivity: +sens.toFixed(6),
-          sigma: +cert.sigma.toExponential(3), sigmaRequired: +cert.sigmaRequired.toExponential(3),
+          sigma: +cert.sigma.toExponential(3), sigmaRequired: +cert.sigmaRequired.toExponential(3), rho: +cert.rho.toExponential(3),
           verdict: cert.verdict, release: +cert.release[0].toFixed(4), trueMean,
           achievedDelta: +cert.achievedDelta.toExponential(2), verified: M.verifyPrivacyCertificate(cert).ok,
           attack: { privateViolation: +privViol.toFixed(4), underNoisedViolation: +underViol.toFixed(3), regionBound: del },
-          ledger: { budgetEpsilon: 1.0, perReleaseEpsilon: eps, requested: k, accepted, spentEpsilon: +led.spentEpsilon.toFixed(3) },
+          ledger: { budgetEpsilon: budgetEps, budgetDelta, perReleaseEpsilon: eps, zcdpAdmits: zcdpAccepted, basicAdmits, spentEpsilon: +led.spentEpsilon.toFixed(3), spentRho: +led.spentRho.toExponential(3) },
         });
       } catch (e) { return json(res, 400, { error: "privacy failed: " + e.message.slice(0, 120) }); }
     }
