@@ -550,22 +550,23 @@ const server = createServer(async (req, res) => {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       try {
         const d = 5, n = Math.max(10, (body.n | 0) || 80), lambda = +body.lambda || 1.0;
+        const k = Math.max(1, Math.min(20, (body.batch | 0) || 5));
         const g = M.lcg((body.seed | 0) || 7);
         const X = Array.from({ length: n }, () => Array.from({ length: d }, () => g() * 2 - 1));
         const wt = Array.from({ length: d }, () => g() * 2 - 1);
         const y = X.map((r) => r.reduce((s, a, i) => s + a * wt[i], 0) + (g() * 2 - 1) * 0.3);
-        // a high-leverage record the user asks to forget
-        const xj = Array.from({ length: d }, () => 4 + g()), yj = 6 + g();
-        const Xa = [...X, xj], ya = [...y, yj]; const fit = M.ridgeSufficientStats(Xa, ya, lambda);
-        // full retrain WITHOUT the record (ground truth)
+        // a BATCH of k high-leverage users who all invoke "right to be forgotten" at once
+        const extra = Array.from({ length: k }, () => ({ x: Array.from({ length: d }, () => 4 + g()), y: 6 + g() }));
+        const Xa = [...X, ...extra.map((e) => e.x)], ya = [...y, ...extra.map((e) => e.y)]; const fit = M.ridgeSufficientStats(Xa, ya, lambda);
+        // full retrain WITHOUT the whole batch (ground truth)
         const retrain = M.ridgeSufficientStats(X, y, lambda).weights;
-        const genuine = M.unlearningCertificate({ gram: fit.gram, bVector: fit.bVector, deletedX: xj, deletedY: yj, lambda });
-        const fake = M.unlearningCertificate({ gram: fit.gram, bVector: fit.bVector, deletedX: xj, deletedY: yj, servedWeights: fit.weights, lambda });
+        const genuine = M.unlearningCertificate({ gram: fit.gram, bVector: fit.bVector, deletedRows: extra, lambda });
+        const fake = M.unlearningCertificate({ gram: fit.gram, bVector: fit.bVector, deletedRows: extra, servedWeights: fit.weights, lambda });
         const matchRetrain = Math.sqrt(genuine.servedWeights.reduce((s, v, i) => s + (v - retrain[i]) ** 2, 0));
         return json(res, 200, {
-          n: n + 1, dimension: d, lambda,
-          recordInfluence: +genuine.influenceNorm.toExponential(3),
-          genuine: { verdict: genuine.verdict, residualInfluence: +genuine.residualInfluence.toExponential(3), matchesRetrain: +matchRetrain.toExponential(3), verified: M.verifyUnlearningCertificate(genuine).ok },
+          n: n + k, dimension: d, lambda, batchSize: k,
+          batchInfluence: +genuine.influenceNorm.toExponential(3),
+          genuine: { verdict: genuine.verdict, residualInfluence: +genuine.residualInfluence.toExponential(3), matchesRetrain: +matchRetrain.toExponential(3), sequentialMatchesBatch: genuine.sequentialMatchesBatch, verified: M.verifyUnlearningCertificate(genuine).ok },
           fakeKeptRecord: { verdict: fake.verdict, residualInfluence: +fake.residualInfluence.toExponential(3), verified: M.verifyUnlearningCertificate(fake).ok },
         });
       } catch (e) { return json(res, 400, { error: "unlearning failed: " + e.message.slice(0, 120) }); }

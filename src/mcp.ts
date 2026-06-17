@@ -158,12 +158,13 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
   },
   {
     name: "melete.unlearning",
-    description: "Prove a record was actually DELETED from a ridge model (right to be forgotten) — not just hidden. Pass the training data X (rows) + y + λ, and the index of the record to forget. Returns a signed certificate that deletes the record EXACTLY via a Sherman-Morrison rank-1 downdate (O(d²), no retraining), proves it equals retraining from scratch, reports the record's influence + the residual influence left in the served model (must be ~0), and is offline-auditable from the Gram matrix alone. A fake/partial deletion is caught as RESIDUAL-INFLUENCE.",
-    inputSchema: { type: "object", properties: { X: { type: "array", description: "training rows (array of equal-length number arrays)" }, y: { type: "array", description: "targets" }, lambda: { type: "number", description: "ridge regularization λ (default 1)" }, deleteIndex: { type: "number", description: "row index to forget" } }, required: ["X", "y", "deleteIndex"] },
+    description: "Prove records were actually DELETED from a ridge model (right to be forgotten) — not just hidden. Pass the training data X (rows) + y + λ, and the index OR indices of the records to forget. Returns a signed certificate that deletes them EXACTLY via a Woodbury block rank-k downdate (O(k³+kd²), no retraining), proves it equals retraining from scratch AND equals one-by-one sequential deletion, reports the batch's influence + the residual influence left in the served model (must be ~0), and is offline-auditable from the Gram matrix alone. A fake/partial deletion is caught as RESIDUAL-INFLUENCE.",
+    inputSchema: { type: "object", properties: { X: { type: "array", description: "training rows (array of equal-length number arrays)" }, y: { type: "array", description: "targets" }, lambda: { type: "number", description: "ridge regularization λ (default 1)" }, deleteIndex: { type: "number", description: "single row index to forget" }, deleteIndices: { type: "array", description: "batch of row indices to forget" } }, required: ["X", "y"] },
     run: (a) => {
-      const X = a.X ?? [], y = a.y ?? [], lambda = Number.isFinite(a.lambda) ? a.lambda : 1, j = a.deleteIndex | 0;
+      const X = a.X ?? [], y = a.y ?? [], lambda = Number.isFinite(a.lambda) ? a.lambda : 1;
+      const idx: number[] = Array.isArray(a.deleteIndices) && a.deleteIndices.length ? a.deleteIndices.map((v: number) => v | 0) : [a.deleteIndex | 0];
       const ss = ridgeSufficientStats(X, y, lambda);
-      const c = unlearningCertificate({ gram: ss.gram, bVector: ss.bVector, deletedX: X[j] ?? [], deletedY: y[j] ?? 0, lambda });
+      const c = unlearningCertificate({ gram: ss.gram, bVector: ss.bVector, deletedRows: idx.map((j) => ({ x: X[j] ?? [], y: y[j] ?? 0 })), lambda });
       return { certificate: c, verified: verifyUnlearningCertificate(c).ok };
     },
   },
