@@ -572,6 +572,27 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "unlearning failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/dro") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        const rho = Number.isFinite(+body.rho) ? +body.rho : 0.3, nn = Math.max(10, (body.n | 0) || 60);
+        const g = M.lcg((body.seed | 0) || 7);
+        // two settings with the SAME nominal mean: A fragile (high variance), B robust (low variance)
+        const A = Array.from({ length: nn }, () => 6 + 6 * (g() * 2 - 1));
+        const B = Array.from({ length: nn }, () => 6 + 0.6 * (g() * 2 - 1));
+        const cA = M.droCertificate({ values: A, rho }), cB = M.droCertificate({ values: B, rho });
+        // an actual adversarial shift within the ball, applied to each
+        const adv = (L) => { const m = L.reduce((a, b) => a + b, 0) / L.length; const c = L.map((v) => v - m); const cn = Math.sqrt(c.reduce((a, b) => a + b * b, 0)); const rmax = Math.sqrt(rho / L.length); const q = L.map((_, i) => 1 / L.length - (rmax / cn) * c[i]); return q.reduce((a, qi, i) => a + qi * L[i], 0); };
+        const pack = (c) => ({ nominalMean: +c.mean.toFixed(3), worstCase: +c.worstCase.toFixed(3), variancePenalty: +c.variancePenalty.toFixed(3), verified: M.verifyDroCertificate(c).ok });
+        return json(res, 200, {
+          rho, n: nn,
+          fragile: { ...pack(cA), underActualShift: +adv(A).toFixed(3) },
+          robust: { ...pack(cB), underActualShift: +adv(B).toFixed(3) },
+          droPrefersRobust: cB.worstCase > cA.worstCase,
+        });
+      } catch (e) { return json(res, 400, { error: "dro failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🔌 MCP over HTTP — the same agent-callable trust middleware via a JSON-RPC body (any-transport).
     // Every tools/call is metered + audited into the signed trust ledger (the toll-booth).
     if (req.method === "POST" && path === "/mcp") {

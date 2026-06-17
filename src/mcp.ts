@@ -29,6 +29,7 @@ import { subgroupCertificate, verifySubgroupCertificate } from "./subgroup.js";
 import { calibrationCertificate, verifyCalibrationCertificate } from "./calibration.js";
 import { privacyCertificate, verifyPrivacyCertificate } from "./privacy.js";
 import { unlearningCertificate, verifyUnlearningCertificate, ridgeSufficientStats } from "./unlearning.js";
+import { droCertificate, verifyDroCertificate } from "./dro.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -169,10 +170,16 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     },
   },
   {
+    name: "melete.dro",
+    description: "Will a setting still hold when the deployment data distribution drifts? Pass per-unit value samples (per-customer profit, per-query score…) and an ambiguity radius ρ (χ²-divergence). Returns a signed distributionally-robust certificate: the worst-case mean over EVERY distribution within χ² ≤ ρ of the empirical one — V = mean − √(ρ·Var) — guaranteeing the expected value is ≥ V under any such shift. A fragile high-variance setting is correctly out-ranked by a robust one. Optionally pass a threshold for a ROBUST/FRAGILE verdict.",
+    inputSchema: { type: "object", properties: { values: { type: "array", description: "per-unit value samples" }, rho: { type: "number", description: "χ² ambiguity radius ≥ 0 (e.g. 0.1)" }, threshold: { type: "number", description: "value to keep under shift for a ROBUST verdict (optional)" } }, required: ["values", "rho"] },
+    run: (a) => { const c = droCertificate({ values: a.values ?? [], rho: a.rho, threshold: a.threshold }); return { certificate: c, verified: verifyDroCertificate(c).ok }; },
+  },
+  {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
-    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); if (a.kind === "unlearning") return verifyUnlearningCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); if (a.kind === "unlearning") return verifyUnlearningCertificate(c); if (a.kind === "dro") return verifyDroCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
   },
   {
     name: "melete.gauntlet",

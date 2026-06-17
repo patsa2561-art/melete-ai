@@ -69,6 +69,7 @@ export * from "./subgroup.js";
 export * from "./calibration.js";
 export * from "./privacy.js";
 export * from "./unlearning.js";
+export * from "./dro.js";
 export * from "./mcp.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
@@ -168,6 +169,7 @@ import { subgroupGauntlet } from "./subgroup.js";
 import { calibrationGauntlet } from "./calibration.js";
 import { privacyGauntlet } from "./privacy.js";
 import { unlearningGauntlet } from "./unlearning.js";
+import { droGauntlet } from "./dro.js";
 import { mcpGauntlet } from "./mcp.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
@@ -240,6 +242,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "calibration", g: calibrationGauntlet() },
     { name: "privacy", g: privacyGauntlet() },
     { name: "unlearning", g: unlearningGauntlet() },
+    { name: "dro", g: droGauntlet() },
     { name: "mcp", g: mcpGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },
