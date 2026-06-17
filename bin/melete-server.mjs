@@ -584,11 +584,15 @@ const server = createServer(async (req, res) => {
         // an actual adversarial shift within the ball, applied to each
         const adv = (L) => { const m = L.reduce((a, b) => a + b, 0) / L.length; const c = L.map((v) => v - m); const cn = Math.sqrt(c.reduce((a, b) => a + b * b, 0)); const rmax = Math.sqrt(rho / L.length); const q = L.map((_, i) => 1 / L.length - (rmax / cn) * c[i]); return q.reduce((a, qi, i) => a + qi * L[i], 0); };
         const pack = (c) => ({ nominalMean: +c.mean.toFixed(3), worstCase: +c.worstCase.toFixed(3), variancePenalty: +c.variancePenalty.toFixed(3), verified: M.verifyDroCertificate(c).ok });
+        // v2 confidence mode: same fragile data, but ρ=z²/n ⇒ a calibrated (conf) lower bound on the TRUE mean
+        const conf = Number.isFinite(+body.confidence) ? +body.confidence : 0.95;
+        const cConf = M.droCertificate({ values: A, confidence: conf });
         return json(res, 200, {
           rho, n: nn,
           fragile: { ...pack(cA), underActualShift: +adv(A).toFixed(3) },
           robust: { ...pack(cB), underActualShift: +adv(B).toFixed(3) },
           droPrefersRobust: cB.worstCase > cA.worstCase,
+          confidenceMode: { confidence: conf, rho: +cConf.rho.toFixed(4), lowerBoundOnTrueMean: +cConf.worstCase.toFixed(3), nominalMean: +cConf.mean.toFixed(3), verified: M.verifyDroCertificate(cConf).ok },
         });
       } catch (e) { return json(res, 400, { error: "dro failed: " + e.message.slice(0, 120) }); }
     }

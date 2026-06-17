@@ -28,6 +28,19 @@ import { createHash, generateKeyPairSync, createPublicKey, sign as edSign, verif
 
 function canonical(o: unknown): string { if (o === null || typeof o !== "object") return JSON.stringify(o); if (Array.isArray(o)) return "[" + o.map(canonical).join(",") + "]"; const k = Object.keys(o as Record<string, unknown>).sort(); return "{" + k.map((x) => JSON.stringify(x) + ":" + canonical((o as Record<string, unknown>)[x])).join(",") + "}"; }
 
+// inverse standard-normal CDF (Acklam) — for the v2 confidence mode that maps a confidence level to the radius ρ
+function normInv(p: number): number {
+  if (p <= 0) return -Infinity; if (p >= 1) return Infinity;
+  const a = [-3.969683028665376e+01, 2.209460984245205e+02, -2.759285104469687e+02, 1.383577518672690e+02, -3.066479806614716e+01, 2.506628277459239e+00];
+  const b = [-5.447609879822406e+01, 1.615858368580409e+02, -1.556989798598866e+02, 6.680131188771972e+01, -1.328068155288572e+01];
+  const c = [-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00, -2.549732539343734e+00, 4.374664141464968e+00, 2.938163982698783e+00];
+  const d = [7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e+00, 3.754408661907416e+00];
+  const pl = 0.02425; let q: number, r: number;
+  if (p < pl) { q = Math.sqrt(-2 * Math.log(p)); return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+  if (p <= 1 - pl) { q = p - 0.5; r = q * q; return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1); }
+  q = Math.sqrt(-2 * Math.log(1 - p)); return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+}
+
 // χ²-ball DRO worst-case mean: inf over { Q : χ²(Q‖P) ≤ ρ } of E_Q[L], P = empirical uniform on the samples.
 // With χ²(Q‖P) = Σ(q_i−1/n)²/(1/n) = n·Σ(q_i−1/n)², the worst case over the L2 ball is, by Cauchy-Schwarz,
 // V = mean − √(ρ · Var) (Var the population variance). The simplex's q ≥ 0 only restricts the adversary further,
@@ -41,9 +54,11 @@ function droWorstCase(L: number[], rho: number): { mean: number; variance: numbe
 }
 
 export interface DroCertificate {
-  standard: "melete-dro-certificate/v1";
+  standard: "melete-dro-certificate/v2";
   divergence: "chi-squared";
   verdict: "ROBUST" | "FRAGILE";
+  mode: "ambiguity" | "confidence";  // ambiguity: a user-chosen shift radius. confidence: ρ=z²/n ⇒ V is a (1−α) LCB on the TRUE mean
+  confidence: number;           // the (1−α) level in confidence mode (0 in ambiguity mode) — Duchi-Namkoong: DRO ≡ a confidence bound
   n: number;
   rho: number;                  // ambiguity radius: distributions within χ² ≤ ρ of the empirical one
   threshold: number;            // the value the setting must keep under shift to be ROBUST
@@ -58,16 +73,21 @@ export interface DroCertificate {
   algo: "ed25519+sha256";
 }
 
-export function droCertificate(opts: { values: number[]; rho: number; threshold?: number; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): DroCertificate {
+export function droCertificate(opts: { values: number[]; rho?: number; confidence?: number; threshold?: number; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): DroCertificate {
   const values = (opts.values ?? []).map((v) => (Number.isFinite(v) ? v : 0));
-  const rho = Number.isFinite(opts.rho) && opts.rho >= 0 ? opts.rho : 0;
   const n = values.length;
+  // CONFIDENCE MODE (v2): a target (1−α) maps to ρ = z²/n (z = Φ⁻¹(conf)) so the worst case becomes a calibrated
+  // (1−α) lower confidence bound on the TRUE mean (Duchi-Namkoong: variance-regularized DRO ≡ a confidence bound).
+  const conf = Number.isFinite(opts.confidence) && (opts.confidence as number) > 0 && (opts.confidence as number) < 1 ? (opts.confidence as number) : 0;
+  const mode: DroCertificate["mode"] = conf > 0 ? "confidence" : "ambiguity";
+  const z = conf > 0 ? normInv(conf) : 0;
+  const rho = conf > 0 ? (n > 0 ? (z * z) / n : 0) : (Number.isFinite(opts.rho) && (opts.rho as number) >= 0 ? (opts.rho as number) : 0);
   const { mean, variance, worstCase } = droWorstCase(values, rho);
   const threshold = Number.isFinite(opts.threshold) ? (opts.threshold as number) : -Infinity;
   const verdict: DroCertificate["verdict"] = worstCase >= threshold ? "ROBUST" : "FRAGILE";
   const kp = opts.keys ?? generateKeyPairSync("ed25519");
   const cert = {
-    standard: "melete-dro-certificate/v1" as const, divergence: "chi-squared" as const, verdict,
+    standard: "melete-dro-certificate/v2" as const, divergence: "chi-squared" as const, verdict, mode, confidence: conf,
     n, rho, threshold: Number.isFinite(threshold) ? threshold : 0, mean, variance, worstCase, variancePenalty: mean - worstCase, values,
   };
   const payloadHash = createHash("sha256").update(canonical(cert)).digest("hex");
@@ -77,15 +97,17 @@ export function droCertificate(opts: { values: number[]; rho: number; threshold?
 
 export function verifyDroCertificate(c: DroCertificate): { ok: boolean; reason: string } {
   try {
-    if (c.standard !== "melete-dro-certificate/v1") return { ok: false, reason: "unknown standard" };
+    if (c.standard !== "melete-dro-certificate/v2") return { ok: false, reason: "unknown standard" };
     if (c.divergence !== "chi-squared") return { ok: false, reason: "unknown divergence" };
     if (c.values.length !== c.n) return { ok: false, reason: "value count does not match n" };
+    // in confidence mode the radius must be the one the claimed confidence implies (ρ = z²/n) — catches a mismatched ρ
+    if (c.mode === "confidence") { const z = normInv(c.confidence); const rhoExp = c.n > 0 ? (z * z) / c.n : 0; if (Math.abs(rhoExp - c.rho) > 1e-9 * (1 + rhoExp)) return { ok: false, reason: "confidence radius ρ ≠ z²/n — confidence misstated" }; }
     const { mean, variance, worstCase } = droWorstCase(c.values, c.rho);
     if (Math.abs(mean - c.mean) > 1e-6 || Math.abs(variance - c.variance) > 1e-6 || Math.abs(worstCase - c.worstCase) > 1e-6) return { ok: false, reason: "recomputed DRO worst-case differs — robustness misstated" };
     if (Math.abs((mean - worstCase) - c.variancePenalty) > 1e-6) return { ok: false, reason: "recomputed variance penalty differs" };
     const verdict = worstCase >= c.threshold ? "ROBUST" : "FRAGILE";
     if (verdict !== c.verdict) return { ok: false, reason: `recomputed verdict ${verdict} ≠ certificate ${c.verdict}` };
-    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, divergence: c.divergence, verdict: c.verdict, n: c.n, rho: c.rho, threshold: c.threshold, mean: c.mean, variance: c.variance, worstCase: c.worstCase, variancePenalty: c.variancePenalty, values: c.values })).digest("hex");
+    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, divergence: c.divergence, verdict: c.verdict, mode: c.mode, confidence: c.confidence, n: c.n, rho: c.rho, threshold: c.threshold, mean: c.mean, variance: c.variance, worstCase: c.worstCase, variancePenalty: c.variancePenalty, values: c.values })).digest("hex");
     if (payloadHash !== c.payloadHash) return { ok: false, reason: "payload hash mismatch — a value was altered" };
     const pub = createPublicKey(c.publicKeyPem);
     if (!edVerify(null, Buffer.from(c.payloadHash), pub, Buffer.from(c.signature, "base64"))) return { ok: false, reason: "bad signature" };
@@ -141,6 +163,22 @@ export function droGauntlet(): { score: 0 | 100; checks: Array<{ name: string; p
   const monotone = v0.worstCase > v1.worstCase && v1.worstCase > v2.worstCase;
   const recovers = Math.abs(v0.worstCase - v0.mean) < 1e-12;
 
+  // v2 CONFIDENCE MODE: ρ=z²/n ⇒ worst case is a (1−α) LCB on the TRUE mean. Measure coverage across resamples.
+  const gaussN = (g: () => number) => { let u = 0, v = 0; while (u < 1e-12) u = g(); while (v < 1e-12) v = g(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+  const coverage = (conf: number, skew: boolean) => {
+    const trueMean = skew ? Math.exp(0.5) : 5; let cov = 0, Tn = 3000;
+    for (let t = 1; t <= Tn; t++) { const g = det(t * 7 + (skew ? 1 : 0)); const m = 50; const L = Array.from({ length: m }, () => (skew ? Math.exp(gaussN(g)) : 5 + 2 * gaussN(g))); const c = droCertificate({ values: L, confidence: conf }); if (trueMean >= c.worstCase) cov++; }
+    return cov / Tn;
+  };
+  const covG = coverage(0.95, false), covS = coverage(0.95, true);
+  // calibrated on light tails (within finite-n/MC tolerance), conservative (over-covers) on skew
+  const calibrated = covG >= 0.95 - 0.015 && covS >= 0.95;
+  // DRO-IS-A-CI: in confidence mode V equals the textbook one-sided CLT lower bound mean − z·SE
+  const ciL = Array.from({ length: 60 }, (_, i) => 4 + Math.sin(i) + 0.3 * Math.cos(3 * i));
+  const cc = droCertificate({ values: ciL, confidence: 0.95 }); const zc = normInv(0.95);
+  const se = Math.sqrt(cc.variance / cc.n); const clt = cc.mean - zc * se;
+  const isCI = Math.abs(cc.worstCase - clt) < 1e-9 && cc.mode === "confidence";
+
   // 5) signed / forgery (claim a higher worst-case) / tamper / deterministic / total
   const cert = droCertificate({ values: A, rho, threshold: cA.worstCase });
   const verifyOk = verifyDroCertificate(cert).ok;
@@ -157,6 +195,8 @@ export function droGauntlet(): { score: 0 | 100; checks: Array<{ name: string; p
     { name: "ROBUST-RANKING", pass: ranksRobust && shiftConfirms, detail: `a high-mean fragile setting (nominal ${cA.mean.toFixed(2)}, worst ${cA.worstCase.toFixed(2)}) is out-ranked under shift by a robust one (nominal ${cB.mean.toFixed(2)}, worst ${cB.worstCase.toFixed(2)}); an actual shift confirms A<B` },
     { name: "MONOTONE-IN-ρ", pass: monotone, detail: `larger ambiguity ρ gives a lower (more conservative) worst case: ${v0.worstCase.toFixed(2)} > ${v1.worstCase.toFixed(2)} > ${v2.worstCase.toFixed(2)}` },
     { name: "RECOVERS-MEAN-AT-ρ0", pass: recovers, detail: `with no ambiguity (ρ=0) the worst case is exactly the nominal mean ${v0.mean.toFixed(3)}` },
+    { name: "CONFIDENCE-CALIBRATED (v2)", pass: calibrated, detail: `confidence mode (ρ=z²/n) gives a calibrated 95% lower bound on the TRUE mean: coverage ${(covG * 100).toFixed(1)}% on light tails (≈95%) and ${(covS * 100).toFixed(1)}% on skewed data (conservatively over-covers, stays valid)` },
+    { name: "DRO-IS-A-CI (v2)", pass: isCI, detail: `the Duchi-Namkoong unification, exact: the confidence-mode worst case equals the textbook one-sided CLT bound mean − z·SE (gap ${Math.abs(cc.worstCase - clt).toExponential(2)}) — DRO and a confidence interval are the same object` },
     { name: "SIGNED-VERIFIES", pass: verifyOk, detail: "mean + variance + worst-case + verdict re-derive offline from the recorded values" },
     { name: "FORGERY-CAUGHT (inflated worst-case)", pass: forgeryCaught, detail: "claiming a higher worst-case than the values support is rejected on re-derivation" },
     { name: "SIGNED-TAMPER", pass: tamper, detail: "altering recorded values breaks the payload hash" },
