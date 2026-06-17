@@ -28,6 +28,7 @@ import { conformalCertificate, verifyConformalCertificate } from "./conformal.js
 import { subgroupCertificate, verifySubgroupCertificate } from "./subgroup.js";
 import { calibrationCertificate, verifyCalibrationCertificate } from "./calibration.js";
 import { privacyCertificate, verifyPrivacyCertificate } from "./privacy.js";
+import { unlearningCertificate, verifyUnlearningCertificate, ridgeSufficientStats } from "./unlearning.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -156,10 +157,21 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     run: (a) => { const c = privacyCertificate({ statistic: a.statistic ?? [], sensitivity: a.sensitivity, epsilon: a.epsilon, delta: a.delta }); return { certificate: c, verified: verifyPrivacyCertificate(c).ok }; },
   },
   {
+    name: "melete.unlearning",
+    description: "Prove a record was actually DELETED from a ridge model (right to be forgotten) — not just hidden. Pass the training data X (rows) + y + λ, and the index of the record to forget. Returns a signed certificate that deletes the record EXACTLY via a Sherman-Morrison rank-1 downdate (O(d²), no retraining), proves it equals retraining from scratch, reports the record's influence + the residual influence left in the served model (must be ~0), and is offline-auditable from the Gram matrix alone. A fake/partial deletion is caught as RESIDUAL-INFLUENCE.",
+    inputSchema: { type: "object", properties: { X: { type: "array", description: "training rows (array of equal-length number arrays)" }, y: { type: "array", description: "targets" }, lambda: { type: "number", description: "ridge regularization λ (default 1)" }, deleteIndex: { type: "number", description: "row index to forget" } }, required: ["X", "y", "deleteIndex"] },
+    run: (a) => {
+      const X = a.X ?? [], y = a.y ?? [], lambda = Number.isFinite(a.lambda) ? a.lambda : 1, j = a.deleteIndex | 0;
+      const ss = ridgeSufficientStats(X, y, lambda);
+      const c = unlearningCertificate({ gram: ss.gram, bVector: ss.bVector, deletedX: X[j] ?? [], deletedY: y[j] ?? 0, lambda });
+      return { certificate: c, verified: verifyUnlearningCertificate(c).ok };
+    },
+  },
+  {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
-    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); if (a.kind === "unlearning") return verifyUnlearningCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
   },
   {
     name: "melete.gauntlet",
