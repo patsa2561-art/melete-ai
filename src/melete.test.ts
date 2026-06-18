@@ -81,7 +81,7 @@ describe("gauntlets (every module = 100)", () => {
   it("🎨 DESIGN — Melete's design system as a signed DESIGN.md: WCAG ≥3:1 accents, palette self-consistent, round-trips, verifies offline", () => expect(designGauntlet().score).toBe(100));
   it("🧩 ATTRIBUTION — exact Shapley feature credit: efficiency/dummy/symmetry/linearity to machine precision, tilted explanation rejected, signed", () => expect(attributionGauntlet().score).toBe(100));
   it("🤝 VERIFICATION RECEIPT — two-party trust: verifier counter-signs any cert offline, bound + independent, bad cert caught, signed", () => expect(receiptGauntlet().score).toBe(100));
-  it("📑 SLA CERTIFICATE — two-party AI quality SLA: compliant→PASS, breach named with margin, fake PASS caught, both ≤/≥ thresholds, signed", () => expect(slaGauntlet().score).toBe(100));
+  it("📑 SLA CERTIFICATE v2 — two-party AI quality SLA + hash-chained COMPLIANCE LEDGER: PASS/BREACH named, accrued penalty, tamper/hidden-period caught, signed", () => expect(slaGauntlet().score).toBe(100));
   it("🔌 MCP SERVER — agent-callable trust middleware: handshake, tools/list, signed tool round-trips, JSON-RPC errors", () => expect(mcpGauntlet().score).toBe(100));
   it("🏅 TRUST CERTIFICATE — signed, offline-verifiable, breaks on tamper", () => {
     const space = { dims: [{ name: "x0", type: "real" as const, min: 0, max: 1 }, { name: "x1", type: "real" as const, min: 0, max: 1 }] };

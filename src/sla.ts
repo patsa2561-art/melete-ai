@@ -80,6 +80,63 @@ export function verifySlaCertificate(c: SlaCertificate): { ok: boolean; reason: 
   } catch (e) { return { ok: false, reason: "exception: " + (e as Error).message.slice(0, 80) }; }
 }
 
+// ─── v2: the COMPLIANCE LEDGER — a hash-chained, tamper-evident history of period certificates ───────────────
+// A single PASS/BREACH is a snapshot; a contract runs over a billing cycle. The ledger chains every period so the
+// CONSUMER gets a provable compliance history + auto-accrued penalty for breaches, and the PROVIDER gets a signed
+// track record. Removing/reordering/altering any period breaks the chain.
+export interface SlaLedgerEntry { seq: number; periodCert: SlaCertificate; prevHash: string; entryHash: string }
+export interface SlaLedger {
+  standard: "melete-sla-ledger/v1";
+  provider: string; consumer: string; penaltyPerBreach: number;
+  entries: SlaLedgerEntry[];
+  headHash: string; signature: string; publicKeyPem: string; algo: "ed25519+sha256";
+}
+function entryHashOf(seq: number, periodCertHash: string, prevHash: string): string { return createHash("sha256").update(canonical({ seq, periodCertHash, prevHash })).digest("hex"); }
+
+export function buildSlaLedger(opts: { provider?: string; consumer?: string; penaltyPerBreach?: number; periodCerts: SlaCertificate[]; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): SlaLedger {
+  const certs = Array.isArray(opts.periodCerts) ? opts.periodCerts : [];
+  const entries: SlaLedgerEntry[] = []; let prevHash = "genesis";
+  for (let i = 0; i < certs.length; i++) { const h = entryHashOf(i, String(certs[i]?.payloadHash ?? ""), prevHash); entries.push({ seq: i, periodCert: certs[i], prevHash, entryHash: h }); prevHash = h; }
+  const headHash = entries.length ? entries[entries.length - 1].entryHash : "genesis";
+  const penaltyPerBreach = Number.isFinite(opts.penaltyPerBreach) && (opts.penaltyPerBreach as number) >= 0 ? (opts.penaltyPerBreach as number) : 0;
+  const kp = opts.keys ?? generateKeyPairSync("ed25519");
+  const signature = edSign(null, Buffer.from(headHash), kp.privateKey).toString("base64");
+  return { standard: "melete-sla-ledger/v1", provider: String(opts.provider ?? "provider"), consumer: String(opts.consumer ?? "consumer"), penaltyPerBreach, entries, headHash, signature, publicKeyPem: kp.publicKey.export({ type: "spki", format: "pem" }).toString(), algo: "ed25519+sha256" };
+}
+
+export function verifySlaLedger(l: SlaLedger): { ok: boolean; reason: string } {
+  try {
+    if (l.standard !== "melete-sla-ledger/v1") return { ok: false, reason: "unknown standard" };
+    let prevHash = "genesis";
+    for (let i = 0; i < l.entries.length; i++) {
+      const e = l.entries[i];
+      if (e.seq !== i) return { ok: false, reason: `entry ${i} out of order (seq ${e.seq})` };
+      if (e.prevHash !== prevHash) return { ok: false, reason: `chain broken at period ${i} — a period was inserted/removed/reordered` };
+      const pv = verifySlaCertificate(e.periodCert);
+      if (!pv.ok) return { ok: false, reason: `period ${i} certificate invalid: ${pv.reason}` };
+      const h = entryHashOf(e.seq, e.periodCert.payloadHash, e.prevHash);
+      if (h !== e.entryHash) return { ok: false, reason: `period ${i} entry hash mismatch — a period was altered` };
+      prevHash = e.entryHash;
+    }
+    const headHash = l.entries.length ? l.entries[l.entries.length - 1].entryHash : "genesis";
+    if (headHash !== l.headHash) return { ok: false, reason: "head hash mismatch" };
+    const pub = createPublicKey(l.publicKeyPem);
+    if (!edVerify(null, Buffer.from(l.headHash), pub, Buffer.from(l.signature, "base64"))) return { ok: false, reason: "bad ledger signature" };
+    const r = slaLedgerReport(l);
+    return { ok: true, reason: `${l.entries.length} periods, ${r.breachCount} breached (${(r.breachRate * 100).toFixed(0)}%), penalty owed ${r.penaltyOwed}` };
+  } catch (e) { return { ok: false, reason: "exception: " + (e as Error).message.slice(0, 80) }; }
+}
+
+export function slaLedgerReport(l: SlaLedger): { periods: number; passCount: number; breachCount: number; breachRate: number; longestCleanStreak: number; penaltyOwed: number; breachesByTerm: Record<string, number> } {
+  const periods = l.entries.length; let passCount = 0, breachCount = 0, streak = 0, longest = 0; const byTerm: Record<string, number> = {};
+  for (const e of l.entries) {
+    if (e.periodCert.verdict === "PASS") { passCount++; streak++; if (streak > longest) longest = streak; }
+    else if (e.periodCert.verdict === "BREACH") { breachCount++; streak = 0; for (const t of e.periodCert.breached) byTerm[t] = (byTerm[t] ?? 0) + 1; }
+    else streak = 0;
+  }
+  return { periods, passCount, breachCount, breachRate: periods ? breachCount / periods : 0, longestCleanStreak: longest, penaltyOwed: breachCount * l.penaltyPerBreach, breachesByTerm: byTerm };
+}
+
 export function slaGauntlet(): { score: 0 | 100; checks: Array<{ name: string; pass: boolean; detail: string }> } {
   // a realistic AI-service SLA: calibration ECE ≤ 5%, fairness gap ≤ 0.1, accuracy ≥ 90%, p95 latency ≤ 200ms
   const compliant: SlaTerm[] = [
@@ -116,6 +173,27 @@ export function slaGauntlet(): { score: 0 | 100; checks: Array<{ name: string; p
   let total = true; try { slaCertificate({ terms: [] }); slaCertificate({ terms: [{ name: "x", metric: "y", observed: NaN, threshold: 1, direction: "<=" }] }); verifySlaCertificate({} as SlaCertificate); } catch { total = false; }
   const emptyEmpty = slaCertificate({ terms: [] }).verdict === "EMPTY";
 
+  // ── v2 COMPLIANCE LEDGER ──
+  const mkPeriod = (cal: number, acc: number) => slaCertificate({ provider: "VendorAI", consumer: "BankCo", terms: [
+    { name: "calibration", metric: "ECE", observed: cal, threshold: 0.05, direction: "<=" },
+    { name: "accuracy", metric: "top1", observed: acc, threshold: 0.90, direction: ">=" },
+  ] });
+  // 6 periods: 4 clean, period 3 breaches calibration, period 5 breaches accuracy
+  const periods = [mkPeriod(0.03, 0.93), mkPeriod(0.04, 0.92), mkPeriod(0.03, 0.91), mkPeriod(0.08, 0.93), mkPeriod(0.02, 0.94), mkPeriod(0.03, 0.85)];
+  const lk = generateKeyPairSync("ed25519");
+  const ledger = buildSlaLedger({ provider: "VendorAI", consumer: "BankCo", penaltyPerBreach: 5000, periodCerts: periods, keys: lk });
+  const ledgerOk = verifySlaLedger(ledger).ok;
+  const rep = slaLedgerReport(ledger);
+  const reportOk = rep.periods === 6 && rep.breachCount === 2 && Math.abs(rep.breachRate - 2 / 6) < 1e-9 && rep.penaltyOwed === 10000 && rep.longestCleanStreak === 3 && rep.breachesByTerm.calibration === 1 && rep.breachesByTerm.accuracy === 1;
+  // tamper a period's observed value ⇒ that period cert fails ⇒ ledger rejected
+  const tamperedLedger = JSON.parse(JSON.stringify(ledger)); tamperedLedger.entries[3].periodCert.terms[0].observed = 0.01; tamperedLedger.entries[3].periodCert.terms[0].satisfied = true;
+  const ledgerTamperCaught = !verifySlaLedger(tamperedLedger).ok;
+  // remove a period (hide a breach) ⇒ chain breaks
+  const hidden = JSON.parse(JSON.stringify(ledger)); hidden.entries.splice(3, 1);
+  const hiddenCaught = !verifySlaLedger(hidden).ok;
+  const l2 = buildSlaLedger({ provider: "VendorAI", consumer: "BankCo", penaltyPerBreach: 5000, periodCerts: periods, keys: lk });
+  const ledgerDet = l2.headHash === ledger.headHash && verifySlaLedger(l2).ok;
+
   const checks = [
     { name: "COMPLIANT-PERIOD-PASSES", pass: passes, detail: `a period meeting all 4 terms (ECE ${(compliant[0].observed * 100).toFixed(1)}%≤5%, gap 0.04≤0.1, acc 93%≥90%, p95 180ms≤200) is signed PASS` },
     { name: "BREACH-NAMED (+margin)", pass: namesBreach, detail: `when calibration ECE drifts to 7% > 5% the verdict flips to BREACH and names exactly "calibration" (margin ${cB1.terms.find((t) => t.name === "calibration")!.margin.toFixed(3)})` },
@@ -126,6 +204,9 @@ export function slaGauntlet(): { score: 0 | 100; checks: Array<{ name: string; p
     { name: "SIGNED-TAMPER", pass: tamper, detail: "altering an observed value breaks the payload hash / the re-derived verdict" },
     { name: "DETERMINISTIC", pass: deterministic, detail: "same terms → byte-identical certificate" },
     { name: "TOTAL", pass: total && emptyEmpty, detail: "empty term list → EMPTY; NaN / malformed inputs never throw" },
+    { name: "LEDGER-CHAIN + REPORT (v2)", pass: ledgerOk && reportOk, detail: `a hash-chained history of ${rep.periods} periods verifies; the report is exact — ${rep.breachCount} breaches (${(rep.breachRate * 100).toFixed(0)}%), longest clean streak ${rep.longestCleanStreak}, penalty owed ${rep.penaltyOwed} (per-term: ${JSON.stringify(rep.breachesByTerm)})` },
+    { name: "LEDGER-TAMPER-CAUGHT (v2)", pass: ledgerTamperCaught && ledgerDet, detail: "altering a past period's recorded value invalidates that period's certificate and the ledger; the chain is deterministic" },
+    { name: "LEDGER-HIDDEN-PERIOD-CAUGHT (v2)", pass: hiddenCaught, detail: "removing a breached period to hide it breaks the prev-hash chain — the consumer's compliance history is tamper-evident" },
   ];
   return { score: checks.every((c) => c.pass) ? 100 : 0, checks };
 }

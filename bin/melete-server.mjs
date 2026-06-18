@@ -685,10 +685,19 @@ const server = createServer(async (req, res) => {
           { name: "latency", metric: "p95-ms", observed: 180, threshold: 200, direction: "<=" },
         ];
         const cert = M.slaCertificate({ provider: "VendorAI", consumer: "BankCo", period: "2026-06", terms });
+        // v2 COMPLIANCE LEDGER over a 6-month billing cycle (2 months breach) — tamper-evident, penalty accrues
+        const mk = (cal, acc) => M.slaCertificate({ provider: "VendorAI", consumer: "BankCo", terms: [
+          { name: "calibration", metric: "ECE", observed: cal, threshold: 0.05, direction: "<=" },
+          { name: "accuracy", metric: "top1", observed: acc, threshold: 0.90, direction: ">=" },
+        ] });
+        const months = [mk(0.03, 0.93), mk(0.04, 0.92), mk(0.03, 0.91), mk(0.08, 0.93), mk(0.02, 0.94), mk(0.03, 0.86)];
+        const ledger = M.buildSlaLedger({ provider: "VendorAI", consumer: "BankCo", penaltyPerBreach: 5000, periodCerts: months });
+        const rep = M.slaLedgerReport(ledger);
         return json(res, 200, {
           provider: cert.provider, consumer: cert.consumer, period: cert.period, verdict: cert.verdict, breached: cert.breached,
           terms: cert.terms.map((t) => ({ name: t.name, metric: t.metric, observed: t.observed, threshold: t.threshold, direction: t.direction, satisfied: t.satisfied, margin: +t.margin.toFixed(4) })),
           verified: M.verifySlaCertificate(cert).ok, sha256: cert.payloadHash.slice(0, 16) + "…",
+          ledger: { periods: rep.periods, perVerdict: ledger.entries.map((e) => e.periodCert.verdict), breachCount: rep.breachCount, breachRate: +rep.breachRate.toFixed(3), longestCleanStreak: rep.longestCleanStreak, penaltyOwed: rep.penaltyOwed, breachesByTerm: rep.breachesByTerm, ledgerVerified: M.verifySlaLedger(ledger).ok, headHash: ledger.headHash.slice(0, 16) + "…" },
           whoBenefits: {
             provider: "turns 'our model is good' into a signed, enforceable promise that wins enterprise deals and bounds liability to the stated terms",
             consumer: "gets a guarantee with teeth — a breach is provable + offline-checkable, so refunds / penalties / switching are no longer he-said-she-said",
