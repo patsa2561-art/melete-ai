@@ -673,6 +673,30 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "receipt failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/sla") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        // a realistic AI-service SLA; ?breach=1 simulates a period where calibration drifted out of bounds
+        const breach = !!(body.breach | 0);
+        const terms = [
+          { name: "calibration", metric: "ECE", observed: breach ? 0.071 : 0.032, threshold: 0.05, direction: "<=" },
+          { name: "fairness", metric: "demographic-parity-gap", observed: 0.04, threshold: 0.1, direction: "<=" },
+          { name: "accuracy", metric: "top1", observed: breach ? 0.871 : 0.93, threshold: 0.90, direction: ">=" },
+          { name: "latency", metric: "p95-ms", observed: 180, threshold: 200, direction: "<=" },
+        ];
+        const cert = M.slaCertificate({ provider: "VendorAI", consumer: "BankCo", period: "2026-06", terms });
+        return json(res, 200, {
+          provider: cert.provider, consumer: cert.consumer, period: cert.period, verdict: cert.verdict, breached: cert.breached,
+          terms: cert.terms.map((t) => ({ name: t.name, metric: t.metric, observed: t.observed, threshold: t.threshold, direction: t.direction, satisfied: t.satisfied, margin: +t.margin.toFixed(4) })),
+          verified: M.verifySlaCertificate(cert).ok, sha256: cert.payloadHash.slice(0, 16) + "…",
+          whoBenefits: {
+            provider: "turns 'our model is good' into a signed, enforceable promise that wins enterprise deals and bounds liability to the stated terms",
+            consumer: "gets a guarantee with teeth — a breach is provable + offline-checkable, so refunds / penalties / switching are no longer he-said-she-said",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "sla failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🎨 the signed Design System — JSON certificate, or the raw DESIGN.md (fetchable like getdesign.md)
     if (req.method === "GET" && (path === "/design.md" || path === "/design.md/")) {
       try { const c = M.designCertificate(); const md = M.toDesignMarkdown(c); res.writeHead(200, { "content-type": "text/markdown; charset=utf-8", "access-control-allow-origin": "*" }); res.end(md); return; }

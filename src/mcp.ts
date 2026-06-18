@@ -34,6 +34,7 @@ import { fairnessCertificate, verifyFairnessCertificate } from "./fairness.js";
 import { designCertificate, verifyDesignCertificate, toDesignMarkdown } from "./design.js";
 import { attributionCertificate, verifyAttributionCertificate, buildValueTable } from "./shapley.js";
 import { issueVerificationReceipt, verifyVerificationReceipt } from "./receipt.js";
+import { slaCertificate, verifySlaCertificate } from "./sla.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -109,6 +110,7 @@ export function verifyByKind(kind: string, c: any): { ok: boolean; reason: strin
   if (kind === "privacy") return verifyPrivacyCertificate(c); if (kind === "unlearning") return verifyUnlearningCertificate(c);
   if (kind === "dro") return verifyDroCertificate(c); if (kind === "fairness") return verifyFairnessCertificate(c);
   if (kind === "design") return verifyDesignCertificate(c); if (kind === "attribution") return verifyAttributionCertificate(c);
+  if (kind === "sla") return verifySlaCertificate(c);
   return { ok: false, reason: "unknown certificate kind" };
 }
 
@@ -212,8 +214,14 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
   {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution", "sla"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
     run: (a) => verifyByKind(a.kind, a.certificate),
+  },
+  {
+    name: "melete.sla",
+    description: "Put AI QUALITY in an enforceable contract both sides can check. Pass the SLA terms — each { name, metric, observed, threshold, direction:'<='|'>=', certHash? } (e.g. calibration ECE ≤ 0.05, fairness gap ≤ 0.1, accuracy ≥ 0.9, p95 latency ≤ 200) plus provider/consumer/period. Returns a signed compliance certificate: PASS, or BREACH naming exactly which terms failed and by what margin. Each term can bind to the underlying signed metric certificate's hash. WHO BENEFITS: the provider gets an enforceable, liability-bounding promise; the consumer gets a provable breach for refunds/penalties.",
+    inputSchema: { type: "object", properties: { provider: { type: "string" }, consumer: { type: "string" }, period: { type: "string" }, terms: { type: "array", description: "[{name, metric, observed, threshold, direction, certHash?}]", items: { type: "object" } } }, required: ["terms"] },
+    run: (a) => { const c = slaCertificate({ provider: a.provider, consumer: a.consumer, period: a.period, terms: a.terms ?? [] }); return { certificate: c, verified: verifySlaCertificate(c).ok }; },
   },
   {
     name: "melete.receipt.issue",
