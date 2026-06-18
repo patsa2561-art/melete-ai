@@ -627,6 +627,27 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "fairness failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/attribution") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        // a small loan model: additive feature effects + one interaction (income × history). Shapley splits it fairly.
+        const names = ["age", "income", "debt", "history", "tenure", "noise"]; const nF = names.length;
+        const coef = [0.4, 1.6, -1.1, 1.2, 0.5, 0.0];
+        const f = (p) => { let v = 0; for (let i = 0; i < nF; i++) if (p[i]) v += coef[i]; if (p[1] && p[3]) v += 0.6; return v; };
+        const cert = M.attributionCertificate({ n: nF, value: f, featureNames: names });
+        const order = cert.phi.map((v, i) => ({ name: names[i], phi: +v.toFixed(3) })).sort((a, b) => Math.abs(b.phi) - Math.abs(a.phi));
+        // a tilted explanation (inflate the top feature) is rejected on re-derivation
+        const tilted = { ...cert, phi: cert.phi.map((v, i) => (i === 1 ? v + 0.5 : v)) };
+        return json(res, 200, {
+          features: nF, baseline: cert.baseline, prediction: cert.prediction,
+          attribution: order, efficiencyResidual: cert.efficiencyResidual, axiomsHold: cert.axiomsHold,
+          verified: M.verifyAttributionCertificate(cert).ok,
+          tiltedRejected: !M.verifyAttributionCertificate(tilted).ok,
+          sha256: cert.payloadHash.slice(0, 16) + "…",
+        });
+      } catch (e) { return json(res, 400, { error: "attribution failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🎨 the signed Design System — JSON certificate, or the raw DESIGN.md (fetchable like getdesign.md)
     if (req.method === "GET" && (path === "/design.md" || path === "/design.md/")) {
       try { const c = M.designCertificate(); const md = M.toDesignMarkdown(c); res.writeHead(200, { "content-type": "text/markdown; charset=utf-8", "access-control-allow-origin": "*" }); res.end(md); return; }

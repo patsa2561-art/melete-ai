@@ -72,6 +72,7 @@ export * from "./unlearning.js";
 export * from "./dro.js";
 export * from "./fairness.js";
 export * from "./design.js";
+export * from "./shapley.js";
 export * from "./mcp.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
@@ -174,6 +175,7 @@ import { unlearningGauntlet } from "./unlearning.js";
 import { droGauntlet } from "./dro.js";
 import { fairnessGauntlet } from "./fairness.js";
 import { designGauntlet } from "./design.js";
+import { attributionGauntlet } from "./shapley.js";
 import { mcpGauntlet } from "./mcp.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
@@ -249,6 +251,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "dro", g: droGauntlet() },
     { name: "fairness", g: fairnessGauntlet() },
     { name: "design", g: designGauntlet() },
+    { name: "shapley", g: attributionGauntlet() },
     { name: "mcp", g: mcpGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },

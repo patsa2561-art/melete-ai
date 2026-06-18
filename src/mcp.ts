@@ -32,6 +32,7 @@ import { unlearningCertificate, verifyUnlearningCertificate, ridgeSufficientStat
 import { droCertificate, verifyDroCertificate } from "./dro.js";
 import { fairnessCertificate, verifyFairnessCertificate } from "./fairness.js";
 import { designCertificate, verifyDesignCertificate, toDesignMarkdown } from "./design.js";
+import { attributionCertificate, verifyAttributionCertificate, buildValueTable } from "./shapley.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -190,10 +191,16 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     run: (a) => { const c = designCertificate(); return { certificate: c, verified: verifyDesignCertificate(c).ok, designMarkdown: a.markdown ? toDesignMarkdown(c) : undefined }; },
   },
   {
+    name: "melete.attribution",
+    description: "Which feature drove a decision, with a PROOF the credit is fair (GDPR/EU-AI-Act 'right to explanation')? Pass the model's coalition value table — valueTable[mask] = the model output when exactly the features whose bit is set in `mask` are present (others at baseline), length 2^n — or send a precomputed one. Returns the EXACT Shapley attribution with the fairness axioms proven (efficiency: credits sum to prediction−baseline; dummy; symmetry; linearity) and signed. A tilted explanation whose credits don't sum to the prediction is rejected on re-derivation. (Exact, so n ≤ ~16 features.)",
+    inputSchema: { type: "object", properties: { valueTable: { type: "array", description: "coalition values, length 2^n (index by feature-presence bitmask)" }, featureNames: { type: "array", description: "optional feature names (length n)" } }, required: ["valueTable"] },
+    run: (a) => { const c = attributionCertificate({ valueTable: a.valueTable ?? [], featureNames: a.featureNames }); return { certificate: c, verified: verifyAttributionCertificate(c).ok }; },
+  },
+  {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
-    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); if (a.kind === "unlearning") return verifyUnlearningCertificate(c); if (a.kind === "dro") return verifyDroCertificate(c); if (a.kind === "fairness") return verifyFairnessCertificate(c); if (a.kind === "design") return verifyDesignCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); if (a.kind === "unlearning") return verifyUnlearningCertificate(c); if (a.kind === "dro") return verifyDroCertificate(c); if (a.kind === "fairness") return verifyFairnessCertificate(c); if (a.kind === "design") return verifyDesignCertificate(c); if (a.kind === "attribution") return verifyAttributionCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
   },
   {
     name: "melete.gauntlet",
