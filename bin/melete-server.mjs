@@ -612,6 +612,23 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "fairness failed: " + e.message.slice(0, 120) }); }
     }
 
+    // 🎨 the signed Design System — JSON certificate, or the raw DESIGN.md (fetchable like getdesign.md)
+    if (req.method === "GET" && (path === "/design.md" || path === "/design.md/")) {
+      try { const c = M.designCertificate(); const md = M.toDesignMarkdown(c); res.writeHead(200, { "content-type": "text/markdown; charset=utf-8", "access-control-allow-origin": "*" }); res.end(md); return; }
+      catch (e) { return json(res, 500, { error: "design.md failed: " + e.message.slice(0, 120) }); }
+    }
+    if ((req.method === "GET" || req.method === "POST") && path === "/design") {
+      try {
+        const c = M.designCertificate();
+        return json(res, 200, {
+          version: c.manifest.version, philosophy: c.manifest.philosophy, canvas: c.manifest.canvas, accents: c.manifest.accents,
+          accentCount: Object.keys(c.manifest.accents).length, demoAccentCount: Object.keys(c.manifest.demoAccents).length,
+          contrastFloor: c.contrastFloor, minContrast: +c.minContrast.toFixed(2), minContrastAccent: c.minContrastAccent,
+          accessible: c.accessible, paletteSelfConsistent: c.paletteSelfConsistent, verified: M.verifyDesignCertificate(c).ok, sha256: c.payloadHash.slice(0, 16) + "…",
+        });
+      } catch (e) { return json(res, 500, { error: "design failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🔌 MCP over HTTP — the same agent-callable trust middleware via a JSON-RPC body (any-transport).
     // Every tools/call is metered + audited into the signed trust ledger (the toll-booth).
     if (req.method === "POST" && path === "/mcp") {

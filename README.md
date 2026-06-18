@@ -114,7 +114,7 @@ npx melete-ai poopt proof-of-optimization.json   # verify any signed certificate
 | **Ceiling · drift** | the achievable best, and whether results drift over time |
 
 ### 🔌 Integrate — incl. **MCP** (trust middleware for AI agents)
-`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/improvement` `/prereg` `/breakdown` `/selection` `/support` `/fdr` `/anytime` `/swarm` `/conformal` `/subgroup` `/calibration` `/privacy` `/unlearning` `/dro` `/fairness` `/mcp` `/verify`
+`npm i melete-ai` · CLI `npx melete-ai …` · HTTP `https://melete.mneme-ai.space` — `/next` `/discover` `/trust-certificate` `/stability` `/honest-search` `/tolerance` `/improvement` `/prereg` `/breakdown` `/selection` `/support` `/fdr` `/anytime` `/swarm` `/conformal` `/subgroup` `/calibration` `/privacy` `/unlearning` `/dro` `/fairness` `/design` `/design.md` `/mcp` `/verify`
 
 **🔌 Model Context Protocol — be the verification layer any AI agent plugs into.** Any agent (Claude · GPT · Gemini · an autonomous coding agent) calls Melete over MCP and gets back a **signed, offline-verifiable** answer instead of a number to take on faith — de-bias a winner, check support, control the false-discovery rate, propose the next experiment. Plug-and-play, every result Ed25519-signed.
 ```jsonc

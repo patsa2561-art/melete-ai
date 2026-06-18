@@ -31,6 +31,7 @@ import { privacyCertificate, verifyPrivacyCertificate } from "./privacy.js";
 import { unlearningCertificate, verifyUnlearningCertificate, ridgeSufficientStats } from "./unlearning.js";
 import { droCertificate, verifyDroCertificate } from "./dro.js";
 import { fairnessCertificate, verifyFairnessCertificate } from "./fairness.js";
+import { designCertificate, verifyDesignCertificate, toDesignMarkdown } from "./design.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -183,10 +184,16 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     run: (a) => { const c = fairnessCertificate({ predictions: a.predictions ?? [], groupOf: a.groupOf ?? [], outcomes: a.outcomes ?? null, tolerance: a.tolerance, alpha: a.alpha }); return { certificate: c, verified: verifyFairnessCertificate(c).ok }; },
   },
   {
+    name: "melete.design",
+    description: "Fetch Melete's own design system as a signed, machine-verifiable DESIGN.md (à la getdesign.md, but every token is Ed25519-signed and contrast-verified). Returns the manifest (dark canvas, accent palette, type scale, motion + component rules), the emitted DESIGN.md markdown, and a proof that every accent clears a WCAG ≥3:1 contrast floor on the canvas. An AI agent building on Melete verifies it offline and trusts the tokens.",
+    inputSchema: { type: "object", properties: { markdown: { type: "boolean", description: "also return the DESIGN.md text" } }, required: [] },
+    run: (a) => { const c = designCertificate(); return { certificate: c, verified: verifyDesignCertificate(c).ok, designMarkdown: a.markdown ? toDesignMarkdown(c) : undefined }; },
+  },
+  {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
-    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); if (a.kind === "unlearning") return verifyUnlearningCertificate(c); if (a.kind === "dro") return verifyDroCertificate(c); if (a.kind === "fairness") return verifyFairnessCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); if (a.kind === "unlearning") return verifyUnlearningCertificate(c); if (a.kind === "dro") return verifyDroCertificate(c); if (a.kind === "fairness") return verifyFairnessCertificate(c); if (a.kind === "design") return verifyDesignCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
   },
   {
     name: "melete.gauntlet",
