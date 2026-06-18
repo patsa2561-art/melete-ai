@@ -607,8 +607,23 @@ const server = createServer(async (req, res) => {
         const biased = build(0.7, 0.3, nPer), fair = build(0.5, 0.5, Math.max(nPer, 3000));
         const cBias = M.fairnessCertificate({ predictions: biased.pred, groupOf: biased.grp, tolerance: tol, alpha });
         const cFair = M.fairnessCertificate({ predictions: fair.pred, groupOf: fair.grp, tolerance: tol, alpha });
-        const pack = (c) => { const dp = c.metrics.find((m) => m.metric === "demographic-parity"); return { verdict: c.verdict, worstMetric: c.worstMetric, dpGap: dp ? +dp.gap.toFixed(3) : null, dpGapCI: dp ? [+dp.gapLo.toFixed(3), +dp.gapHi.toFixed(3)] : null, highGroup: dp ? dp.highGroup : null, lowGroup: dp ? dp.lowGroup : null, verified: M.verifyFairnessCertificate(c).ok }; };
-        return json(res, 200, { tolerance: tol, alpha, n: nPer * 2, biasedModel: pack(cBias), fairModel: pack(cFair) });
+        const pack = (c) => { const dp = c.metrics.find((m) => m.metric === "demographic-parity" && m.scope === "marginal"); return { verdict: c.verdict, worstMetric: c.worstMetric, dpGap: dp ? +dp.gap.toFixed(3) : null, dpGapCI: dp ? [+dp.gapLo.toFixed(3), +dp.gapHi.toFixed(3)] : null, highGroup: dp ? dp.highGroup : null, lowGroup: dp ? dp.lowGroup : null, verified: M.verifyFairnessCertificate(c).ok }; };
+        // v2 INTERSECTIONAL (XOR gerrymander): fair on each attribute alone, biased at the intersection
+        const A = [], B = [], xp = []; const cells = [["A1", "B1", 0.8], ["A1", "B2", 0.2], ["A2", "B1", 0.2], ["A2", "B2", 0.8]];
+        for (const [a, b, r] of cells) for (let i = 0; i < nPer; i++) { A.push(a); B.push(b); xp.push(g() < r ? 1 : 0); }
+        const cmA = M.fairnessCertificate({ predictions: xp, groupOf: A, tolerance: tol, alpha });
+        const cmB = M.fairnessCertificate({ predictions: xp, groupOf: B, tolerance: tol, alpha });
+        const cInt = M.fairnessCertificate({ predictions: xp, axes: [{ name: "A", of: A }, { name: "B", of: B }], tolerance: tol, alpha });
+        const interDp = cInt.metrics.find((m) => m.scope === "intersectional" && m.metric === "demographic-parity");
+        return json(res, 200, {
+          tolerance: tol, alpha, n: nPer * 2, biasedModel: pack(cBias), fairModel: pack(cFair),
+          intersectional: {
+            marginalA: cmA.verdict, marginalB: cmB.verdict,
+            intersection: cInt.verdict, worstScope: cInt.worstScope, worstSystem: cInt.worstSystem,
+            intersectionGap: interDp ? +interDp.gap.toFixed(3) : null, worstCell: interDp ? interDp.highGroup + " vs " + interDp.lowGroup : null,
+            verified: M.verifyFairnessCertificate(cInt).ok,
+          },
+        });
       } catch (e) { return json(res, 400, { error: "fairness failed: " + e.message.slice(0, 120) }); }
     }
 

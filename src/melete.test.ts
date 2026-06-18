@@ -77,7 +77,7 @@ describe("gauntlets (every module = 100)", () => {
   it("🔒 PRIVACY v2 — analytic-Gaussian (ε,δ)-DP + zCDP accountant: membership attack stays in-region, under-noise caught, zCDP composition admits more releases & stays sound, signed", () => expect(privacyGauntlet().score).toBe(100));
   it("🗑 UNLEARNING v2 — batch right-to-be-forgotten: Woodbury block downdate == full retraining == sequential deletion to machine precision, fake/partial caught, signed", () => expect(unlearningGauntlet().score).toBe(100));
   it("🌐 DRO v2 — distribution-shift robustness + confidence mode (DRO≡CI, Duchi-Namkoong): valid+tight χ²-ball bound, ranks robust, calibrated (1−α) LCB on the true mean, signed", () => expect(droGauntlet().score).toBe(100));
-  it("⚖️ FAIRNESS — group-fairness audit: detects+names bias, no false accusation ≤ α, gap CI covers, DP vs equalized-odds distinct, signed", () => expect(fairnessGauntlet().score).toBe(100));
+  it("⚖️ FAIRNESS v2 — group + INTERSECTIONAL fairness: catches XOR-gerrymander bias the marginals miss, no false alarm ≤ α, names the intersection, signed", () => expect(fairnessGauntlet().score).toBe(100));
   it("🎨 DESIGN — Melete's design system as a signed DESIGN.md: WCAG ≥3:1 accents, palette self-consistent, round-trips, verifies offline", () => expect(designGauntlet().score).toBe(100));
   it("🔌 MCP SERVER — agent-callable trust middleware: handshake, tools/list, signed tool round-trips, JSON-RPC errors", () => expect(mcpGauntlet().score).toBe(100));
   it("🏅 TRUST CERTIFICATE — signed, offline-verifiable, breaks on tamper", () => {

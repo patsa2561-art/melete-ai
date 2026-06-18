@@ -45,19 +45,25 @@ function wilson(k: number, n: number, z: number): { p: number; lo: number; hi: n
 }
 
 interface GroupRate { group: string; n: number; rate: number; lo: number; hi: number }
-interface MetricGap { metric: "demographic-parity" | "equalized-odds-TPR" | "equalized-odds-FPR"; gap: number; gapLo: number; gapHi: number; highGroup: string; lowGroup: string; perGroup: GroupRate[] }
+interface MetricGap { metric: "demographic-parity" | "equalized-odds-TPR" | "equalized-odds-FPR"; scope: "marginal" | "intersectional"; system: string; gap: number; gapLo: number; gapHi: number; highGroup: string; lowGroup: string; perGroup: GroupRate[] }
+interface AxisLabels { name: string; of: string[] }
+interface GroupSystem { scope: "marginal" | "intersectional"; name: string; labelOf: string[]; groups: string[] }
 
 export interface FairnessCertificate {
-  standard: "melete-fairness-certificate/v1";
+  standard: "melete-fairness-certificate/v2";
   verdict: "FAIR" | "UNFAIR" | "INCONCLUSIVE";
+  intersectional: boolean;        // v2: were intersectional subgroups tested (fairness-gerrymandering guard)?
   tolerance: number;
   alpha: number;
   worstMetric: string | null;     // the metric driving an UNFAIR verdict (null if FAIR/INCONCLUSIVE)
+  worstScope: string | null;      // "marginal" | "intersectional" — where the bias lives
+  worstSystem: string | null;     // the attribute (or attribute combination) the bias is in
   metrics: MetricGap[];
   n: number;
-  groups: string[];
+  groups: string[];               // every evaluated group key (marginal + intersectional)
   predictions: number[];
   groupOf: string[];
+  axesOf: AxisLabels[] | null;    // v2: per-row labels for each protected attribute (null ⇒ single-attribute v1 mode)
   outcomes: number[] | null;      // null ⇒ demographic parity only (no equalized odds)
   payloadHash: string;
   signature: string;
@@ -65,15 +71,28 @@ export interface FairnessCertificate {
   algo: "ed25519+sha256";
 }
 
-function computeMetrics(pred: number[], grp: string[], groups: string[], outcomes: number[] | null, z: number): MetricGap[] {
-  const out: MetricGap[] = [];
+// build the group "systems" to test: each protected attribute marginally, PLUS their intersection (the
+// fairness-gerrymandering subgroups). With no axes, one marginal system over groupOf (v1-compatible).
+function buildSystems(groupOf: string[], axesOf: AxisLabels[] | null, n: number): GroupSystem[] {
+  if (axesOf && axesOf.length >= 2) {
+    const systems: GroupSystem[] = [];
+    for (const a of axesOf) { const lab = a.of.slice(0, n).map(String); systems.push({ scope: "marginal", name: a.name, labelOf: lab, groups: Array.from(new Set(lab)).sort() }); }
+    const inter: string[] = []; for (let i = 0; i < n; i++) inter.push(axesOf.map((a) => String(a.of[i])).join("∧"));
+    systems.push({ scope: "intersectional", name: axesOf.map((a) => a.name).join("∧"), labelOf: inter, groups: Array.from(new Set(inter)).sort() });
+    return systems;
+  }
+  return [{ scope: "marginal", name: "group", labelOf: groupOf, groups: Array.from(new Set(groupOf)).sort() }];
+}
+
+function computeMetrics(pred: number[], sys: GroupSystem, outcomes: number[] | null, z: number): MetricGap[] {
+  const out: MetricGap[] = []; const grp = sys.labelOf;
   const rateOver = (mask: (i: number) => boolean, metric: MetricGap["metric"]): MetricGap | null => {
     const rows: GroupRate[] = [];
-    for (const g of groups) { let k = 0, n = 0; for (let i = 0; i < pred.length; i++) if (grp[i] === g && mask(i)) { n++; if (pred[i] === 1) k++; } if (n > 0) { const w = wilson(k, n, z); rows.push({ group: g, n, rate: w.p, lo: w.lo, hi: w.hi }); } }
+    for (const g of sys.groups) { let k = 0, n = 0; for (let i = 0; i < pred.length; i++) if (grp[i] === g && mask(i)) { n++; if (pred[i] === 1) k++; } if (n > 0) { const w = wilson(k, n, z); rows.push({ group: g, n, rate: w.p, lo: w.lo, hi: w.hi }); } }
     if (rows.length < 2) return null;
     let hi = rows[0], lo = rows[0]; for (const r of rows) { if (r.rate > hi.rate) hi = r; if (r.rate < lo.rate) lo = r; }
     const gap = hi.rate - lo.rate; const gapHi = Math.max(0, hi.hi - lo.lo); const gapLo = Math.max(0, hi.lo - lo.hi);
-    return { metric, gap, gapLo, gapHi, highGroup: hi.group, lowGroup: lo.group, perGroup: rows };
+    return { metric, scope: sys.scope, system: sys.name, gap, gapLo, gapHi, highGroup: hi.group, lowGroup: lo.group, perGroup: rows };
   };
   const dp = rateOver(() => true, "demographic-parity"); if (dp) out.push(dp);
   if (outcomes) {
@@ -82,25 +101,33 @@ function computeMetrics(pred: number[], grp: string[], groups: string[], outcome
   }
   return out;
 }
+function allMetrics(pred: number[], systems: GroupSystem[], outcomes: number[] | null, z: number): MetricGap[] {
+  const out: MetricGap[] = []; for (const sys of systems) if (sys.groups.length >= 2) out.push(...computeMetrics(pred, sys, outcomes, z)); return out;
+}
+function bonferroniK(systems: GroupSystem[], nMetrics: number): number { let k = 0; for (const s of systems) if (s.groups.length >= 2) k += s.groups.length * nMetrics; return Math.max(1, k); }
 
-export function fairnessCertificate(opts: { predictions: number[]; groupOf: string[]; outcomes?: number[] | null; tolerance?: number; alpha?: number; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): FairnessCertificate {
-  const n = Math.min(opts.predictions?.length ?? 0, opts.groupOf?.length ?? 0);
+export function fairnessCertificate(opts: { predictions: number[]; groupOf?: string[]; axes?: AxisLabels[]; outcomes?: number[] | null; tolerance?: number; alpha?: number; keys?: { publicKey: KeyObject; privateKey: KeyObject } }): FairnessCertificate {
+  const lens = [opts.predictions?.length ?? 0]; if (opts.groupOf) lens.push(opts.groupOf.length); if (opts.axes) for (const a of opts.axes) lens.push(a.of?.length ?? 0);
+  const n = Math.max(0, Math.min(...lens));
   const predictions = (opts.predictions ?? []).slice(0, n).map((v) => (v ? 1 : 0));
-  const groupOf = (opts.groupOf ?? []).slice(0, n).map((g) => String(g));
+  const useAxes = !!(opts.axes && opts.axes.length >= 2);
+  const axesOf: AxisLabels[] | null = useAxes ? opts.axes!.map((a) => ({ name: String(a.name), of: a.of.slice(0, n).map(String) })) : null;
+  const groupOf = (opts.groupOf ?? (axesOf ? axesOf[0].of : [])).slice(0, n).map((g) => String(g));
   const outcomes = opts.outcomes && opts.outcomes.length >= n ? opts.outcomes.slice(0, n).map((v) => (v ? 1 : 0)) : null;
   const tolerance = Number.isFinite(opts.tolerance) && (opts.tolerance as number) >= 0 ? (opts.tolerance as number) : 0.1;
   const alpha = Number.isFinite(opts.alpha) && (opts.alpha as number) > 0 && (opts.alpha as number) < 1 ? (opts.alpha as number) : 0.05;
-  const groups = Array.from(new Set(groupOf)).sort();
-  const nMetrics = 1 + (outcomes ? 2 : 0); const K = Math.max(1, groups.length * nMetrics);
-  const z = normInv(1 - alpha / (2 * K));                    // Bonferroni-corrected simultaneous level
-  const metrics = groups.length >= 2 ? computeMetrics(predictions, groupOf, groups, outcomes, z) : [];
+  const systems = buildSystems(groupOf, axesOf, n);
+  const nMetrics = 1 + (outcomes ? 2 : 0); const K = bonferroniK(systems, nMetrics);
+  const z = normInv(1 - alpha / (2 * K));                    // Bonferroni-corrected over EVERY group (marginal + intersectional) × metric
+  const metrics = allMetrics(predictions, systems, outcomes, z);
+  const groups = Array.from(new Set(systems.flatMap((s) => s.groups))).sort();
   // verdict: UNFAIR if any gap is confidently over τ (gapLo > τ); FAIR if every gap is confidently under (gapHi ≤ τ); else INCONCLUSIVE
-  let verdict: FairnessCertificate["verdict"] = "INCONCLUSIVE"; let worstMetric: string | null = null;
+  let verdict: FairnessCertificate["verdict"] = "INCONCLUSIVE"; let worstMetric: string | null = null, worstScope: string | null = null, worstSystem: string | null = null;
   const unfair = metrics.find((m) => m.gapLo > tolerance);
-  if (unfair) { verdict = "UNFAIR"; worstMetric = unfair.metric; }
+  if (unfair) { verdict = "UNFAIR"; worstMetric = unfair.metric; worstScope = unfair.scope; worstSystem = unfair.system; }
   else if (metrics.length > 0 && metrics.every((m) => m.gapHi <= tolerance)) verdict = "FAIR";
   const kp = opts.keys ?? generateKeyPairSync("ed25519");
-  const cert = { standard: "melete-fairness-certificate/v1" as const, verdict, tolerance, alpha, worstMetric, metrics, n, groups, predictions, groupOf, outcomes };
+  const cert = { standard: "melete-fairness-certificate/v2" as const, verdict, intersectional: useAxes, tolerance, alpha, worstMetric, worstScope, worstSystem, metrics, n, groups, predictions, groupOf, axesOf, outcomes };
   const payloadHash = createHash("sha256").update(canonical(cert)).digest("hex");
   const signature = edSign(null, Buffer.from(payloadHash), kp.privateKey).toString("base64");
   return { ...cert, payloadHash, signature, publicKeyPem: kp.publicKey.export({ type: "spki", format: "pem" }).toString(), algo: "ed25519+sha256" };
@@ -108,23 +135,24 @@ export function fairnessCertificate(opts: { predictions: number[]; groupOf: stri
 
 export function verifyFairnessCertificate(c: FairnessCertificate): { ok: boolean; reason: string } {
   try {
-    if (c.standard !== "melete-fairness-certificate/v1") return { ok: false, reason: "unknown standard" };
+    if (c.standard !== "melete-fairness-certificate/v2") return { ok: false, reason: "unknown standard" };
     if (c.predictions.length !== c.n || c.groupOf.length !== c.n) return { ok: false, reason: "length mismatch" };
     if (c.outcomes && c.outcomes.length !== c.n) return { ok: false, reason: "outcome length mismatch" };
-    const nMetrics = 1 + (c.outcomes ? 2 : 0); const K = Math.max(1, c.groups.length * nMetrics);
+    if (c.axesOf && c.axesOf.some((a) => a.of.length !== c.n)) return { ok: false, reason: "axis length mismatch" };
+    const systems = buildSystems(c.groupOf, c.axesOf, c.n);
+    const nMetrics = 1 + (c.outcomes ? 2 : 0); const K = bonferroniK(systems, nMetrics);
     const z = normInv(1 - c.alpha / (2 * K));
-    const metrics = c.groups.length >= 2 ? computeMetrics(c.predictions, c.groupOf, c.groups, c.outcomes, z) : [];
+    const metrics = allMetrics(c.predictions, systems, c.outcomes, z);
     if (canonical(metrics) !== canonical(c.metrics)) return { ok: false, reason: "recomputed fairness gaps differ — verdict misstated" };
     const unfair = metrics.find((m) => m.gapLo > c.tolerance);
-    let verdict: FairnessCertificate["verdict"] = "INCONCLUSIVE"; let worstMetric: string | null = null;
-    if (unfair) { verdict = "UNFAIR"; worstMetric = unfair.metric; } else if (metrics.length > 0 && metrics.every((m) => m.gapHi <= c.tolerance)) verdict = "FAIR";
-    if (verdict !== c.verdict || worstMetric !== c.worstMetric) return { ok: false, reason: `recomputed verdict ${verdict} ≠ certificate ${c.verdict}` };
-    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, tolerance: c.tolerance, alpha: c.alpha, worstMetric: c.worstMetric, metrics: c.metrics, n: c.n, groups: c.groups, predictions: c.predictions, groupOf: c.groupOf, outcomes: c.outcomes })).digest("hex");
+    let verdict: FairnessCertificate["verdict"] = "INCONCLUSIVE"; let worstMetric: string | null = null, worstScope: string | null = null, worstSystem: string | null = null;
+    if (unfair) { verdict = "UNFAIR"; worstMetric = unfair.metric; worstScope = unfair.scope; worstSystem = unfair.system; } else if (metrics.length > 0 && metrics.every((m) => m.gapHi <= c.tolerance)) verdict = "FAIR";
+    if (verdict !== c.verdict || worstMetric !== c.worstMetric || worstScope !== c.worstScope || worstSystem !== c.worstSystem) return { ok: false, reason: `recomputed verdict ${verdict} ≠ certificate ${c.verdict}` };
+    const payloadHash = createHash("sha256").update(canonical({ standard: c.standard, verdict: c.verdict, intersectional: c.intersectional, tolerance: c.tolerance, alpha: c.alpha, worstMetric: c.worstMetric, worstScope: c.worstScope, worstSystem: c.worstSystem, metrics: c.metrics, n: c.n, groups: c.groups, predictions: c.predictions, groupOf: c.groupOf, axesOf: c.axesOf, outcomes: c.outcomes })).digest("hex");
     if (payloadHash !== c.payloadHash) return { ok: false, reason: "payload hash mismatch — data altered" };
     const pub = createPublicKey(c.publicKeyPem);
     if (!edVerify(null, Buffer.from(c.payloadHash), pub, Buffer.from(c.signature, "base64"))) return { ok: false, reason: "bad signature" };
-    const dp = c.metrics.find((m) => m.metric === "demographic-parity");
-    return { ok: true, reason: `${c.verdict}${c.worstMetric ? " (" + c.worstMetric + ")" : ""}: demographic-parity gap ${dp ? dp.gap.toFixed(3) : "n/a"} (τ=${c.tolerance})` };
+    return { ok: true, reason: `${c.verdict}${c.worstMetric ? " (" + c.worstMetric + (c.worstScope === "intersectional" ? " @ intersection " + c.worstSystem : "") + ")" : ""} (τ=${c.tolerance}${c.intersectional ? ", intersectional" : ""})` };
   } catch (e) { return { ok: false, reason: "exception: " + (e as Error).message.slice(0, 80) }; }
 }
 
@@ -158,6 +186,29 @@ export function fairnessGauntlet(): { score: 0 | 100; checks: Array<{ name: stri
   const dpGap = cEO.metrics.find((m) => m.metric === "demographic-parity");
   const dpEoDistinct = cEO.verdict === "UNFAIR" && (cEO.worstMetric === "equalized-odds-TPR" || cEO.worstMetric === "equalized-odds-FPR") && !!dpGap && dpGap.gapLo <= tol;
 
+  // 4b) INTERSECTIONAL (v2): XOR-gerrymander — fair on EACH marginal attribute but unfair at the intersection.
+  // cells (A1,B1)=(A2,B2)=r, (A1,B2)=(A2,B1)=1−r ⇒ each marginal rate = 0.5 (FAIR) but intersection gap = |2r−1|.
+  const make4 = (g: () => number, nPer: number, r: number) => {
+    const pred: number[] = [], A: string[] = [], B: string[] = [];
+    const cells: Array<[string, string, number]> = [["A1", "B1", r], ["A1", "B2", 1 - r], ["A2", "B1", 1 - r], ["A2", "B2", r]];
+    for (const [a, b, rate] of cells) for (let i = 0; i < nPer; i++) { A.push(a); B.push(b); pred.push(g() < rate ? 1 : 0); }
+    return { pred, A, B };
+  };
+  let interCaught = 0, marginalMissed = 0, IG = 150;
+  for (let s = 1; s <= IG; s++) {
+    const d = make4(det(s * 23 + 9), 400, 0.8);   // intersection gap 0.6 ≫ τ; marginals ≈ 0.5
+    const mA = fairnessCertificate({ predictions: d.pred, groupOf: d.A, tolerance: tol, alpha });
+    const mB = fairnessCertificate({ predictions: d.pred, groupOf: d.B, tolerance: tol, alpha });
+    if (mA.verdict !== "UNFAIR" && mB.verdict !== "UNFAIR") marginalMissed++;   // each marginal axis looks fine
+    const cI = fairnessCertificate({ predictions: d.pred, axes: [{ name: "A", of: d.A }, { name: "B", of: d.B }], tolerance: tol, alpha });
+    if (cI.verdict === "UNFAIR" && cI.worstScope === "intersectional") interCaught++;
+  }
+  const intersectionalCatches = interCaught / IG >= 0.99 && marginalMissed / IG >= 0.99;
+  // 4c) INTERSECTIONAL-NO-FALSE-ALARM: every cell rate 0.5 ⇒ fair everywhere ⇒ UNFAIR ≤ α (Bonferroni over the extra subgroups)
+  let interFalse = 0, IF = 300;
+  for (let s = 1; s <= IF; s++) { const d = make4(det(s * 31 + 11), 1500, 0.5); const cI = fairnessCertificate({ predictions: d.pred, axes: [{ name: "A", of: d.A }, { name: "B", of: d.B }], tolerance: tol, alpha }); if (cI.verdict === "UNFAIR") interFalse++; }
+  const intersectionalNoFalse = interFalse / IF <= alpha;
+
   // 5) signed / forgery / tamper / deterministic / total
   const dB = make(det(7), 300, 0.7, 0.3); const certU = fairnessCertificate({ predictions: dB.pred, groupOf: dB.grp, tolerance: tol, alpha });
   const verifyOk = verifyFairnessCertificate(certU).ok && certU.verdict === "UNFAIR";
@@ -174,6 +225,8 @@ export function fairnessGauntlet(): { score: 0 | 100; checks: Array<{ name: stri
     { name: "FAIR-CONFIRMED", pass: fairWorks, detail: `a truly fair model with enough data is confidently certified FAIR ${(fairConfirmed / F * 100).toFixed(0)}% (upper CI on every gap ≤ τ=${tol})` },
     { name: "CI-COVERS-GAP", pass: ciCovers, detail: `the demographic-parity gap confidence interval covers the true gap (${trueGap.toFixed(2)}) ${(covers / C * 100).toFixed(1)}% of the time (≥ 1−α)` },
     { name: "DEMOGRAPHIC-PARITY vs EQUALIZED-ODDS", pass: dpEoDistinct, detail: `a model with equal positive rates (DP gap ${dpGap ? dpGap.gap.toFixed(2) : "n/a"} ≤ τ) but very different error rates is correctly flagged UNFAIR on ${cEO.worstMetric} — the metrics are distinct` },
+    { name: "INTERSECTIONAL-CATCHES-GERRYMANDER (v2)", pass: intersectionalCatches, detail: `a model fair on EACH attribute alone but biased at the intersection (XOR gerrymander, gap 0.6) is missed by every marginal test ${(marginalMissed / IG * 100).toFixed(0)}% of the time, yet v2 flags it UNFAIR at the named intersection ${(interCaught / IG * 100).toFixed(0)}%` },
+    { name: "INTERSECTIONAL-NO-FALSE-ALARM ≤ α (v2)", pass: intersectionalNoFalse, detail: `with truly-fair intersectional data, the extra subgroups raise no false alarm — UNFAIR only ${(interFalse / IF * 100).toFixed(1)}% (Bonferroni over marginal + intersectional groups holds ≤ α=${alpha})` },
     { name: "SIGNED-VERIFIES", pass: verifyOk, detail: "per-group rates + simultaneous CIs + the verdict re-derive offline from the recorded decisions" },
     { name: "FORGERY-CAUGHT (fake FAIR)", pass: forgeryCaught, detail: "claiming FAIR when a gap's lower CI exceeds τ is rejected on re-derivation" },
     { name: "SIGNED-TAMPER", pass: tamper, detail: "altering recorded decisions breaks the payload hash" },
