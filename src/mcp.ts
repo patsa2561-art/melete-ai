@@ -33,6 +33,7 @@ import { droCertificate, verifyDroCertificate } from "./dro.js";
 import { fairnessCertificate, verifyFairnessCertificate } from "./fairness.js";
 import { designCertificate, verifyDesignCertificate, toDesignMarkdown } from "./design.js";
 import { attributionCertificate, verifyAttributionCertificate, buildValueTable } from "./shapley.js";
+import { issueVerificationReceipt, verifyVerificationReceipt } from "./receipt.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -98,6 +99,18 @@ export function createLedger(keys?: { publicKey: KeyObject; privateKey: KeyObjec
 interface McpTool { name: string; description: string; inputSchema: Record<string, unknown>; run: (args: Record<string, any>) => unknown; }
 
 function asSpace(s: any): Space { return Array.isArray(s) ? { dims: s } : (s && Array.isArray(s.dims) ? s : { dims: [] }); }
+
+// shared offline re-derivation dispatch — used by both melete.verify and the two-party receipt tools
+export function verifyByKind(kind: string, c: any): { ok: boolean; reason: string } {
+  if (kind === "selection") return verifySelectionCertificate(c); if (kind === "support") return verifySupportCertificate(c);
+  if (kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (kind === "anytime") return verifyAnytimeCertificate(c);
+  if (kind === "swarm") return verifySwarmCertificate(c); if (kind === "conformal") return verifyConformalCertificate(c);
+  if (kind === "subgroup") return verifySubgroupCertificate(c); if (kind === "calibration") return verifyCalibrationCertificate(c);
+  if (kind === "privacy") return verifyPrivacyCertificate(c); if (kind === "unlearning") return verifyUnlearningCertificate(c);
+  if (kind === "dro") return verifyDroCertificate(c); if (kind === "fairness") return verifyFairnessCertificate(c);
+  if (kind === "design") return verifyDesignCertificate(c); if (kind === "attribution") return verifyAttributionCertificate(c);
+  return { ok: false, reason: "unknown certificate kind" };
+}
 
 export const MELETE_MCP_TOOLS: McpTool[] = [
   {
@@ -200,7 +213,19 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
     inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
-    run: (a) => { const c = a.certificate; if (a.kind === "selection") return verifySelectionCertificate(c); if (a.kind === "support") return verifySupportCertificate(c); if (a.kind === "fdr") return verifyFalseDiscoveryCertificate(c); if (a.kind === "anytime") return verifyAnytimeCertificate(c); if (a.kind === "swarm") return verifySwarmCertificate(c); if (a.kind === "conformal") return verifyConformalCertificate(c); if (a.kind === "subgroup") return verifySubgroupCertificate(c); if (a.kind === "calibration") return verifyCalibrationCertificate(c); if (a.kind === "privacy") return verifyPrivacyCertificate(c); if (a.kind === "unlearning") return verifyUnlearningCertificate(c); if (a.kind === "dro") return verifyDroCertificate(c); if (a.kind === "fairness") return verifyFairnessCertificate(c); if (a.kind === "design") return verifyDesignCertificate(c); if (a.kind === "attribution") return verifyAttributionCertificate(c); return { ok: false, reason: "unknown certificate kind" }; },
+    run: (a) => verifyByKind(a.kind, a.certificate),
+  },
+  {
+    name: "melete.receipt.issue",
+    description: "TWO-PARTY trust: as a VERIFIER (regulator / auditor / customer / counterparty agent), independently re-derive an issuer's Melete certificate OFFLINE and counter-sign a Verification Receipt bound to it with your OWN key. Now both parties hold a signed record — the issuer proved a property, you confirmed it, and neither has to trust the other. Pass the certificate + its kind. Independence is enforced (a vendor cannot rubber-stamp itself).",
+    inputSchema: { type: "object", properties: { kind: { type: "string", description: "the certificate kind (e.g. attribution, fairness, privacy, …)" }, certificate: { type: "object", description: "the issuer's signed certificate" } }, required: ["kind", "certificate"] },
+    run: (a) => { const receipt = issueVerificationReceipt({ cert: a.certificate, certStandard: a.certificate?.standard, verify: (c) => verifyByKind(a.kind, c) }); return { receipt, valid: verifyVerificationReceipt({ receipt, cert: a.certificate, verify: (c) => verifyByKind(a.kind, c) }).ok }; },
+  },
+  {
+    name: "melete.receipt.verify",
+    description: "Check a TWO-PARTY Verification Receipt offline: the verifier's signature, that the receipt is bound to this exact certificate, that the re-derived verdict is truthful, and that issuer ≠ verifier (independent). Pass the receipt + the certificate + its kind.",
+    inputSchema: { type: "object", properties: { kind: { type: "string" }, receipt: { type: "object" }, certificate: { type: "object" } }, required: ["kind", "receipt", "certificate"] },
+    run: (a) => verifyVerificationReceipt({ receipt: a.receipt, cert: a.certificate, verify: (c) => verifyByKind(a.kind, c) }),
   },
   {
     name: "melete.gauntlet",

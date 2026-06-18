@@ -648,6 +648,31 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "attribution failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/receipt") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        // PARTY ① the issuer (a lender) produces a real signed certificate — here an attribution explanation
+        const names = ["age", "income", "debt", "history", "tenure"]; const nF = names.length;
+        const coef = [0.4, 1.6, -1.1, 1.2, 0.5];
+        const f = (p) => { let v = 0; for (let i = 0; i < nF; i++) if (p[i]) v += coef[i]; if (p[1] && p[3]) v += 0.6; return v; };
+        const cert = M.attributionCertificate({ n: nF, value: f, featureNames: names });
+        const kind = "attribution";
+        // PARTY ② the verifier (a regulator/auditor) independently re-derives it and counter-signs a receipt
+        const receipt = M.issueVerificationReceipt({ cert, certStandard: cert.standard, verify: (c) => M.verifyByKind(kind, c) });
+        const check = M.verifyVerificationReceipt({ receipt, cert, verify: (c) => M.verifyByKind(kind, c) });
+        return json(res, 200, {
+          certKind: kind, certStandard: cert.standard, certHash: cert.payloadHash.slice(0, 16) + "…",
+          issuerFingerprint: receipt.issuerFingerprint, verifierFingerprint: receipt.verifierFingerprint,
+          independent: receipt.independent, verifierVerdict: receipt.verifierVerdict,
+          boundToCert: receipt.certHash === cert.payloadHash, receiptValid: check.ok,
+          whoBenefits: {
+            issuer: "the lender gets a portable, independently counter-signed attestation that a regulator verified its explanation — worth more to a customer/regulator than a self-signed claim",
+            verifier: "the regulator gets an offline-checkable record proving WHAT it verified and WHEN, tamper-evident — protection if the decision is ever challenged",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "receipt failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🎨 the signed Design System — JSON certificate, or the raw DESIGN.md (fetchable like getdesign.md)
     if (req.method === "GET" && (path === "/design.md" || path === "/design.md/")) {
       try { const c = M.designCertificate(); const md = M.toDesignMarkdown(c); res.writeHead(200, { "content-type": "text/markdown; charset=utf-8", "access-control-allow-origin": "*" }); res.end(md); return; }
