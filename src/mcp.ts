@@ -35,6 +35,7 @@ import { designCertificate, verifyDesignCertificate, toDesignMarkdown } from "./
 import { attributionCertificate, verifyAttributionCertificate, buildValueTable } from "./shapley.js";
 import { issueVerificationReceipt, verifyVerificationReceipt } from "./receipt.js";
 import { slaCertificate, verifySlaCertificate, buildSlaLedger, verifySlaLedger, slaLedgerReport } from "./sla.js";
+import { consentReceipt, verifyConsentReceipt, useCertificate, verifyUseCertificate, checkUse } from "./consent.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -111,6 +112,7 @@ export function verifyByKind(kind: string, c: any): { ok: boolean; reason: strin
   if (kind === "dro") return verifyDroCertificate(c); if (kind === "fairness") return verifyFairnessCertificate(c);
   if (kind === "design") return verifyDesignCertificate(c); if (kind === "attribution") return verifyAttributionCertificate(c);
   if (kind === "sla") return verifySlaCertificate(c);
+  if (kind === "consent") return verifyConsentReceipt(c);
   return { ok: false, reason: "unknown certificate kind" };
 }
 
@@ -214,7 +216,7 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
   {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution", "sla"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution", "sla", "consent"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
     run: (a) => verifyByKind(a.kind, a.certificate),
   },
   {
@@ -228,6 +230,12 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     description: "Build a tamper-evident COMPLIANCE LEDGER over a billing cycle: a hash-chained history of signed SLA period certificates with auto-accrued penalty. Pass the period certificates (from melete.sla) + penaltyPerBreach. Returns the signed ledger + a report (breach count/rate, longest clean streak, penalty owed, breaches by term). WHO BENEFITS: the consumer gets a provable compliance history + the penalty owed; the provider gets a signed track record. Removing/reordering/altering any period breaks the chain.",
     inputSchema: { type: "object", properties: { provider: { type: "string" }, consumer: { type: "string" }, penaltyPerBreach: { type: "number" }, periodCerts: { type: "array", description: "signed SLA period certificates", items: { type: "object" } } }, required: ["periodCerts"] },
     run: (a) => { const l = buildSlaLedger({ provider: a.provider, consumer: a.consumer, penaltyPerBreach: a.penaltyPerBreach, periodCerts: a.periodCerts ?? [] }); return { ledger: l, verified: verifySlaLedger(l).ok, report: slaLedgerReport(l) }; },
+  },
+  {
+    name: "melete.consent.use",
+    description: "Two-party GDPR consent. Given a data subject's signed consent grant (purposes, fields, expiry — issue it with the same shape, signed by the subject) and a proposed USE { purpose, fields, atTime }, the controller gets a signed Use Certificate whose verdict ALLOWED/DENIED is deterministically re-derived from the grant (purpose in scope? fields in scope? not expired? not revoked?). WHO BENEFITS: the subject can PROVE any out-of-scope use; the controller gets an audit-ready proof each use was within consent. Pass an optional signed revocation to enforce it.",
+    inputSchema: { type: "object", properties: { receipt: { type: "object", description: "the subject's signed consent grant (from consentReceipt)" }, use: { type: "object", description: "{ purpose, fields:[], atTime }" }, revocation: { type: "object", description: "optional signed revocation" } }, required: ["receipt", "use"] },
+    run: (a) => { const c = useCertificate({ receipt: a.receipt, use: a.use ?? {}, revocation: a.revocation ?? null }); return { useCertificate: c, verdict: c.verdict, reasons: c.reasons, verified: verifyUseCertificate(c, a.receipt, a.revocation ?? null).ok }; },
   },
   {
     name: "melete.receipt.issue",

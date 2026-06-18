@@ -15,7 +15,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import * as M from "../dist/index.js";
-import { createHash } from "node:crypto";
+import { createHash, generateKeyPairSync } from "node:crypto";
 
 // the live MCP trust ledger — meters + audits every agent tool call this server serves (the toll-booth)
 const mcpLedger = M.createLedger();
@@ -704,6 +704,32 @@ const server = createServer(async (req, res) => {
           },
         });
       } catch (e) { return json(res, 400, { error: "sla failed: " + e.message.slice(0, 120) }); }
+    }
+
+    if (req.method === "POST" && path === "/consent") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        const subj = generateKeyPairSync("ed25519"), ctrl = generateKeyPairSync("ed25519");
+        // PARTY ① the data subject signs a scoped consent grant
+        const receipt = M.consentReceipt({ subject: "alice", controller: "BankCo", purposes: ["fraud-detection", "credit-scoring"], fields: ["income", "age", "history"], grantedAt: 1000, expiresAt: 2000, keys: subj });
+        const rev = M.consentRevocation({ receipt, revokedAt: 1600, keys: subj });
+        // PARTY ② the controller asks to use the data — each use is adjudicated against the signed grant
+        const uses = [
+          { label: "credit score (in scope)", use: { purpose: "credit-scoring", fields: ["income", "age"], atTime: 1500 }, rev: null },
+          { label: "ad targeting (purpose not consented)", use: { purpose: "ad-targeting", fields: ["income"], atTime: 1500 }, rev: null },
+          { label: "uses ethnicity (field not consented)", use: { purpose: "credit-scoring", fields: ["income", "ethnicity"], atTime: 1500 }, rev: null },
+          { label: "after subject revoked at t=1600", use: { purpose: "credit-scoring", fields: ["income"], atTime: 1800 }, rev },
+        ];
+        const results = uses.map((u) => { const c = M.useCertificate({ receipt, use: u.use, revocation: u.rev, keys: ctrl }); return { label: u.label, verdict: c.verdict, reasons: c.reasons, verified: M.verifyUseCertificate(c, receipt, u.rev).ok }; });
+        return json(res, 200, {
+          subject: receipt.subject, controller: receipt.controller, purposes: receipt.purposes, fields: receipt.fields, expiresAt: receipt.expiresAt,
+          receiptVerified: M.verifyConsentReceipt(receipt).ok, results,
+          whoBenefits: {
+            subject: "holds a signed record of exactly what they consented to — and an honestly-DENIED use-certificate is portable proof of any out-of-scope / expired / post-revocation use (real recourse)",
+            controller: "holds signed use-certificates proving each use was within consent — an audit-ready, liability-bounding compliance trail",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "consent failed: " + e.message.slice(0, 120) }); }
     }
 
     // 🎨 the signed Design System — JSON certificate, or the raw DESIGN.md (fetchable like getdesign.md)

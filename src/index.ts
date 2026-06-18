@@ -75,6 +75,7 @@ export * from "./design.js";
 export * from "./shapley.js";
 export * from "./receipt.js";
 export * from "./sla.js";
+export * from "./consent.js";
 export * from "./mcp.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
@@ -180,6 +181,7 @@ import { designGauntlet } from "./design.js";
 import { attributionGauntlet } from "./shapley.js";
 import { receiptGauntlet } from "./receipt.js";
 import { slaGauntlet } from "./sla.js";
+import { consentGauntlet } from "./consent.js";
 import { mcpGauntlet } from "./mcp.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
@@ -258,6 +260,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "shapley", g: attributionGauntlet() },
     { name: "receipt", g: receiptGauntlet() },
     { name: "sla", g: slaGauntlet() },
+    { name: "consent", g: consentGauntlet() },
     { name: "mcp", g: mcpGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },
