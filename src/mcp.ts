@@ -36,6 +36,7 @@ import { attributionCertificate, verifyAttributionCertificate, buildValueTable }
 import { issueVerificationReceipt, verifyVerificationReceipt } from "./receipt.js";
 import { slaCertificate, verifySlaCertificate, buildSlaLedger, verifySlaLedger, slaLedgerReport } from "./sla.js";
 import { consentReceipt, verifyConsentReceipt, useCertificate, verifyUseCertificate, checkUse } from "./consent.js";
+import { trustPassport, verifyTrustPassport } from "./passport.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -230,6 +231,18 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     description: "Build a tamper-evident COMPLIANCE LEDGER over a billing cycle: a hash-chained history of signed SLA period certificates with auto-accrued penalty. Pass the period certificates (from melete.sla) + penaltyPerBreach. Returns the signed ledger + a report (breach count/rate, longest clean streak, penalty owed, breaches by term). WHO BENEFITS: the consumer gets a provable compliance history + the penalty owed; the provider gets a signed track record. Removing/reordering/altering any period breaks the chain.",
     inputSchema: { type: "object", properties: { provider: { type: "string" }, consumer: { type: "string" }, penaltyPerBreach: { type: "number" }, periodCerts: { type: "array", description: "signed SLA period certificates", items: { type: "object" } } }, required: ["periodCerts"] },
     run: (a) => { const l = buildSlaLedger({ provider: a.provider, consumer: a.consumer, penaltyPerBreach: a.penaltyPerBreach, periodCerts: a.periodCerts ?? [] }); return { ledger: l, verified: verifySlaLedger(l).ok, report: slaLedgerReport(l) }; },
+  },
+  {
+    name: "melete.passport.issue",
+    description: "Compose many Melete certificates into ONE signed Trust Passport. Pass members [{ kind, certificate }] (e.g. fairness + calibration + privacy + sla + consent). Returns a signed passport that binds each member by hash into an order-independent merkle root and re-verifies every member — so a buyer/regulator verifies the whole compliance posture in a single offline call (melete.passport.verify). The passport is itself a signed cert, so a verifier can counter-sign it with melete.receipt.issue (two-party). WHO BENEFITS: the issuer ships one artifact; the verifier checks everything at once + sees exactly which member (if any) failed.",
+    inputSchema: { type: "object", properties: { issuer: { type: "string" }, subject: { type: "string" }, members: { type: "array", description: "[{ kind, certificate }]", items: { type: "object" } } }, required: ["members"] },
+    run: (a) => { const p = trustPassport({ issuer: a.issuer, subject: a.subject, members: a.members ?? [], verify: verifyByKind }); return { passport: p, overallVerified: p.overallVerified, verified: verifyTrustPassport(p, verifyByKind).ok }; },
+  },
+  {
+    name: "melete.passport.verify",
+    description: "Verify a Trust Passport offline in one call: re-derives every member certificate (hash binding + per-kind re-verification), the merkle root, and the issuer signature. Returns ok + which members (if any) failed.",
+    inputSchema: { type: "object", properties: { passport: { type: "object" } }, required: ["passport"] },
+    run: (a) => verifyTrustPassport(a.passport, verifyByKind),
   },
   {
     name: "melete.consent.use",

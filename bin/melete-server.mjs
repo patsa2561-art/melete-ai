@@ -732,6 +732,34 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "consent failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/passport") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        // a vendor bundles its compliance proof for "credit-model-v3": fairness + calibration + attribution
+        const g = M.lcg(7); const pred = [], grp = []; for (let i = 0; i < 600; i++) { grp.push(i < 300 ? "A" : "B"); pred.push(g() < 0.5 ? 1 : 0); }
+        const fairCert = M.fairnessCertificate({ predictions: pred, groupOf: grp, tolerance: 0.1 });
+        const g2 = M.lcg(11); const cp = [], cy = []; for (let i = 0; i < 1000; i++) { const q = g2(); cp.push(q); cy.push(g2() < q ? 1 : 0); }
+        const calCert = M.calibrationCertificate({ predictions: cp, outcomes: cy });
+        const attrCert = M.attributionCertificate({ n: 5, value: (p) => { let v = 0; for (let i = 0; i < 5; i++) if (p[i]) v += (i + 1) * 0.3; return v; }, featureNames: ["age", "income", "debt", "history", "tenure"] });
+        const members = [{ kind: "fairness", certificate: fairCert }, { kind: "calibration", certificate: calCert }, { kind: "attribution", certificate: attrCert }];
+        const passport = M.trustPassport({ issuer: "VendorAI", subject: "credit-model-v3", members, verify: M.verifyByKind });
+        const check = M.verifyTrustPassport(passport, M.verifyByKind);
+        // PARTY ② a regulator counter-signs the whole bundle with one receipt
+        const receipt = M.issueVerificationReceipt({ cert: passport, certStandard: passport.standard, verify: (c) => M.verifyTrustPassport(c, M.verifyByKind) });
+        return json(res, 200, {
+          issuer: passport.issuer, subject: passport.subject, n: passport.n,
+          members: passport.entries.map((e) => ({ kind: e.kind, standard: e.standard, verified: e.ok })),
+          overallVerified: passport.overallVerified, merkleRoot: passport.merkleRoot.slice(0, 16) + "…",
+          passportVerified: check.ok, passportReason: check.reason,
+          counterSigned: { verifierVerdict: receipt.verifierVerdict, independent: receipt.independent, verifierFingerprint: receipt.verifierFingerprint },
+          whoBenefits: {
+            issuer: "ships ONE portable artifact proving fairness + calibration + attribution at once — a swapped or tampered member is caught",
+            verifier: "verifies the entire compliance posture in a single offline call + sees exactly which member failed, then counter-signs the whole bundle once",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "passport failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🎨 the signed Design System — JSON certificate, or the raw DESIGN.md (fetchable like getdesign.md)
     if (req.method === "GET" && (path === "/design.md" || path === "/design.md/")) {
       try { const c = M.designCertificate(); const md = M.toDesignMarkdown(c); res.writeHead(200, { "content-type": "text/markdown; charset=utf-8", "access-control-allow-origin": "*" }); res.end(md); return; }
