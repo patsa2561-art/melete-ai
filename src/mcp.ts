@@ -38,6 +38,7 @@ import { slaCertificate, verifySlaCertificate, buildSlaLedger, verifySlaLedger, 
 import { consentReceipt, verifyConsentReceipt, useCertificate, verifyUseCertificate, checkUse } from "./consent.js";
 import { trustPassport, verifyTrustPassport } from "./passport.js";
 import { buildAibom, verifyAibom, aibomReport } from "./aibom.js";
+import { buildPrivateAuditProof, verifyPrivateAuditProof } from "./spotcheck.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -116,6 +117,7 @@ export function verifyByKind(kind: string, c: any): { ok: boolean; reason: strin
   if (kind === "sla") return verifySlaCertificate(c);
   if (kind === "consent") return verifyConsentReceipt(c);
   if (kind === "aibom") return verifyAibom(c);
+  if (kind === "audit") return verifyPrivateAuditProof(c) as any;
   return { ok: false, reason: "unknown certificate kind" };
 }
 
@@ -219,7 +221,7 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
   {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution", "sla", "consent", "aibom"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution", "sla", "consent", "aibom", "audit"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
     run: (a) => verifyByKind(a.kind, a.certificate),
   },
   {
@@ -233,6 +235,18 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     description: "Build a tamper-evident COMPLIANCE LEDGER over a billing cycle: a hash-chained history of signed SLA period certificates with auto-accrued penalty. Pass the period certificates (from melete.sla) + penaltyPerBreach. Returns the signed ledger + a report (breach count/rate, longest clean streak, penalty owed, breaches by term). WHO BENEFITS: the consumer gets a provable compliance history + the penalty owed; the provider gets a signed track record. Removing/reordering/altering any period breaks the chain.",
     inputSchema: { type: "object", properties: { provider: { type: "string" }, consumer: { type: "string" }, penaltyPerBreach: { type: "number" }, periodCerts: { type: "array", description: "signed SLA period certificates", items: { type: "object" } } }, required: ["periodCerts"] },
     run: (a) => { const l = buildSlaLedger({ provider: a.provider, consumer: a.consumer, penaltyPerBreach: a.penaltyPerBreach, periodCerts: a.periodCerts ?? [] }); return { ledger: l, verified: verifySlaLedger(l).ok, report: slaLedgerReport(l) }; },
+  },
+  {
+    name: "melete.audit.prove",
+    description: "PROVE a model-quality claim over a HUGE PRIVATE dataset while the auditor sees only a tiny random sample — audit without handing over the data. Pass the per-record outcome bits (1 = the model was correct / the record satisfies the claim, 0 = not) + the claimed mean tau (+ optional margin, k). Returns a signed proof: a Merkle commitment to ALL records, a Fiat-Shamir challenge derived from the root that selects k records, and the openings for just those k (with Merkle paths). A claim inflated past tolerance is caught with probability rising toward 1 in k; the prover cannot cherry-pick the sample. WHO BENEFITS: the vendor proves compliance without exposing the model/data; the auditor/regulator audits a tiny sample; data subjects stay mostly private.",
+    inputSchema: { type: "object", properties: { bits: { type: "array", description: "per-record 0/1 outcome (the thing whose mean is claimed)" }, tau: { type: "number", description: "claimed mean, e.g. 0.90" }, margin: { type: "number", description: "tolerance (default 0.03)" }, k: { type: "number", description: "sample size to reveal (default 300)" } }, required: ["bits", "tau"] },
+    run: (a) => { const p = buildPrivateAuditProof({ bits: a.bits ?? [], tau: a.tau, margin: a.margin, k: a.k }); const v = verifyPrivateAuditProof(p); return { proof: p, verdict: p.verdict, revealed: p.openings.length, of: p.n, verified: v.ok }; },
+  },
+  {
+    name: "melete.audit.verify",
+    description: "Verify a Private Audit Proof offline: re-derive the Fiat-Shamir indices from the committed root (no cherry-picking), check every opening against the root (Merkle binding), recompute the sample statistic + the SUPPORTED/UNSUPPORTED verdict, and check the signature.",
+    inputSchema: { type: "object", properties: { proof: { type: "object" } }, required: ["proof"] },
+    run: (a) => verifyPrivateAuditProof(a.proof),
   },
   {
     name: "melete.aibom.verify",

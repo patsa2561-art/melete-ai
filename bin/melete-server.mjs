@@ -790,6 +790,32 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "aibom failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/spotcheck") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        const N = Math.max(100, Math.min(200000, (body.n | 0) || 100000));
+        const tau = 0.90, margin = 0.03, k = Math.max(20, Math.min(2000, (body.k | 0) || 300));
+        const g = M.lcg((body.seed | 0) || 7);
+        const mk = (trueMean) => { const b = []; for (let i = 0; i < N; i++) b.push(g() < trueMean ? 1 : 0); return b; };
+        // an HONEST vendor (true accuracy ~93%, claims >=90%) and a CHEATER (true ~80%, claims >=90%)
+        const honest = M.buildPrivateAuditProof({ bits: mk(0.93), tau, margin, k });
+        const cheater = M.buildPrivateAuditProof({ bits: mk(0.80), tau, margin, k });
+        const trueGap = 0.10, soundness = 1 - Math.pow(1 - (trueGap - margin), k); // approx detection bound at this gap
+        return json(res, 200, {
+          claim: "model correctness rate >= 90%", datasetSize: N, revealed: k, revealedPct: +(k / N * 100).toFixed(3),
+          honest: { verdict: honest.verdict, sampleMean: +(honest.sampleMean * 100).toFixed(1), verified: M.verifyPrivateAuditProof(honest).ok, root: honest.root.slice(0, 16) + "…" },
+          cheater: { verdict: cheater.verdict, sampleMean: +(cheater.sampleMean * 100).toFixed(1), verified: M.verifyPrivateAuditProof(cheater).ok, root: cheater.root.slice(0, 16) + "…" },
+          soundnessAtThisK: +(soundness * 100).toFixed(2),
+          whoBenefits: {
+            vendor: "proves the claim without surrendering the model or the full (private) dataset",
+            auditor: "audits a sound claim by inspecting only " + k + " of " + N + " records",
+            dataSubjects: "only a tiny random sample is ever exposed, not the whole corpus",
+            relyingParty: "re-checks the same proof offline before trusting the model",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "spotcheck failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🎨 the signed Design System — JSON certificate, or the raw DESIGN.md (fetchable like getdesign.md)
     if (req.method === "GET" && (path === "/design.md" || path === "/design.md/")) {
       try { const c = M.designCertificate(); const md = M.toDesignMarkdown(c); res.writeHead(200, { "content-type": "text/markdown; charset=utf-8", "access-control-allow-origin": "*" }); res.end(md); return; }
