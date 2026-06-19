@@ -790,6 +790,37 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "aibom failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/translog") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        const mk = (n, rewriteAt) => { let ts = 0; const log = M.createTransparencyLog({ logId: "melete-ai-claims", now: () => ts++ }); for (let i = 0; i < n; i++) log.append(i === rewriteAt ? "melete-cert:REWRITTEN-to-hide-bias" : "melete-cert:fairness:" + i); return log; };
+        // an honest public log of 100 AI claims
+        const log = mk(100, -1); const newSTH = log.sth();
+        // a monitor recorded the size-80 head earlier
+        const oldSTH = mk(80, -1).sth();
+        // ① inclusion: claim #42 is provably in the log
+        const incIdx = 42; const incOk = M.verifyInclusion(log.inclusionProof(incIdx), newSTH).ok;
+        // ② consistency: the honest log appended-only from 80 → 100
+        const honestConsistent = M.verifyConsistency(log.consistencyProof(80), oldSTH, newSTH).ok;
+        // ③ rewrite-of-history: a malicious log rewrote claim #30 → inconsistent with the monitor's old head
+        const tampered = mk(100, 30); const tamperedSTH = tampered.sth();
+        const rewriteCaught = !M.verifyConsistency(tampered.consistencyProof(80), oldSTH, tamperedSTH).ok;
+        // ④ split-view: two size-100 heads, different roots
+        const forked = mk(100, 10); const splitViewCaught = forked.sth().rootHash !== newSTH.rootHash;
+        return json(res, 200, {
+          logId: log.logId, size: newSTH.size, rootHash: newSTH.rootHash.slice(0, 16) + "…", sthSigned: M.verifySTH(newSTH).ok,
+          inclusion: { claimIndex: incIdx, provenInLog: incOk },
+          consistencyAppendOnly: honestConsistent, rewriteOfHistoryCaught: rewriteCaught, splitViewCaught,
+          whoBenefits: {
+            submitters: "AI vendors get a public, timestamped, non-repudiable record their claim existed",
+            auditors: "anyone verifies inclusion + append-only offline with just tree heads and a proof — no full log",
+            monitors: "regulators / journalists / the public watch the log and detect a rewrite or a fork",
+            endUsers: "trust a claim only if it is in the public, un-rewritable log",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "translog failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/pca") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       try {

@@ -40,6 +40,7 @@ import { trustPassport, verifyTrustPassport } from "./passport.js";
 import { buildAibom, verifyAibom, aibomReport } from "./aibom.js";
 import { buildPrivateAuditProof, verifyPrivateAuditProof } from "./spotcheck.js";
 import { proveAnswer, verifyAnswer } from "./pca.js";
+import { createTransparencyLog, verifySTH, verifyInclusion as verifyLogInclusion, verifyConsistency as verifyLogConsistency, verifyEntryInclusion } from "./translog.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -120,9 +121,11 @@ export function verifyByKind(kind: string, c: any): { ok: boolean; reason: strin
   if (kind === "aibom") return verifyAibom(c);
   if (kind === "audit") return verifyPrivateAuditProof(c) as any;
   if (kind === "answer") return verifyAnswer(c) as any;
+  if (kind === "sth") return verifySTH(c) as any;
   return { ok: false, reason: "unknown certificate kind" };
 }
 
+const _translog = createTransparencyLog({ logId: "melete-public-claims" });
 export const MELETE_MCP_TOOLS: McpTool[] = [
   {
     name: "melete.next",
@@ -223,7 +226,7 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
   {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution", "sla", "consent", "aibom", "audit", "answer"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution", "sla", "consent", "aibom", "audit", "answer", "sth"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
     run: (a) => verifyByKind(a.kind, a.certificate),
   },
   {
@@ -237,6 +240,30 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     description: "Build a tamper-evident COMPLIANCE LEDGER over a billing cycle: a hash-chained history of signed SLA period certificates with auto-accrued penalty. Pass the period certificates (from melete.sla) + penaltyPerBreach. Returns the signed ledger + a report (breach count/rate, longest clean streak, penalty owed, breaches by term). WHO BENEFITS: the consumer gets a provable compliance history + the penalty owed; the provider gets a signed track record. Removing/reordering/altering any period breaks the chain.",
     inputSchema: { type: "object", properties: { provider: { type: "string" }, consumer: { type: "string" }, penaltyPerBreach: { type: "number" }, periodCerts: { type: "array", description: "signed SLA period certificates", items: { type: "object" } } }, required: ["periodCerts"] },
     run: (a) => { const l = buildSlaLedger({ provider: a.provider, consumer: a.consumer, penaltyPerBreach: a.penaltyPerBreach, periodCerts: a.periodCerts ?? [] }); return { ledger: l, verified: verifySlaLedger(l).ok, report: slaLedgerReport(l) }; },
+  },
+  {
+    name: "melete.translog.submit",
+    description: "Append a claim (e.g. any Melete certificate payloadHash) to the PUBLIC AI Transparency Log — Certificate-Transparency-for-AI. Returns the leaf index + the new Signed Tree Head (the log's signed commitment to its state). Once logged, the claim is publicly provable and cannot be un-said: rewriting it is detectable via consistency proofs.",
+    inputSchema: { type: "object", properties: { entry: { type: "string", description: "the claim to log, e.g. a certificate payloadHash" } }, required: ["entry"] },
+    run: (a) => { const index = _translog.append(String(a.entry ?? "")); return { index, sth: _translog.sth() }; },
+  },
+  {
+    name: "melete.translog.inclusion",
+    description: "Get an inclusion proof that a logged claim (by leaf index) is in the public log, against the current Signed Tree Head. Verify offline with melete.verify kind sth + the proof.",
+    inputSchema: { type: "object", properties: { index: { type: "number" } }, required: ["index"] },
+    run: (a) => ({ proof: _translog.inclusionProof((a.index|0)), sth: _translog.sth() }),
+  },
+  {
+    name: "melete.translog.verifyInclusion",
+    description: "Verify offline that an entry is included in the log: pass the entry, its inclusion proof, and a Signed Tree Head. Recomputes the Merkle root and checks the tree-head signature.",
+    inputSchema: { type: "object", properties: { entry: { type: "string" }, proof: { type: "object" }, sth: { type: "object" } }, required: ["entry","proof","sth"] },
+    run: (a) => verifyEntryInclusion(String(a.entry??""), a.proof, a.sth),
+  },
+  {
+    name: "melete.translog.verifyConsistency",
+    description: "Verify offline that the log only APPENDED (never rewrote history) between two Signed Tree Heads: pass the consistency proof + the old STH + the new STH. Detects a rewrite or a split view.",
+    inputSchema: { type: "object", properties: { proof: { type: "object" }, oldSth: { type: "object" }, newSth: { type: "object" } }, required: ["proof","oldSth","newSth"] },
+    run: (a) => verifyLogConsistency(a.proof, a.oldSth, a.newSth),
   },
   {
     name: "melete.answer.prove",
