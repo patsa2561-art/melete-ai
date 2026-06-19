@@ -39,6 +39,7 @@ import { consentReceipt, verifyConsentReceipt, useCertificate, verifyUseCertific
 import { trustPassport, verifyTrustPassport } from "./passport.js";
 import { buildAibom, verifyAibom, aibomReport } from "./aibom.js";
 import { buildPrivateAuditProof, verifyPrivateAuditProof } from "./spotcheck.js";
+import { proveAnswer, verifyAnswer } from "./pca.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -118,6 +119,7 @@ export function verifyByKind(kind: string, c: any): { ok: boolean; reason: strin
   if (kind === "consent") return verifyConsentReceipt(c);
   if (kind === "aibom") return verifyAibom(c);
   if (kind === "audit") return verifyPrivateAuditProof(c) as any;
+  if (kind === "answer") return verifyAnswer(c) as any;
   return { ok: false, reason: "unknown certificate kind" };
 }
 
@@ -221,7 +223,7 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
   {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution", "sla", "consent", "aibom", "audit"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution", "sla", "consent", "aibom", "audit", "answer"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
     run: (a) => verifyByKind(a.kind, a.certificate),
   },
   {
@@ -235,6 +237,18 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     description: "Build a tamper-evident COMPLIANCE LEDGER over a billing cycle: a hash-chained history of signed SLA period certificates with auto-accrued penalty. Pass the period certificates (from melete.sla) + penaltyPerBreach. Returns the signed ledger + a report (breach count/rate, longest clean streak, penalty owed, breaches by term). WHO BENEFITS: the consumer gets a provable compliance history + the penalty owed; the provider gets a signed track record. Removing/reordering/altering any period breaks the chain.",
     inputSchema: { type: "object", properties: { provider: { type: "string" }, consumer: { type: "string" }, penaltyPerBreach: { type: "number" }, periodCerts: { type: "array", description: "signed SLA period certificates", items: { type: "object" } } }, required: ["periodCerts"] },
     run: (a) => { const l = buildSlaLedger({ provider: a.provider, consumer: a.consumer, penaltyPerBreach: a.penaltyPerBreach, periodCerts: a.periodCerts ?? [] }); return { ledger: l, verified: verifySlaLedger(l).ok, report: slaLedgerReport(l) }; },
+  },
+  {
+    name: "melete.answer.prove",
+    description: "Attach a verifiable trust tag to a SINGLE AI answer (Proof-Carrying Answer). Pass the input features, the modelʼs certified evidence envelope (support {lo[],hi[]}), the output, the stated confidence, and the certified-reliable confidence threshold (+ optional lineageRoot from an AIBOM, slaPeriod, calibrationCertHash). Returns a signed proof whose verdict is TRUSTED, OUT-OF-SCOPE (with the offending input dimension), or NEEDS-REVIEW (below the reliable threshold). A consumer/agent verifies it offline in O(dimensions) with melete.answer.verify — trusting one answer without trusting the producer.".replace("ʼ","") ,
+    inputSchema: { type: "object", properties: { modelId: { type: "string" }, input: { type: "array" }, support: { type: "object", description: "{ lo:[], hi:[] } certified evidence envelope" }, output: {}, confidence: { type: "number" }, reliableConfidence: { type: "number" }, lineageRoot: { type: "string" }, slaPeriod: { type: "string" }, calibrationCertHash: { type: "string" } }, required: ["input","support","confidence"] },
+    run: (a) => { const p = proveAnswer({ modelId:a.modelId, input:a.input??[], support:a.support??{lo:[],hi:[]}, output:a.output, confidence:a.confidence, reliableConfidence:a.reliableConfidence, lineageRoot:a.lineageRoot, slaPeriod:a.slaPeriod, calibrationCertHash:a.calibrationCertHash }); return { proof:p, verdict:p.verdict, verified: verifyAnswer(p).ok }; },
+  },
+  {
+    name: "melete.answer.verify",
+    description: "Verify a Proof-Carrying Answer offline: recompute the in-scope test on the input + the confidence gate + the verdict, and check the signature. No model or dataset needed.",
+    inputSchema: { type: "object", properties: { proof: { type: "object" } }, required: ["proof"] },
+    run: (a) => verifyAnswer(a.proof),
   },
   {
     name: "melete.audit.prove",

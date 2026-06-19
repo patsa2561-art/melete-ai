@@ -790,6 +790,32 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "aibom failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/pca") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        const support = { lo: [0, 0, 0, 0], hi: [1, 1, 1, 1] }, reliable = 0.80;
+        const lineage = createHash("sha256").update("credit-v3-aibom").digest("hex");
+        const calHash = createHash("sha256").update("credit-v3-calibration").digest("hex");
+        const mk = (input, conf, output) => M.proveAnswer({ modelId: "credit-v3", input, support, confidence: conf, reliableConfidence: reliable, output, lineageRoot: lineage, slaPeriod: "2026-06", calibrationCertHash: calHash });
+        const answers = [
+          { label: "applicant inside the certified envelope, high confidence", p: mk([0.42, 0.6, 0.31, 0.55], 0.94, { decision: "approve" }) },
+          { label: "income feature far outside training range (extrapolation)", p: mk([0.42, 1.8, 0.31, 0.55], 0.94, { decision: "approve" }) },
+          { label: "in-scope but the model is only 64% sure", p: mk([0.5, 0.5, 0.5, 0.5], 0.64, { decision: "approve" }) },
+        ];
+        const results = answers.map((a) => ({ label: a.label, verdict: a.p.verdict, confidence: +(a.p.confidence * 100).toFixed(0), witnessDim: a.p.witnessDim, verified: M.verifyAnswer(a.p).ok, bytes: JSON.stringify(a.p).length }));
+        return json(res, 200, {
+          model: "credit-v3", reliableConfidence: reliable * 100, boundLineage: lineage.slice(0, 16) + "…", boundCalibration: calHash.slice(0, 16) + "…",
+          answers: results,
+          whoBenefits: {
+            provider: "every answer carries its own trust + liability is bounded to the certified scope",
+            consumer: "an agent verifies each answer offline in microseconds and safely rejects the out-of-scope ones",
+            platform: "audits a tamper-evident stream of signed per-answer verdicts",
+            endUser: "is protected from confident-but-unbacked answers — they are flagged, not asserted",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "pca failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/spotcheck") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       try {
