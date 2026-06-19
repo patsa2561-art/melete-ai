@@ -37,6 +37,7 @@ import { issueVerificationReceipt, verifyVerificationReceipt } from "./receipt.j
 import { slaCertificate, verifySlaCertificate, buildSlaLedger, verifySlaLedger, slaLedgerReport } from "./sla.js";
 import { consentReceipt, verifyConsentReceipt, useCertificate, verifyUseCertificate, checkUse } from "./consent.js";
 import { trustPassport, verifyTrustPassport } from "./passport.js";
+import { buildAibom, verifyAibom, aibomReport } from "./aibom.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -114,6 +115,7 @@ export function verifyByKind(kind: string, c: any): { ok: boolean; reason: strin
   if (kind === "design") return verifyDesignCertificate(c); if (kind === "attribution") return verifyAttributionCertificate(c);
   if (kind === "sla") return verifySlaCertificate(c);
   if (kind === "consent") return verifyConsentReceipt(c);
+  if (kind === "aibom") return verifyAibom(c);
   return { ok: false, reason: "unknown certificate kind" };
 }
 
@@ -217,7 +219,7 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
   {
     name: "melete.verify",
     description: "Re-verify any Melete signed certificate OFFLINE (no trust in the server). Pass the certificate + its kind.",
-    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution", "sla", "consent"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
+    inputSchema: { type: "object", properties: { kind: { type: "string", enum: ["selection", "support", "fdr", "anytime", "swarm", "conformal", "subgroup", "calibration", "privacy", "unlearning", "dro", "fairness", "design", "attribution", "sla", "consent", "aibom"] }, certificate: { type: "object" } }, required: ["kind", "certificate"] },
     run: (a) => verifyByKind(a.kind, a.certificate),
   },
   {
@@ -231,6 +233,12 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     description: "Build a tamper-evident COMPLIANCE LEDGER over a billing cycle: a hash-chained history of signed SLA period certificates with auto-accrued penalty. Pass the period certificates (from melete.sla) + penaltyPerBreach. Returns the signed ledger + a report (breach count/rate, longest clean streak, penalty owed, breaches by term). WHO BENEFITS: the consumer gets a provable compliance history + the penalty owed; the provider gets a signed track record. Removing/reordering/altering any period breaks the chain.",
     inputSchema: { type: "object", properties: { provider: { type: "string" }, consumer: { type: "string" }, penaltyPerBreach: { type: "number" }, periodCerts: { type: "array", description: "signed SLA period certificates", items: { type: "object" } } }, required: ["periodCerts"] },
     run: (a) => { const l = buildSlaLedger({ provider: a.provider, consumer: a.consumer, penaltyPerBreach: a.penaltyPerBreach, periodCerts: a.periodCerts ?? [] }); return { ledger: l, verified: verifySlaLedger(l).ok, report: slaLedgerReport(l) }; },
+  },
+  {
+    name: "melete.aibom.verify",
+    description: "Verify a Model Supply-Chain Certificate (AI Bill of Materials) — a MULTI-PARTY signed lineage of an AI model (base-model → fine-tune → quantize → deploy), where each step is signed by the key of the party responsible for it. Confirms every signature, the chain order, that no step derives from an artifact missing from the chain (provenance closure), and binds each step to its signer fingerprint. Returns ok + the responsibility map (who did which step). WHO BENEFITS: base-model vendor (attribution), fine-tuner + optimizer (prove their layer), deployer (prove an unbroken lineage), regulator/end-user (verify the whole provenance). Build it offline with buildAibom (each step signs with its own key); it also rides inside a Trust Passport (kind 'aibom').",
+    inputSchema: { type: "object", properties: { lineage: { type: "object", description: "the AIBOM certificate to verify" } }, required: ["lineage"] },
+    run: (a) => { const v = verifyAibom(a.lineage); return { ...v, report: v.ok ? aibomReport(a.lineage) : undefined }; },
   },
   {
     name: "melete.passport.issue",

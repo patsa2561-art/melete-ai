@@ -760,6 +760,36 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "passport failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/aibom") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        const tamper = !!(body.tamper | 0);
+        const kBase = generateKeyPairSync("ed25519"), kFt = generateKeyPairSync("ed25519"), kOpt = generateKeyPairSync("ed25519"), kDep = generateKeyPairSync("ed25519");
+        const ah = (s) => createHash("sha256").update(s).digest("hex");
+        const aBase = ah("base"), aFt = ah("ft"), aOpt = ah("opt"), aDep = ah("dep");
+        const steps = [
+          { party: "OpenWeights Inc", role: "base-model", action: "pretrain", artifactHash: aBase, inputs: [], keys: kBase },
+          { party: "FinTuneCo", role: "fine-tuner", action: "fine-tune on domain data", artifactHash: aFt, inputs: [aBase], keys: kFt },
+          { party: "EdgeOpt", role: "optimizer", action: "int8 quantize", artifactHash: aOpt, inputs: [aFt], keys: kOpt },
+          { party: "BankCo", role: "deployer", action: "deploy to prod", artifactHash: aDep, inputs: [aOpt], keys: kDep },
+        ];
+        const lineage = M.buildAibom({ model: "credit-model-v3", steps });
+        if (tamper) { lineage.links[1].artifactHash = ah("swapped-evil-weights"); } // simulate a swapped fine-tune artifact
+        const v = M.verifyAibom(lineage);
+        const rep = M.aibomReport(lineage);
+        return json(res, 200, {
+          model: lineage.model, steps: rep.steps.map((s) => ({ seq: s.seq, party: s.party, role: s.role, action: s.action, signer: s.signer })),
+          distinctParties: rep.distinctParties, verified: v.ok, reason: v.reason, headHash: lineage.headHash.slice(0, 16) + "…",
+          whoBenefits: {
+            baseVendor: "gets attribution + liability scoped to only their pretraining layer",
+            fineTuner: "proves exactly what they changed and on top of which base",
+            deployer: "proves it shipped a known, unbroken lineage — not a swapped artifact",
+            regulator: "verifies the whole provenance offline and knows who is accountable for each step",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "aibom failed: " + e.message.slice(0, 120) }); }
+    }
+
     // 🎨 the signed Design System — JSON certificate, or the raw DESIGN.md (fetchable like getdesign.md)
     if (req.method === "GET" && (path === "/design.md" || path === "/design.md/")) {
       try { const c = M.designCertificate(); const md = M.toDesignMarkdown(c); res.writeHead(200, { "content-type": "text/markdown; charset=utf-8", "access-control-allow-origin": "*" }); res.end(md); return; }
@@ -867,7 +897,7 @@ const server = createServer(async (req, res) => {
       // PRESCRIPTION — the plain-language action card: what to DO with this result.
       let prescription = null; try { prescription = M.buildPrescription(frontierObs, space, goal); } catch { prescription = null; }
       // DISCOVERY BRAIN — the improvement-lineage tree (search drawn as converging roots)
-      let lineage = null; try { lineage = M.buildLineage(frontierObs, space, goal); } catch { lineage = null; }
+      let lineage = null; try { lineage = M.buildAibom(frontierObs, space, goal); } catch { lineage = null; }
       // SLOPPINESS — how many combinations of variables actually matter (effective dimensionality)
       let sloppiness = null; try { sloppiness = M.analyzeSloppiness(frontierObs, space, goal); } catch { sloppiness = null; }
       // CLIFFS — tipping points where a small change collapses the result
