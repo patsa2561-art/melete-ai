@@ -790,6 +790,38 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "aibom failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/witness") {
+      const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
+      try {
+        const quorum = Math.max(1, (body.quorum | 0) || 3);
+        let ts = 0; const log = M.createTransparencyLog({ logId: "melete-ai-claims", now: () => ts++ });
+        for (let i = 0; i < 64; i++) log.append("melete-cert:" + i);
+        const sth = log.sth();
+        const names = ["Anthropic-Witness", "Cloudflare-Witness", "EU-AI-Office", "MLCommons", "AlgoWatch-NGO"];
+        const W = names.map((n) => M.createWitness(n));
+        const cosigs = W.map((w) => w.cosign(sth)).filter((c) => !("refused" in c));
+        const q = M.collectQuorum(sth, cosigs, quorum);
+        // a malicious operator shows a DIFFERENT root (size 64) to two of the witnesses → split view
+        let tb = 0; const logB = M.createTransparencyLog({ logId: "melete-ai-claims", now: () => tb++ });
+        for (let i = 0; i < 64; i++) logB.append(i === 5 ? "HIDDEN-FORK" : "melete-cert:" + i);
+        const sthB = logB.sth();
+        const cosigsB = [W[3].cosign(sthB), W[4].cosign(sthB)].filter((c) => !("refused" in c));
+        const sv = M.detectSplitView([...cosigs.slice(0, 3), ...cosigsB]);
+        return json(res, 200, {
+          logId: sth.logId, size: sth.size, rootHash: sth.rootHash.slice(0, 16) + "…",
+          witnesses: W.map((w, i) => ({ name: names[i], fingerprint: w.fingerprint, cosigned: !("refused" in cosigs[i] || {}) })),
+          quorum: { needed: quorum, got: q.count, accepted: q.accepted },
+          splitView: { detected: sv.splitView, conflictingRoots: sv.conflicts.length ? sv.conflicts[0].roots.map((r) => r.slice(0, 12) + "…") : [] },
+          whoBenefits: {
+            operator: "earns trust it could not earn alone — its honesty is checkable, not assumed",
+            witnesses: "other vendors / NGOs / clouds provide a public good and hold each other accountable",
+            relyingParties: "trust a tree head without trusting any single operator — quorum of independents",
+            regulators: "get cryptographic proof there is ONE, and only one, history (split views are exposed)",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "witness failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/translog") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       try {

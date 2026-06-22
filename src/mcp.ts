@@ -41,6 +41,7 @@ import { buildAibom, verifyAibom, aibomReport } from "./aibom.js";
 import { buildPrivateAuditProof, verifyPrivateAuditProof } from "./spotcheck.js";
 import { proveAnswer, verifyAnswer } from "./pca.js";
 import { createTransparencyLog, verifySTH, verifyInclusion as verifyLogInclusion, verifyConsistency as verifyLogConsistency, verifyEntryInclusion } from "./translog.js";
+import { createWitness, collectQuorum, detectSplitView } from "./witness.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -126,6 +127,7 @@ export function verifyByKind(kind: string, c: any): { ok: boolean; reason: strin
 }
 
 const _translog = createTransparencyLog({ logId: "melete-public-claims" });
+const _witnesses = ["Anthropic-Witness","Cloudflare-Witness","EU-AI-Office","MLCommons","AlgoWatch-NGO"].map((n) => createWitness(n));
 export const MELETE_MCP_TOOLS: McpTool[] = [
   {
     name: "melete.next",
@@ -240,6 +242,18 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     description: "Build a tamper-evident COMPLIANCE LEDGER over a billing cycle: a hash-chained history of signed SLA period certificates with auto-accrued penalty. Pass the period certificates (from melete.sla) + penaltyPerBreach. Returns the signed ledger + a report (breach count/rate, longest clean streak, penalty owed, breaches by term). WHO BENEFITS: the consumer gets a provable compliance history + the penalty owed; the provider gets a signed track record. Removing/reordering/altering any period breaks the chain.",
     inputSchema: { type: "object", properties: { provider: { type: "string" }, consumer: { type: "string" }, penaltyPerBreach: { type: "number" }, periodCerts: { type: "array", description: "signed SLA period certificates", items: { type: "object" } } }, required: ["periodCerts"] },
     run: (a) => { const l = buildSlaLedger({ provider: a.provider, consumer: a.consumer, penaltyPerBreach: a.penaltyPerBreach, periodCerts: a.periodCerts ?? [] }); return { ledger: l, verified: verifySlaLedger(l).ok, report: slaLedgerReport(l) }; },
+  },
+  {
+    name: "melete.witness.quorum",
+    description: "Get the public log's current Signed Tree Head co-signed by a network of independent WITNESSES, and the quorum verdict — split-view immunity for the AI Transparency Log. A relying party trusts a tree head only if a quorum of distinct witnesses co-signed the SAME root. Pass an optional quorum (default 3 of 5).",
+    inputSchema: { type: "object", properties: { quorum: { type: "number" } }, required: [] },
+    run: (a) => { const sth = _translog.sth(); const cosignatures = (_witnesses.map((w) => w.cosign(sth)).filter((c) => !("refused" in c))) as any[]; const q = collectQuorum(sth, cosignatures, (a.quorum|0)||3); return { sth, cosignatures, quorum: q }; },
+  },
+  {
+    name: "melete.witness.verify",
+    description: "Verify a witness-quorum offline: count distinct valid witness co-signatures for a tree head against a quorum, and detect a split view (co-signatures for two different roots at the same size). Pass { sth, cosignatures, quorum }.",
+    inputSchema: { type: "object", properties: { sth: { type: "object" }, cosignatures: { type: "array", items: { type: "object" } }, quorum: { type: "number" } }, required: ["sth","cosignatures"] },
+    run: (a) => ({ quorum: collectQuorum(a.sth, a.cosignatures||[], (a.quorum|0)||3), splitView: detectSplitView(a.cosignatures||[]) }),
   },
   {
     name: "melete.translog.submit",
