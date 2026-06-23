@@ -42,6 +42,7 @@ import { buildPrivateAuditProof, verifyPrivateAuditProof } from "./spotcheck.js"
 import { proveAnswer, verifyAnswer } from "./pca.js";
 import { createTransparencyLog, verifySTH, verifyInclusion as verifyLogInclusion, verifyConsistency as verifyLogConsistency, verifyEntryInclusion } from "./translog.js";
 import { createWitness, collectQuorum, detectSplitView } from "./witness.js";
+import { createRevocationRegistry, verifyRevocationList, statusFromList } from "./revocation.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -128,6 +129,7 @@ export function verifyByKind(kind: string, c: any): { ok: boolean; reason: strin
 
 const _translog = createTransparencyLog({ logId: "melete-public-claims" });
 const _witnesses = ["Anthropic-Witness","Cloudflare-Witness","EU-AI-Office","MLCommons","AlgoWatch-NGO"].map((n) => createWitness(n));
+const _revreg = createRevocationRegistry({ authority: "Melete-Governance" });
 export const MELETE_MCP_TOOLS: McpTool[] = [
   {
     name: "melete.next",
@@ -242,6 +244,18 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     description: "Build a tamper-evident COMPLIANCE LEDGER over a billing cycle: a hash-chained history of signed SLA period certificates with auto-accrued penalty. Pass the period certificates (from melete.sla) + penaltyPerBreach. Returns the signed ledger + a report (breach count/rate, longest clean streak, penalty owed, breaches by term). WHO BENEFITS: the consumer gets a provable compliance history + the penalty owed; the provider gets a signed track record. Removing/reordering/altering any period breaks the chain.",
     inputSchema: { type: "object", properties: { provider: { type: "string" }, consumer: { type: "string" }, penaltyPerBreach: { type: "number" }, periodCerts: { type: "array", description: "signed SLA period certificates", items: { type: "object" } } }, required: ["periodCerts"] },
     run: (a) => { const l = buildSlaLedger({ provider: a.provider, consumer: a.consumer, penaltyPerBreach: a.penaltyPerBreach, periodCerts: a.periodCerts ?? [] }); return { ledger: l, verified: verifySlaLedger(l).ok, report: slaLedgerReport(l) }; },
+  },
+  {
+    name: "melete.revocation.revoke",
+    description: "Revoke a Melete certificate (CRL/OCSP for AI) — withdraw a claim later found wrong (model became biased, key compromised, audit invalid). Pass the certificate payloadHash + a reason + an effective timestamp. Appends a signed, hash-chained revocation to the registry; relying parties that check status will then see REVOKED. WHO BENEFITS: issuer (bound liability), relying parties + regulators + end users (stop acting on an invalid certificate).",
+    inputSchema: { type: "object", properties: { certHash: { type: "string" }, reason: { type: "string" }, revokedAt: { type: "number", description: "effective epoch ms (default now)" } }, required: ["certHash","reason"] },
+    run: (a) => { const e = _revreg.revoke(String(a.certHash||""), String(a.reason||"unspecified"), Number.isFinite(a.revokedAt)?a.revokedAt:Date.now()); return { entry: e, list: _revreg.list() }; },
+  },
+  {
+    name: "melete.revocation.status",
+    description: "Check whether a certificate is still valid: GOOD, or REVOKED (with reason + since-when). TIME-AWARE — pass atTime to ask whether it was valid at the moment of reliance (reliance before the effective time stays GOOD). Offline-verifiable against the authority-signed list.",
+    inputSchema: { type: "object", properties: { certHash: { type: "string" }, atTime: { type: "number" } }, required: ["certHash"] },
+    run: (a) => { const l = _revreg.list(); return { status: statusFromList(l, String(a.certHash||""), Number.isFinite(a.atTime)?a.atTime:undefined), listVerified: verifyRevocationList(l).ok, authority: l.authorityFingerprint }; },
   },
   {
     name: "melete.witness.quorum",

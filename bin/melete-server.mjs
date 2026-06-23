@@ -833,6 +833,32 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "monitor failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/revocation") {
+      const body = await readBody(req) || {};
+      try {
+        const reg = M.createRevocationRegistry({ authority: "EU-AI-Office" });
+        const sha = (s) => createHash("sha256").update(s).digest("hex");
+        const certFair = sha("fairness-cert:lender-v3"), certPca = sha("pca-cert:answer-882");
+        const T = 1717200000000; // the moment the model was found to discriminate
+        reg.revoke(certFair, "post-deployment audit found discrimination on age×region", T);
+        const L = reg.list();
+        return json(res, 200, {
+          authority: "EU-AI-Office", authorityFingerprint: L.authorityFingerprint, listVerified: M.verifyRevocationList(L).ok,
+          unrevokedCert: { name: "pca-cert:answer-882", status: M.statusFromList(L, certPca, T + 1000).status },
+          revokedCert: { name: "fairness-cert:lender-v3", reason: "post-deployment audit found discrimination on age×region",
+            beforeEffective: M.statusFromList(L, certFair, T - 1).status,
+            atOrAfter: M.statusFromList(L, certFair, T + 86400000).status,
+            since: T },
+          whoBenefits: {
+            issuer: "withdraws a faulty claim, bounding ongoing liability",
+            relyingParties: "stop acting on a certificate that is no longer valid",
+            regulators: "can require revocation and verify it took effect",
+            endUsers: "protected from decisions made on an already-revoked certificate",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "revocation failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/witness") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       try {
