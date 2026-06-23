@@ -6,3 +6,6 @@ melete-trace.json
 .DS_Store
 replication-cert.json
 melete-trace.json
+
+# runtime durable log (R52)
+data/

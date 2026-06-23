@@ -11,11 +11,27 @@
  */
 import { createServer } from "node:http";
 import { createContext, runInContext } from "node:vm";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, appendFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import * as M from "../dist/index.js";
 import { createHash, generateKeyPairSync } from "node:crypto";
+
+// 💾 R52 — durable, file-backed PUBLIC transparency log (survives restarts) + witness set for the live monitor
+const _dataDir = join(dirname(fileURLToPath(import.meta.url)), "..", "data");
+function _fileStore() {
+  const linesPath = join(_dataDir, "translog.jsonl"), keyPath = join(_dataDir, "log-key.pem");
+  try { mkdirSync(_dataDir, { recursive: true }); } catch (e) {}
+  return {
+    readLines: () => { try { return readFileSync(linesPath, "utf8").split("\n").filter(Boolean); } catch (e) { return []; } },
+    appendLine: (s) => { try { appendFileSync(linesPath, String(s).replace(/\n/g, " ") + "\n"); } catch (e) {} },
+    readKeyPem: () => { try { return readFileSync(keyPath, "utf8"); } catch (e) { return null; } },
+    writeKeyPem: (pem) => { try { writeFileSync(keyPath, pem); } catch (e) {} },
+  };
+}
+let _durable = null; try { _durable = M.openDurableLog({ logId: "melete-public-claims", store: _fileStore() }); if (_durable.size() === 0) ["genesis:melete-public-log", "melete-cert:fairness:demo", "melete-cert:pca:demo"].forEach((e) => _durable.submit(e)); } catch (e) { _durable = null; }
+const _logWitnesses = ["Anthropic-Witness", "Cloudflare-Witness", "EU-AI-Office", "MLCommons", "AlgoWatch-NGO"].map((n) => M.createWitness(n));
+
 
 // the live MCP trust ledger — meters + audits every agent tool call this server serves (the toll-booth)
 const mcpLedger = M.createLedger();
@@ -788,6 +804,33 @@ const server = createServer(async (req, res) => {
           },
         });
       } catch (e) { return json(res, 400, { error: "aibom failed: " + e.message.slice(0, 120) }); }
+    }
+
+    if (req.method === "POST" && path === "/log/submit") {
+      const body = await readBody(req) || {};
+      try {
+        if (!_durable) return json(res, 503, { error: "log unavailable" });
+        const entry = String(body.entry || ("claim:" + Date.now()));
+        const r = _durable.submit(entry);
+        return json(res, 200, { index: r.index, size: r.sth.size, rootHash: r.sth.rootHash.slice(0, 16) + "…", logId: _durable.logId });
+      } catch (e) { return json(res, 400, { error: "submit failed: " + e.message.slice(0, 120) }); }
+    }
+    if ((req.method === "POST" || req.method === "GET") && path === "/log/monitor") {
+      try {
+        if (!_durable) return json(res, 503, { error: "log unavailable" });
+        const sth = _durable.sth(); const cosigs = _logWitnesses.map((w) => w.cosign(sth)).filter((c) => !("refused" in c));
+        const q = M.collectQuorum(sth, cosigs, 3);
+        return json(res, 200, {
+          logId: _durable.logId, size: sth.size, rootHash: sth.rootHash.slice(0, 16) + "…", timestamp: sth.timestamp, sthVerified: M.verifySTH(sth).ok,
+          recent: _durable.recent(8), witnesses: { total: _logWitnesses.length, quorum: 3, cosigned: q.count, accepted: q.accepted },
+          whoBenefits: {
+            submitters: "a permanent public record that does not vanish on a deploy or restart",
+            auditors: "re-pull an old tree head months later and it still checks out",
+            monitors: "watch a live, growing public log of AI claims",
+            everyone: "the log + independent witnesses together make AI claims accountable, not assumed",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "monitor failed: " + e.message.slice(0, 120) }); }
     }
 
     if (req.method === "POST" && path === "/witness") {

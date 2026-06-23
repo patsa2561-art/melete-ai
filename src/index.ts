@@ -82,6 +82,7 @@ export * from "./spotcheck.js";
 export * from "./pca.js";
 export * from "./translog.js";
 export * from "./witness.js";
+export * from "./durable.js";
 export * from "./mcp.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
@@ -194,6 +195,7 @@ import { spotcheckGauntlet } from "./spotcheck.js";
 import { pcaGauntlet } from "./pca.js";
 import { translogGauntlet } from "./translog.js";
 import { witnessGauntlet } from "./witness.js";
+import { durableGauntlet } from "./durable.js";
 import { mcpGauntlet } from "./mcp.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
@@ -279,6 +281,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "pca", g: pcaGauntlet() },
     { name: "translog", g: translogGauntlet() },
     { name: "witness", g: witnessGauntlet() },
+    { name: "durable", g: durableGauntlet() },
     { name: "mcp", g: mcpGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },
