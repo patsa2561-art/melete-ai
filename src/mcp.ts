@@ -44,6 +44,7 @@ import { createTransparencyLog, verifySTH, verifyInclusion as verifyLogInclusion
 import { createWitness, collectQuorum, detectSplitView } from "./witness.js";
 import { createRevocationRegistry, verifyRevocationList, statusFromList } from "./revocation.js";
 import { buildTrustReport, verifyTrustReport } from "./trustreport.js";
+import { verifyAuthorization, verifyDelegation } from "./authority.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -263,6 +264,12 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     description: "THE LIVE TRUST REPORT — one signed answer to 'is this AI trustworthy RIGHT NOW?'. Pass an array of member certificates [{ kind, certificate }]. For EVERY member it checks three things at once: (1) it VERIFIES, (2) it is NOT REVOKED as of atTime (time-aware, checked against the live governance revocation registry), and (3) — if a log tree head is available — it is INCLUDED in the public transparency log. Returns TRUSTED-NOW only if every member passes all three, else NOT-TRUSTED-NOW naming the exact member + reason. The verdict is Ed25519-signed and re-derivable offline. WHO BENEFITS: a non-expert consumer/procurement gets ONE answer instead of reading eight proofs; the issuer shows a live-good status; regulators get a current (not stale) signed verdict; end users are protected the moment any claim is revoked.",
     inputSchema: { type: "object", properties: { subject: { type: "string" }, members: { type: "array", description: "[{ kind, certificate }] — the member certificates to compose", items: { type: "object" } }, atTime: { type: "number", description: "reliance time (ms epoch); default now" } }, required: ["members"] },
     run: (a) => { const r = buildTrustReport({ subject: a.subject, members: a.members ?? [], verify: verifyByKind, atTime: Number.isFinite(a.atTime)?a.atTime:undefined, revocationList: _revreg.list() }); return { report: r, verdict: r.verdict, failing: r.failing, verified: verifyTrustReport(r, verifyByKind, { revocationList: _revreg.list() }).ok }; },
+  },
+  {
+    name: "melete.authority.verify",
+    description: "THE CHAIN OF TRUST — verify an issuer was AUTHORIZED to make a claim, transitively from ONE pinned root authority (an AI Certificate Authority). Pass the ordered delegation chain (root→…→leaf), the pinned root fingerprint, and the claim { issuerFingerprint, kind, subjectName, atTime }. Returns authorized only if every link is signed + bound, linked (each issuer is the previous delegate), in its validity window, within its path-length budget, never broadens its parent's scope, and the claim's kind + subject fall inside the leaf's delegated scope. Wrong-root, out-of-kind, out-of-namespace, expired, over-delegation, broken or forged links are all rejected naming the failing link. WHO BENEFITS: a root regulator sets policy once; intermediates get provable scoped power; issuers prove they were authorized (not merely that they signed); relying parties trust a whole ecosystem by pinning ONE key.",
+    inputSchema: { type: "object", properties: { chain: { type: "array", description: "ordered delegations root→…→leaf (from melete authority delegate)", items: { type: "object" } }, pinnedRootFingerprint: { type: "string" }, claim: { type: "object", description: "{ issuerFingerprint, kind, subjectName, atTime }" } }, required: ["chain", "pinnedRootFingerprint", "claim"] },
+    run: (a) => { const c = a.claim ?? {}; const r = verifyAuthorization(a.chain ?? [], String(a.pinnedRootFingerprint||""), { issuerFingerprint: String(c.issuerFingerprint||""), kind: String(c.kind||""), subjectName: String(c.subjectName||""), atTime: Number.isFinite(c.atTime)?c.atTime:Date.now() }); return { authorized: r.ok, reason: r.reason, effectiveScope: r.effectiveScope ?? null, linksVerified: (a.chain ?? []).map((d: any) => verifyDelegation(d).ok) }; },
   },
   {
     name: "melete.witness.quorum",

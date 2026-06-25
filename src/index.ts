@@ -85,6 +85,7 @@ export * from "./witness.js";
 export * from "./durable.js";
 export * from "./revocation.js";
 export * from "./trustreport.js";
+export * from "./authority.js";
 export * from "./mcp.js";
 export * from "./sovereign.js";
 export * from "./replay.js";
@@ -200,6 +201,7 @@ import { witnessGauntlet } from "./witness.js";
 import { durableGauntlet } from "./durable.js";
 import { revocationGauntlet } from "./revocation.js";
 import { trustReportGauntlet } from "./trustreport.js";
+import { authorityGauntlet } from "./authority.js";
 import { mcpGauntlet } from "./mcp.js";
 import { sovereignGauntlet } from "./sovereign.js";
 import { replayGauntlet } from "./replay.js";
@@ -288,6 +290,7 @@ export async function meleteGauntlet(): Promise<MeleteGauntlet> {
     { name: "durable", g: durableGauntlet() },
     { name: "revocation", g: revocationGauntlet() },
     { name: "trustreport", g: trustReportGauntlet() },
+    { name: "authority", g: authorityGauntlet() },
     { name: "mcp", g: mcpGauntlet() },
     { name: "sovereign", g: sovereignGauntlet() },
     { name: "replay", g: replayGauntlet() },

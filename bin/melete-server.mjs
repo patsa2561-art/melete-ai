@@ -902,6 +902,44 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "trust report failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/authority") {
+      const body = await readBody(req) || {};
+      try {
+        const root = generateKeyPairSync("ed25519"), inter = generateKeyPairSync("ed25519"), leaf = generateKeyPairSync("ed25519");
+        const rootFp = M.fingerprintOf(root.publicKey), interFp = M.fingerprintOf(inter.publicKey), leafFp = M.fingerprintOf(leaf.publicKey);
+        // root → EU-AI-Office: may certify fairness+calibration on the "eu" namespace, 1 hop left
+        const d0 = M.delegate({ parent: root, subjectFingerprint: interFp, scope: { kinds: ["fairness", "calibration"], namespace: "eu", maxPathLen: 1 }, notBefore: 0, notAfter: 4102444800000 });
+        // EU-AI-Office → a national auditor: narrows to fairness only, "eu/finance", no further hops
+        const d1 = M.delegate({ parent: inter, subjectFingerprint: leafFp, scope: { kinds: ["fairness"], namespace: "eu/finance", maxPathLen: 0 }, notBefore: 0, notAfter: 4102444800000 });
+        const chain = [d0, d1];
+        const T = 1717200000000;
+        const scenarios = [
+          { label: "fairness cert on eu/finance/lender (in scope)", claim: { issuerFingerprint: leafFp, kind: "fairness", subjectName: "eu/finance/lender", atTime: T } },
+          { label: "calibration cert (auditor narrowed to fairness only)", claim: { issuerFingerprint: leafFp, kind: "calibration", subjectName: "eu/finance/lender", atTime: T } },
+          { label: "fairness cert on us/health/clinic (outside namespace)", claim: { issuerFingerprint: leafFp, kind: "fairness", subjectName: "us/health/clinic", atTime: T } },
+        ];
+        const results = scenarios.map((s) => { const r = M.verifyAuthorization(chain, rootFp, s.claim); return { label: s.label, authorized: r.ok, reason: r.reason }; });
+        // wrong-root demo: pin a stranger
+        const stranger = generateKeyPairSync("ed25519");
+        const wrongRoot = M.verifyAuthorization(chain, M.fingerprintOf(stranger.publicKey), scenarios[0].claim);
+        return json(res, 200, {
+          pinnedRoot: rootFp,
+          chain: [
+            { from: "root authority", to: "EU-AI-Office", scope: d0.scope },
+            { from: "EU-AI-Office", to: "national auditor", scope: d1.scope },
+          ],
+          results,
+          wrongRoot: { label: "same chain pinned to a different root", authorized: wrongRoot.ok, reason: wrongRoot.reason },
+          whoBenefits: {
+            rootAuthority: "a regulator / standards body sets policy ONCE; every downstream issuer inherits a bounded, checkable mandate",
+            intermediates: "get real, provable scoped power they can sub-delegate without becoming a root",
+            issuers: "prove they were AUTHORIZED to make a claim, not merely that they signed it",
+            relyingParties: "trust a whole ecosystem by pinning ONE root key; a rogue or over-reaching issuer is rejected",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "authority check failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/witness") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       try {
