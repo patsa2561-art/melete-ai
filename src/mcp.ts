@@ -43,6 +43,7 @@ import { proveAnswer, verifyAnswer } from "./pca.js";
 import { createTransparencyLog, verifySTH, verifyInclusion as verifyLogInclusion, verifyConsistency as verifyLogConsistency, verifyEntryInclusion } from "./translog.js";
 import { createWitness, collectQuorum, detectSplitView } from "./witness.js";
 import { createRevocationRegistry, verifyRevocationList, statusFromList } from "./revocation.js";
+import { buildTrustReport, verifyTrustReport } from "./trustreport.js";
 import { selectionGauntlet } from "./winnerscurse.js";
 import { supportGauntlet } from "./support.js";
 import { fdrGauntlet } from "./fdr.js";
@@ -256,6 +257,12 @@ export const MELETE_MCP_TOOLS: McpTool[] = [
     description: "Check whether a certificate is still valid: GOOD, or REVOKED (with reason + since-when). TIME-AWARE — pass atTime to ask whether it was valid at the moment of reliance (reliance before the effective time stays GOOD). Offline-verifiable against the authority-signed list.",
     inputSchema: { type: "object", properties: { certHash: { type: "string" }, atTime: { type: "number" } }, required: ["certHash"] },
     run: (a) => { const l = _revreg.list(); return { status: statusFromList(l, String(a.certHash||""), Number.isFinite(a.atTime)?a.atTime:undefined), listVerified: verifyRevocationList(l).ok, authority: l.authorityFingerprint }; },
+  },
+  {
+    name: "melete.trustreport.build",
+    description: "THE LIVE TRUST REPORT — one signed answer to 'is this AI trustworthy RIGHT NOW?'. Pass an array of member certificates [{ kind, certificate }]. For EVERY member it checks three things at once: (1) it VERIFIES, (2) it is NOT REVOKED as of atTime (time-aware, checked against the live governance revocation registry), and (3) — if a log tree head is available — it is INCLUDED in the public transparency log. Returns TRUSTED-NOW only if every member passes all three, else NOT-TRUSTED-NOW naming the exact member + reason. The verdict is Ed25519-signed and re-derivable offline. WHO BENEFITS: a non-expert consumer/procurement gets ONE answer instead of reading eight proofs; the issuer shows a live-good status; regulators get a current (not stale) signed verdict; end users are protected the moment any claim is revoked.",
+    inputSchema: { type: "object", properties: { subject: { type: "string" }, members: { type: "array", description: "[{ kind, certificate }] — the member certificates to compose", items: { type: "object" } }, atTime: { type: "number", description: "reliance time (ms epoch); default now" } }, required: ["members"] },
+    run: (a) => { const r = buildTrustReport({ subject: a.subject, members: a.members ?? [], verify: verifyByKind, atTime: Number.isFinite(a.atTime)?a.atTime:undefined, revocationList: _revreg.list() }); return { report: r, verdict: r.verdict, failing: r.failing, verified: verifyTrustReport(r, verifyByKind, { revocationList: _revreg.list() }).ok }; },
   },
   {
     name: "melete.witness.quorum",

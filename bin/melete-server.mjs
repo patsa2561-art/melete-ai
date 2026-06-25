@@ -859,6 +859,49 @@ const server = createServer(async (req, res) => {
       } catch (e) { return json(res, 400, { error: "revocation failed: " + e.message.slice(0, 120) }); }
     }
 
+    if (req.method === "POST" && path === "/trustreport") {
+      const body = await readBody(req) || {};
+      try {
+        // build 3 genuine member certificates (fairness + calibration + attribution)
+        const det = (s) => { let x = (s >>> 0) || 1; return () => { x = (x * 1664525 + 1013904223) >>> 0; return (x + 0.5) / 4294967296; }; };
+        const fg = det(7); const pred = [], grp = []; for (let i = 0; i < 600; i++) { grp.push(i < 300 ? "A" : "B"); pred.push(fg() < 0.5 ? 1 : 0); }
+        const fairCert = M.fairnessCertificate({ predictions: pred, groupOf: grp, tolerance: 0.1 });
+        const cg = det(11); const cp = [], cy = []; for (let i = 0; i < 1000; i++) { const q = cg(); cp.push(q); cy.push(cg() < q ? 1 : 0); }
+        const calCert = M.calibrationCertificate({ predictions: cp, outcomes: cy });
+        const attrCert = M.attributionCertificate({ n: 5, value: (p) => { let v = 0; for (let i = 0; i < 5; i++) if (p[i]) v += (i + 1) * 0.3; return v; } });
+        const members = [{ kind: "fairness", certificate: fairCert }, { kind: "calibration", certificate: calCert }, { kind: "attribution", certificate: attrCert }];
+
+        // public log including all three + inclusion proofs, and a clean revocation registry
+        let ts = 0; const log = M.createTransparencyLog({ logId: "melete-ai-claims", now: () => ts++ });
+        const idx = members.map((m) => log.append(m.certificate.payloadHash));
+        const sth = log.sth(); const inclusions = idx.map((i) => log.inclusionProof(i));
+        const withIncl = members.map((m, i) => ({ ...m, inclusion: inclusions[i] }));
+        const reg = M.createRevocationRegistry({ authority: "EU-AI-Office" });
+
+        const T = 1717200000000;
+        // ① LIVE-GOOD: everything verifies, nothing revoked, all logged → TRUSTED-NOW
+        const good = M.buildTrustReport({ subject: "credit-model-v3", members: withIncl, verify: M.verifyByKind, atTime: T, revocationList: reg.list(), logSTH: sth });
+        const goodVerified = M.verifyTrustReport(good, M.verifyByKind, { revocationList: reg.list(), logSTH: sth, inclusions }).ok;
+
+        // ② then the calibration claim is revoked (model drifted) → the SAME members now read NOT-TRUSTED-NOW
+        reg.revoke(calCert.payloadHash, "post-deployment monitoring found calibration drift", T + 86400000);
+        const after = M.buildTrustReport({ subject: "credit-model-v3", members: withIncl, verify: M.verifyByKind, atTime: T + 172800000, revocationList: reg.list(), logSTH: sth });
+
+        return json(res, 200, {
+          subject: "credit-model-v3",
+          members: good.members.map((m) => ({ kind: m.kind, verifies: m.verifies, revoked: m.revoked, logged: m.logged, ok: m.ok })),
+          live: { verdict: good.verdict, verified: goodVerified, atTime: T, logRoot: good.logRoot ? good.logRoot.slice(0, 16) + "…" : null, signature: good.signature.slice(0, 24) + "…" },
+          afterRevocation: { verdict: after.verdict, failing: after.failing, atTime: T + 172800000 },
+          whoBenefits: {
+            consumer: "gets ONE trustworthy-or-not answer instead of reading eight separate proofs",
+            issuer: "shows a live-good report that already accounts for revocation + public logging",
+            regulators: "get a single signed status reflecting the current world, not a stale bundle",
+            endUsers: "protected the moment any underlying claim is withdrawn or was never logged",
+          },
+        });
+      } catch (e) { return json(res, 400, { error: "trust report failed: " + e.message.slice(0, 120) }); }
+    }
+
     if (req.method === "POST" && path === "/witness") {
       const body = await readBody(req); if (!body) return json(res, 400, { error: "invalid JSON" });
       try {
